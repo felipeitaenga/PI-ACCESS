@@ -1,0 +1,121 @@
+from dotenv import load_dotenv
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
+
+import os
+import logging
+from datetime import datetime, timezone
+from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect
+from starlette.middleware.cors import CORSMiddleware
+
+from database import db, create_indexes
+from security import hash_password, verify_password, resolve_user_from_token
+from drivers.factory import available_brands
+from realtime import manager, start_simulator, stop_simulator
+from seed import generate_seed
+
+from routers.auth import router as auth_router
+from routers.structure import router as structure_router
+from routers.people import router as people_router
+from routers.devices import router as devices_router
+from routers.events import router as events_router, alarms_router, emergency_router, admin_router
+from routers.dashboard import router as dashboard_router, reports_router
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="NX-ACCESS API", version="1.0.0", description="Sistema de Controle de Acesso Corporativo")
+api_router = APIRouter(prefix="/api")
+
+
+@api_router.get("/")
+async def root():
+    return {"name": "NX-ACCESS", "status": "online", "drivers": available_brands()}
+
+
+@api_router.get("/health")
+async def health():
+    return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
+
+
+api_router.include_router(auth_router)
+api_router.include_router(structure_router)
+api_router.include_router(people_router)
+api_router.include_router(devices_router)
+api_router.include_router(events_router)
+api_router.include_router(alarms_router)
+api_router.include_router(emergency_router)
+api_router.include_router(admin_router)
+api_router.include_router(dashboard_router)
+api_router.include_router(reports_router)
+
+app.include_router(api_router)
+
+
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("token") or websocket.cookies.get("access_token")
+    user = await resolve_user_from_token(token)
+    if not user:
+        await websocket.close(code=1008)
+        return
+    await manager.connect(websocket)
+    try:
+        await websocket.send_json({"type": "connected", "data": {"user": user.get("name")}})
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception:
+        manager.disconnect(websocket)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+SEED_USERS = [
+    ("operador@nxaccess.com", "Operador@2026", "Carlos Operador", "operator"),
+    ("recepcao@nxaccess.com", "Recepcao@2026", "Beatriz Recepção", "reception"),
+    ("leitura@nxaccess.com", "Leitura@2026", "Daniel Leitura", "viewer"),
+]
+
+
+async def seed_admin():
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    existing = await db.users.find_one({"email": admin_email})
+    if existing is None:
+        await db.users.insert_one({
+            "email": admin_email, "password_hash": hash_password(admin_password),
+            "name": "Felipe Ferreira", "role": "admin", "site_ids": [], "active": True,
+            "token_version": 0, "created_at": datetime.now(timezone.utc).isoformat()})
+    elif not verify_password(admin_password, existing["password_hash"]):
+        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    for email, pwd, name, role in SEED_USERS:
+        if not await db.users.find_one({"email": email}):
+            await db.users.insert_one({
+                "email": email, "password_hash": hash_password(pwd), "name": name,
+                "role": role, "site_ids": [], "active": True, "token_version": 0,
+                "created_at": datetime.now(timezone.utc).isoformat()})
+
+
+@app.on_event("startup")
+async def on_startup():
+    await create_indexes()
+    await seed_admin()
+    result = await generate_seed()
+    logger.info(f"Seed: {result}")
+    start_simulator()
+    logger.info("NX-ACCESS backend iniciado")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    stop_simulator()

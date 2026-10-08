@@ -1,0 +1,137 @@
+{
+  "project_name": "NX-ACCESS",
+  "archetype": "THE PERFORMANCE PRO / SECURITY OPERATIONS CENTER (SOC)",
+  "language": "pt-BR",
+  "theme": {
+    "default": "dark",
+    "toggleable": true,
+    "dark_palette": {
+      "background": "#090D16",
+      "surface_base": "#0F172A",
+      "surface_card": "#1E293B",
+      "surface_card_hover": "#334155",
+      "border": "#1E293B",
+      "border_highlight": "#334155",
+      "primary_accent": "#0EA5E9",
+      "primary_accent_hover": "#0284C7",
+      "status_granted": "#10B981",
+      "status_denied": "#EF4444",
+      "status_warning": "#F59E0B",
+      "status_forced": "#DC2626",
+      "status_online": "#10B981",
+      "status_offline": "#64748B",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "text_muted": "#64748B"
+    },
+    "light_palette": {
+      "background": "#F8FAFC",
+      "surface_base": "#FFFFFF",
+      "surface_card": "#F1F5F9",
+      "surface_card_hover": "#E2E8F0",
+      "border": "#E2E8F0",
+      "border_highlight": "#CBD5E1",
+      "primary_accent": "#0284C7",
+      "primary_accent_hover": "#0369A1",
+      "status_granted": "#059669",
+      "status_denied": "#DC2626",
+      "status_warning": "#D97706",
+      "status_forced": "#B91C1C",
+      "status_online": "#059669",
+      "status_offline": "#94A3B8",
+      "text_primary": "#0F172A",
+      "text_secondary": "#475569",
+      "text_muted": "#64748B"
+    }
+  },
+  "typography": {
+    "font_files": {
+      "heading": "Chivo, sans-serif",
+      "body": "Inter, sans-serif",
+      "code_mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "page_title": "text-2xl font-bold tracking-tight text-slate-100 dark:text-slate-100",
+      "section_title": "text-lg font-semibold tracking-tight text-slate-200 dark:text-slate-200",
+      "card_title": "text-sm font-semibold text-slate-300 uppercase tracking-wider",
+      "stat_value": "text-3xl font-extrabold tracking-tight font-mono",
+      "body_text": "text-sm text-slate-400 leading-normal",
+      "micro_label": "text-xs font-mono uppercase tracking-widest text-slate-500"
+    }
+  },
+  "layout": {
+    "structure": "Command Center Shell (Fixed Sidebar 250px + Fixed Topbar 60px + Scrollable Main Content)",
+    "sidebar": {
+      "width": "w-64",
+      "style": "bg-slate-950/90 border-r border-slate-800 backdrop-blur-md flex flex-col justify-between z-40",
+      "item_active": "bg-sky-500/15 text-sky-400 border-r-2 border-sky-500 font-medium",
+      "item_inactive": "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60"
+    },
+    "topbar": {
+      "height": "h-16",
+      "style": "bg-slate-950/80 border-b border-slate-800 backdrop-blur-md px-6 flex items-center justify-between z-30 sticky top-0"
+    },
+    "grid_modes": {
+      "dashboard_kpis": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4",
+      "monitoring_split": "grid grid-cols-1 lg:grid-cols-12 gap-6",
+      "hierarchy_tree": "grid grid-cols-1 lg:grid-cols-3 gap-6"
+    }
+  },
+  "component_guidelines": {
+    "dashboard_kpis": "Dense high-contrast metric cards with status indicator LED dots, subtle 1px border hover glow, micro sparklines or change percentages.",
+    "live_event_feed": "Real-time ticker stream with WebSocket integration. Color-coded event rows (Green = Liberado, Red = Negado, Amber = Alerta/Forçada). Interactive row click opens modal or inspector drawer.",
+    "facial_verification": "Side-by-side photo visualizer: 'Foto Cadastrada' vs 'Foto Capturada' with AI confidence match gauge percentage (e.g., 98.4% Match).",
+    "remote_door_unlock": "Primary action button with safety confirmation dialog / holding state ('Confirmação de Abertura Remota' to prevent accidental unlocks).",
+    "hierarchy_tree": "Interactive accordion / tree view displaying Sites > Áreas > Portas > Dispositivos with online status badges and door lock states.",
+    "emergency_incident_mode": "Prominent red alert banner / trigger button for 'PÂNICO / INCÊNDIO / LOCKDOWN GENERAL' with multi-step confirmation toast.",
+    "recharts": "Custom dark tooltips, semi-transparent gradient area charts, custom legend with pt-BR labels, non-overlapping responsive container."
+  },
+  "image_urls": {
+    "security_cameras": [
+      "https://images.unsplash.com/photo-1557597774-9d273605dfa9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwyfHxzZWN1cml0eSUyMGNhbWVyYSUyMENDVFYlMjBhY2Nlc3MlMjBjb250cm9sJTIwc2VjdXJpdHklMjBndWFyZCUyMG9wZXJhdG9yJTIwYXZhdGFyfGVufDB8fHx8MTc5MTQyMjMyNHww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1563920443079-783e5c786b83?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwzfHxzZWN1cml0eSUyMGNhbWVyYSUyMENDVFYlMjBhY2Nlc3MlMjBjb250cm9sJTIwc2VjdXJpdHklMjBndWFyZCUyMG9wZXJhdG9yJTIwYXZhdGFyfGVufDB8fHx8MTc5MTQyMjMyNHww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1585206031650-9e9a7c87dcfe?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxzZWN1cml0eSUyMGNhbWVyYSUyMENDVFYlMjBhY2Nlc3MlMjBjb250cm9sJTIwc2VjdXJpdHklMjBndWFyZCUyMG9wZXJhdG9yJTIwYXZhdGFyfGVufDB8fHx8MTc5MTQyMjMyNHww&ixlib=rb-4.1.0&q=85"
+    ],
+    "user_portraits": [
+      "https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMHBlcnNvbiUyMHByb2ZpbGUlMjBmYWNlJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzkxNDIyMzMyfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1719603785926-84d214438120?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHw0fHxwb3J0cmFpdCUyMHBlcnNvbiUyMHByb2ZpbGUlMjBmYWNlJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzkxNDIyMzMyfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1581841064838-a470c740e8ee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMHBlcnNvbiUyMHByb2ZpbGUlMjBmYWNlJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzkxNDIyMzMyfDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHBlcnNvbiUyMHByb2ZpbGUlMjBmYWNlJTIwYXZhdGFyJTIwaGVhZHNob3R8ZW58MHx8fHwxNzkxNDIyMzMyfDA&ixlib=rb-4.1.0&q=85"
+    ],
+    "entrances": [
+      "https://images.unsplash.com/photo-1773291933719-fc02bea5a68f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwzfHx0dXJuc3RpbGUlMjBvZmZpY2UlMjBlbnRyYW5jZSUyMGFjY2VzcyUyMGNvbnRyb2wlMjBkb29yfGVufDB8fHx8MTc5MTQyMjMzNXww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1631195092568-a1030d926fd3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHx0dXJuc3RpbGUlMjBvZmZpY2UlMjBlbnRyYW5jZSUyMGFjY2VzcyUyMGNvbnRyb2wlMjBkb29yfGVufDB8fHx8MTc5MTQyMjMzNXww&ixlib=rb-4.1.0&q=85"
+    ]
+  },
+  "testing_and_qa": {
+    "mandatory_data_testids": [
+      "sidebar-nav-dashboard",
+      "sidebar-nav-live-monitoring",
+      "sidebar-nav-people",
+      "sidebar-nav-credentials",
+      "sidebar-nav-visitors",
+      "sidebar-nav-structure",
+      "sidebar-nav-devices",
+      "sidebar-nav-rules",
+      "sidebar-nav-emergency",
+      "sidebar-nav-reports",
+      "sidebar-nav-alarms",
+      "sidebar-nav-settings",
+      "theme-toggle-button",
+      "remote-door-unlock-button",
+      "confirm-door-unlock-button",
+      "emergency-panic-button",
+      "live-event-feed-table",
+      "person-add-button",
+      "csv-import-button",
+      "device-status-filter"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Ensure all UI copy is written in native pt-BR (Português do Brasil).",
+    "Use JavaScript (.js / .jsx) files for React components.",
+    "Maintain high density operational aesthetics - card headers with status indicators, monochrome background with crisp neon/emerald/crimson accents.",
+    "Every interactive button, table row action, modal confirmation, and filter tab MUST include data-testid.",
+    "Use sonner for instant alarm notifications and feedback toasts."
+  ]
+}
