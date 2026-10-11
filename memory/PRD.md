@@ -125,6 +125,9 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Campo "Pode autorizar visitas" (can_authorize_visits); anfitrião do Cadastro de visitante só lista quem pode autorizar (front e back). Migração 0004: existentes = sim, doc_type=cpf.
 - [x] Matrícula opcional. tests/test_registry.py atualizado ao novo contrato. iteration_11 100%.
 
+## Autocompletar visitante (2026-10-11)
+- [x] Nome e Número do documento no Cadastro de visitante sugerem visitantes (≥3 caracteres, ↑/↓, Enter/clique). Ao escolher preenche visitante + última visita (tipo, empresa visitada, anfitrião ativo autorizado, identificador, observações); início = agora, fim recalculado. Endpoints /api/visits/visitor-search e /api/visits/visitor/{id}/prefill. iteration_12 100%.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).

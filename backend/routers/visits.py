@@ -113,9 +113,13 @@ async def visitor_search(q: str, user: dict = Depends(get_current_user)):
     if len(dig) >= 3:
         ors += [{"doc_key": {"$regex": dig}}, {"cpf_digits": {"$regex": dig}}, {"document_digits": {"$regex": dig}}]
     items = await db.visitors.find({**ND, "$or": ors}, {"_id": 0, "id": 1, "name": 1, "doc_type": 1, "doc_number": 1, "document": 1,
-                                                       "origin_company": 1, "photo_thumb": 1, "blacklist": 1}).sort("updated_at", -1).limit(8).to_list(8)
+                                                       "cpf": 1, "cpf_digits": 1, "origin_company": 1, "photo_thumb": 1,
+                                                       "blacklist": 1}).sort("updated_at", -1).limit(8).to_list(8)
     for v in items:
-        v["doc_number"] = v.get("doc_number") or v.get("document", "")
+        if not v.get("doc_type"):
+            v["doc_type"] = "cpf" if v.get("cpf_digits") else "outro"
+        v["doc_number"] = v.get("doc_number") or (v.get("cpf") if v["doc_type"] == "cpf" else v.get("document", ""))
+        v.pop("cpf_digits", None)
     return items
 
 

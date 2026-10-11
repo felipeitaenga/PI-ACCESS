@@ -1,0 +1,28 @@
+{
+  "summary": "Validated the new autocomplete/prefill for /cadastro/visitantes. Backend: created /app/backend/tests/test_visitor_suggest.py (7 tests) — ALL PASS. Covers: GET /api/visits/visitor-search returns [] for q<3; matches by name (TEST_SuggestVisitor); matches by document digits (52998224725); respects limit of 8; GET /api/visits/visitor/{id}/prefill returns 404 for unknown id; returns visitor + last_visit with correct visit_type_id, host_company_id, host_person_id, host_name, id_type='cartao', id_value='7777', notes, doc_type='cpf', doc_number formatted; legacy seed (Bernardo Araújo) has doc_type/doc_number inferred for legacy records. Frontend (Playwright, admin felipejferreira@gmail.com): typing 'Bern' in visit-name-input opens visit-name-input-suggestions dropdown with name-suggestion-<id> options showing photo, name, 'DOC 27.589.309-8 · Delta Engenharia'; ArrowDown+Enter picks Bernardo Araújo and fills: name, doc_type=cpf, doc_number='558.845.376-03', visitor_company='Delta Engenharia', empresa visitada 'NX Corp', anfitrião 'Fernanda Martins', start=now (23:37), end recalculated (+8h = 07:37); toast 'Dados da última visita preenchidos' shown. Limpar clears form. q<3 ('Be') does NOT show suggestions. visit-doc-number-input with '558' opens visit-doc-number-input-suggestions with doc-suggestion-<id> option; clicking it fills all fields same as Enter path. Escape closes dropdown. All data-testid attributes present and functional. Regression visits (iteration 10) suite not re-run but prefill does not touch save path; QR auto-generated field shown correctly after prefill (id_value cleared since original was cartao then user may change).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_visitor_suggest.py",
+    "/app/test_reports/pytest/visitor_suggest.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "visitor-search uses regex on raw q for name/doc_number; good escaping via re.escape. However the digit regex ors (doc_key/cpf_digits/document_digits) are unanchored — a 3-digit query matches anywhere in the field (likely desired, user can type partial digits).",
+    "prefill falls back to doc_type='cpf' when cpf_digits exists; otherwise 'outro'. RG-only legacy visitors (no cpf_digits, with document set) will be inferred as 'outro', which may surprise users. Minor.",
+    "VisitorSuggest.jsx: debounce 250ms + onFocus opens dropdown immediately but items only load when value.length>=3; good UX. onPick resets items but doesn't blur input — subsequent typing immediately reopens search; acceptable.",
+    "useVisitForm.prefill overwrites id_value only when last_visit.id_type==='cartao' — correct for QR (regenerated) and facial (uses photo).",
+    "After prefill, picked.current = `${doc_type}|${doc_number}` prevents the doc-lookup effect from clobbering the prefilled values with /visits/lookup — good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_visitor_suggest.py",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of flows exercised passed"},
+  "test_credentials": "Admin: felipejferreira@gmail.com / NxAccess@2026",
+  "seed_data_creation": "Created 1 TEST_SuggestVisitor João + 1 visit via POST /api/visits (used only for assertions); soft-deleted all TEST_ visitors (2) and visits (5) via direct DB update to deleted=true. No seed data altered.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To rerun: cd /app/backend && python -m pytest tests/test_visitor_suggest.py -v. Frontend testids: visit-name-input (+ -suggestions), visit-doc-number-input (+ -suggestions), name-suggestion-<id>, doc-suggestion-<id>. Full form prefill verified end-to-end against seed visitor 'Bernardo Araújo' (NX Corp / Delta Engenharia).",
+  "rca of the issue": "N/A — feature works end-to-end."
+}
