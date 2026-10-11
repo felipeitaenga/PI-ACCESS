@@ -1,0 +1,30 @@
+{
+  "summary": "Full backend + frontend verification of the Equipamentos / Controladoras refactor (controller owns N access points, each point = 1 reader + 1 relay; new model types with pending drivers). ALL 8 request bullets PASS. Backend pytest (5/5 green): /api/equipment/model-types returns the 5 model types with correct max (simulado=8, beward_facial/hikvision_facial/controlid_facial=1, ct300_2l=2); Simulado controller create with 2 pts persists both points with reader=1,2; reducing num_access_points from 2 to 1 soft-deletes the 2nd point; CT300-2L controller test endpoint returns ok=False with status.error containing 'ainda não implementado'; Hikvision facial create with num_access_points=5 is clamped to 1 and brand='hikvision'; deleting a controller cascades deleted=true on its access_points. Frontend: sidebar has NO nav-access-points item (confirmed null) and only shows 'Controladoras' and 'Câmeras' under EQUIPAMENTOS; /pontos-acesso redirects to /controladoras. Controller cards show controller-model-{id} ('Simulado (demonstração)') and controller-points-count-{id} ('2' and '4' for the two seeded controllers) with per-point rows P1..P4 (origin → destination) — no 'Leitoras'/'Relés' legacy text. ControllerDialog model-type select lists exactly the 5 expected options; CT300-2L qty select shows ['1','2'] and the controller-pending-note appears; Facial Hikvision/Facial Control iD show qty input value='1 (fixo)' disabled=true; Simulado qty select shows ['1'..'8']; Facial Beward exposes controller-transport, controller-beward-id and controller-decision-mode. Points tab renders N ap-card-{i} with ap-io-{i} badge 'Leitora i · Relé i'. End-to-end: created TEST_UI_SIM (simulado, 2 pts) and verified card shows '2' + 2 point rows; edited it, reduced qty to 1, saved — card updated to '1' with 1 row (second point soft-deleted). Created TEST_UI_CT300, clicked Testar — sonner toast shows exactly 'Driver CT300-2L ainda não implementado'. Deleted controller → GET /api/equipment/access-points/all filtered by that controller_id went from 1 to 0 (cascade works). Regression: both seeded simulated controllers (Pedestre 2 pts, Veículos 4 pts) still render; GET /equipment/access-points/all still returns 6; Simulator page loads with Pessoa + Ponto de acesso selectors. All TEST_ data cleaned at the end (no leftovers).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/configuracoes/simulador", "issues": ["Data/hora field uses the native browser datetime-local picker ('mm/dd/yyyy, --:-- --') instead of the shadcn Calendar component — pre-existing, outside the scope of this request but worth tracking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_equipment_controllers.py",
+    "/app/test_reports/pytest/equip_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/routers/equipment.py::_ctrl_enrich clamps num_access_points via `max(1, min(int(doc.get('num_access_points') or 1), mt['max']))` — correct; also pops legacy num_readers/num_relays. _save_points soft-deletes extra points when quantity is reduced (sets deleted=True), which is good for history, but the on_delete cascade also uses soft-delete only (deleted=True). Consider adding a hard-delete admin endpoint for truly orphaned points if DB bloat becomes an issue.",
+    "drivers/factory.py maps hikvision/controlid/ct300 to PendingDriver — fine. The error message in PendingDriver._err uses LABELS={hikvision,controlid,ct300}; the request text says 'Driver X ainda não implementado' and the UI toast confirms this exact phrasing (good).",
+    "frontend/src/components/equipment/ControllerDialog.jsx: when num_access_points changes via the quantity select, `shown` is derived from existing `points` first; however, when reducing from 2→1 and saving, the second point stored in state is dropped at submit time via `access_points: shown` (which has length n). This matches backend _save_points which marks extra existing points as deleted. Verified by UI test.",
+    "frontend/src/pages/Equipment.jsx line 24: `d.num_access_points ?? points.length` is correct; subtitle text 'Equipamentos e seus pontos de acesso (1 leitora + 1 relé por ponto)' matches the new UX."
+  ],
+  "updated_files": ["/app/backend/tests/test_equipment_controllers.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (all 8 review bullets)"},
+  "test_credentials": "felipejferreira@gmail.com / NxAccess@2026",
+  "seed_data_creation": "During testing created+deleted TEST_SIM_2, TEST_CT300, TEST_HIK (pytest) and TEST_UI_SIM, TEST_UI_CT300 (Playwright). Final cleanup confirmed no TEST_* controllers remain.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Equipment flow is settled: controllers own their access points. Key files — backend/routers/equipment.py (MODEL_TYPES dict + _ctrl_enrich/_save_points/_ctrl_deleted), backend/drivers/pending.py + factory.py (PendingDriver for hikvision/controlid/ct300), frontend/src/components/equipment/ControllerDialog.jsx (MODELS mirror + Tabs: controller-tab-general / controller-tab-points), frontend/src/pages/Equipment.jsx. Testids to keep: controller-add, controller-dialog, controller-tab-general, controller-tab-points, controller-model-type, controller-num-points, controller-pending-note, controller-transport, controller-beward-id, controller-decision-mode, ap-card-{i}, ap-io-{i}, ap-desc-{i}, ap-type-{i}, ap-direction-{i}, ap-origin-{i}, ap-dest-{i}, ap-relay-time-{i}, ap-open-time-{i}, controller-save, controller-card-{id}, controller-model-{id}, controller-points-count-{id}, controller-point-{pid}, controller-test-{id}, controller-sync-{id}, controller-edit-{id}, controller-delete-{id}. /pontos-acesso stays as a redirect-only route to /controladoras.",
+  "rca of the issue": "N/A — no issues found; all 8 review bullets validated."
+}

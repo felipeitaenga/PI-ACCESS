@@ -81,6 +81,13 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Busca por autocomplete nos próprios campos (nome, documento, CPF, RG) — visitantes sugere só visitantes, fixos só pessoas fixas; campo grande de busca removido.
 - Verificado: iteration_4 e iteration_5 (100%).
 
+## Equipamentos — pontos dentro da controladora (2026-10-11)
+- [x] Cadastro da controladora com abas "Dados gerais" e "Pontos de acesso (N)"; cada ponto = 1 leitora + 1 relé (numerados automaticamente). Campos Leitoras/Relés removidos → "Quantidade de pontos de acesso".
+- [x] Modelo da controladora: Simulado (até 8), Facial Beward (1, HTTP/MQTT), Facial Hikvision (1), Facial Control iD (1), CT300-2L (até 2). Hikvision/Control iD/CT300-2L usam driver pendente (`drivers/pending.py`) que retorna "Driver X ainda não implementado".
+- [x] Menu "Pontos de acesso" removido (/pontos-acesso → /controladoras). Excluir controladora exclui seus pontos (crud on_delete).
+- Verificado: iteration_6 (100%).
+- Pendente: drivers reais Hikvision (ISAPI), Control iD e CT300-2L (fabricante/protocolo da CT300-2L a confirmar).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.
