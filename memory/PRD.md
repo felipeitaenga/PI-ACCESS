@@ -119,6 +119,12 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Configurações › Visitantes: CRUD tipos de visita + validação CPF/RG + duração geral. Testes tests/test_visits.py (5) + iteration_10 100%.
 - VERSION = 1.1.0
 
+## Cadastro de fixos — documento, categorias, anfitrião (2026-10-11)
+- [x] Tipo de documento (CPF/RG/Passaporte/Outro, padrão CPF, obrigatório) + número com validação das Configurações › Visitantes; duplicidade por tipo+número (doc_type/doc_number/doc_key).
+- [x] Seletor de categorias com busca + lista suspensa + etiquetas removíveis (também em Tipos de visita).
+- [x] Campo "Pode autorizar visitas" (can_authorize_visits); anfitrião do Cadastro de visitante só lista quem pode autorizar (front e back). Migração 0004: existentes = sim, doc_type=cpf.
+- [x] Matrícula opcional. tests/test_registry.py atualizado ao novo contrato. iteration_11 100%.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).

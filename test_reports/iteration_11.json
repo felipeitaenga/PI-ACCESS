@@ -1,0 +1,32 @@
+{
+  "summary": "Validated the Cadastro de fixos refactor: tipo de documento select (CPF/RG/Passaporte/Outro), número do documento with per-settings mask/validation, matrícula no longer required, can_authorize_visits switch (default ON) with backend filter authorize=true, and categorias picker (search+dropdown+tags). Backend: created /app/backend/tests/test_registry_doctype.py (10 tests) — ALL PASS. Covers: valid CPF create+persist+GET; invalid CPF 422 fields.doc_number; RG with free-text (default validate_rg=false); Passaporte uppercased; duplicate same doc_type+number → 422 'Documento já cadastrado (...)'; matrícula optional (POST succeeds without matricula); backward compat (POST with cpf and no doc_type works, saved as doc_type=cpf); can_authorize_visits default true on create, persisted/reload=false; GET /api/registry/people?authorize=true excludes can_authorize_visits=false; migration m0004 — existing seeded people have can_authorize_visits!=false and valid doc_type/doc_number; POST /api/visits with host whose can_authorize_visits=false → 422 fields.host_person_id. Also ran unit+integration regressions tests/test_visits.py + tests/test_visits_api.py (iteration_10): 20/20 still PASS. Frontend smoke on /cadastro/fixos (admin): all required testids present: type-btn-funcionario, f-doc_type (CPF default), f-doc_number, f-can_authorize_visits (ON by default), category-multi, category-search-input, f-matricula, f-name. Category picker: dropdown opens on focus, 6 chips (category-chip-<CODE>), typing 'VISIT' filters to 1, clicking a chip creates removable tag (category-tag-<CODE> + category-tag-remove-<CODE>), Esc closes. /cadastro/visitantes: company-combo-input works; after picking an empresa, visit-host-input is enabled and shows only hosts with can_authorize_visits!=false (10 items visible for NX Corp).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "tests/test_registry.py (iteration_3 suite)", "issue": "7 stale regressions FAIL after the refactor: test_create_invalid_cpf_422 still expects fields['cpf'] (now fields['doc_number']); test_create_missing_matricula_422 still asserts 422 (matrícula agora é opcional, retorna 200); test_create_success_and_sync falha por 'Pessoa sem foto válida' na Beward real (preview); e os testes que dependem de created_ids ficam com IndexError em cascata. Precisam ser atualizados para o novo contrato."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_registry_doctype.py",
+    "/app/test_reports/pytest/registry_doctype.xml"
+  ],
+  "action_items": [
+    "Atualizar /app/backend/tests/test_registry.py para o novo contrato: substituir asserts de fields['cpf'] por fields['doc_number']; remover/alterar test_create_missing_matricula_422 (matrícula opcional); corrigir cascata de created_ids; aceitar que o controlador Facial retorne 'erro' quando a pessoa não tem foto (não falhar o teste de sync nesse caso)."
+  ],
+  "critical_code_review_comments": [
+    "visits_core.doc_key: para doc_type='outro', faz upper()+strip, sem outra normalização; duplicatas podem passar se usuários digitarem com/sem acentos ou espaços internos. Aceitável, mas documentar.",
+    "registry._save faz b['doc_type']='cpf', b['doc_number']=b.get('cpf') quando doc_type ausente — ótimo para compatibilidade, mas se o cliente enviar doc_type='' (string vazia), o fallback NÃO é acionado (truthy check falha somente para None). Considerar: if not b.get('doc_type').",
+    "FormFields.CommonFields: 'doc_number' usa mask dinâmica via maskDoc(doc_type, ...) com useDocSettings reativo, porém o reset ao trocar doc_type é feito via set('doc_number','') — ok; só note que, se o usuário já digitou um RG e troca para CPF, o número é zerado (comportamento desejado).",
+    "mapPerson usa 'p.doc_number || p.cpf' como fallback — garante edição de pessoas migradas com doc_number vazio porém cpf presente; ok.",
+    "/api/registry/people?authorize=true usa {'$ne': False} — correto para incluir pessoas antigas sem a flag (migradas em m0004 para True)."
+  ],
+  "updated_files": ["/app/backend/tests/test_registry_doctype.py", "/app/test_reports/iteration_11.json"],
+  "success_rate": {"backend": "100% nova suite (10/10) + 20/20 regressões visits; 7 testes antigos em tests/test_registry.py precisam ser atualizados pelo main agent", "frontend": "100% dos testids esperados presentes e funcionais"},
+  "test_credentials": "Admin: felipejferreira@gmail.com / NxAccess@2026",
+  "seed_data_creation": "Criados TEST_ (DocCpfOk, CpfBad, RgOk, Pass, Dup1/2, SemMatricula, CompatCpf, AuthYes, AuthNo, HostDenied, VisitorHostDenied) — todos marcados deleted=true via script de limpeza (people:2, visitors:3, visits:11). Nenhuma configuração/pessoa seedada foi alterada permanentemente.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rodar nova suíte: cd /app/backend && REACT_APP_BACKEND_URL=https://nx-access-demo.preview.emergentagent.com python -m pytest tests/test_registry_doctype.py tests/test_visits.py tests/test_visits_api.py -v. tests/test_registry.py (iteração 3) está desatualizado para o novo contrato (doc_type/doc_number + matrícula opcional) — ação para o main agent.",
+  "rca of the issue": "N/A — refactor funciona end-to-end. Falhas em tests/test_registry.py são regressões esperadas pelos ajustes de contrato (field key 'cpf' → 'doc_number' e matrícula opcional) e um teste de sync que depende do controlador Beward real exigir foto."
+}
