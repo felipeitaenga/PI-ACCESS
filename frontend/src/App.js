@@ -16,7 +16,7 @@ import Reports from "@/pages/Reports";
 import Admin from "@/pages/Admin";
 import Categories from "@/pages/Categories";
 import { TimeRanges, Holidays, Areas } from "@/pages/AccessModel";
-import { Controllers, AccessPoints } from "@/pages/Equipment";
+import { Controllers } from "@/pages/Equipment";
 import { Companies, CompanyGroups, Departments, Vehicles, Identifiers } from "@/pages/SimpleCrud";
 import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
@@ -55,7 +55,7 @@ function AppRoutes() {
       {R("/faixas-horarias", <TimeRanges />)}
       {R("/feriados", <Holidays />)}
       {R("/controladoras", <Controllers />)}
-      {R("/pontos-acesso", <AccessPoints />)}
+      <Route path="/pontos-acesso" element={<Navigate to="/controladoras" replace />} />
       {R("/cameras", <Cameras />)}
       {R("/empresas", <Companies />)}
       {R("/grupos-empresas", <CompanyGroups />)}

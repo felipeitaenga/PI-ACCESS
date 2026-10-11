@@ -117,13 +117,13 @@ async def generate_seed():
         await db.categories.insert_one(dict(c))
 
     # Controladoras + Pontos de acesso
-    def ctrl(name, model, readers, relays):
-        return _doc({"name": name, "brand": "simulado", "model": model, "ip": f"192.168.1.{random.randint(10,99)}",
+    def ctrl(name, model, points):
+        return _doc({"name": name, "brand": "simulado", "model": model, "model_type": "simulado", "ip": f"192.168.1.{random.randint(10,99)}",
                      "port": 80, "username": "admin", "password_enc": "", "site_id": sid, "site_name": site["name"],
-                     "driver": "simulado", "num_readers": readers, "num_relays": relays, "num_inputs": readers,
+                     "driver": "simulado", "num_access_points": points,
                      "online": True, "firmware": "SIM-1.4.2", "last_heartbeat": now_iso()})
-    c_ped = ctrl("Controladora Pedestre (Catraca)", "NX-SIM Turnstile", 2, 2)
-    c_vei = ctrl("Controladora Veículos (Cancela)", "NX-SIM Barrier", 4, 4)
+    c_ped = ctrl("Controladora Pedestre (Catraca)", "Simulado (demonstração)", 2)
+    c_vei = ctrl("Controladora Veículos (Cancela)", "Simulado (demonstração)", 4)
     await db.controllers.insert_one(dict(c_ped))
     await db.controllers.insert_one(dict(c_vei))
 

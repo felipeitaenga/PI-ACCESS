@@ -37,7 +37,6 @@ export const MENU = [
   {
     type: "group", label: "Equipamentos", icon: Cpu, items: [
       { label: "Controladoras", to: "/controladoras", icon: Cpu, testid: "nav-controllers" },
-      { label: "Pontos de acesso", to: "/pontos-acesso", icon: DoorOpen, testid: "nav-access-points" },
       { label: "Câmeras", to: "/cameras", icon: Camera, testid: "nav-cameras" },
     ],
   },

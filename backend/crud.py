@@ -7,7 +7,7 @@ from util import log_audit, client_ip
 
 
 def make_crud(router, path, coll, search_fields=None, sort="created_at",
-              write_roles=("admin", "operator"), enrich=None, default_doc=None):
+              write_roles=("admin", "operator"), enrich=None, default_doc=None, on_delete=None):
     search_fields = search_fields or []
     label = coll
 
@@ -64,6 +64,8 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
 
     async def _delete(item_id: str, request: Request, user: dict = Depends(require_role(*write_roles))):
         await db[coll].update_one({"id": item_id}, {"$set": {"deleted": True, "enabled": False}})
+        if on_delete:
+            await on_delete([item_id])
         await log_audit(user, "excluir", label, item_id, "exclusão lógica", client_ip(request))
         return {"ok": True}
 
@@ -76,6 +78,8 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
             await db[coll].update_many({"id": {"$in": ids}}, {"$set": {"enabled": False}})
         elif action == "delete":
             await db[coll].update_many({"id": {"$in": ids}}, {"$set": {"deleted": True, "enabled": False}})
+            if on_delete:
+                await on_delete(ids)
         else:
             raise HTTPException(status_code=400, detail="Ação inválida")
         await log_audit(user, f"bulk_{action}", label, ",".join(ids[:5]), f"{len(ids)} itens", client_ip(request))

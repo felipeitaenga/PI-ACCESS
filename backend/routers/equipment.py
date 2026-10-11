@@ -10,6 +10,53 @@ from util import log_audit, client_ip
 router = APIRouter(prefix="/equipment", tags=["equipment"])
 
 
+MODEL_TYPES = {
+    "simulado": {"label": "Simulado (demonstração)", "max": 8, "point_type": "catraca"},
+    "beward_facial": {"label": "Facial Beward", "max": 1, "point_type": "facial"},
+    "hikvision_facial": {"label": "Facial Hikvision", "max": 1, "point_type": "facial", "brand": "hikvision"},
+    "controlid_facial": {"label": "Facial Control iD", "max": 1, "point_type": "facial", "brand": "controlid"},
+    "ct300_2l": {"label": "CT300-2L", "max": 2, "point_type": "catraca", "brand": "ct300"},
+}
+POINT_FIELDS = ["description", "type", "origin_area_id", "dest_area_id", "direction", "relay_time",
+                "door_open_time", "door_sensor", "button", "camera_id"]
+
+
+def _brand_for(doc):
+    mt = doc.get("model_type")
+    if mt == "beward_facial":
+        return "beward_mqtt" if doc.get("transport") == "mqtt" else "beward_http"
+    return MODEL_TYPES[mt].get("brand", mt)
+
+
+async def _save_points(ctrl, points):
+    n = ctrl["num_access_points"]
+    areas = {a["id"]: a["description"] for a in await db.areas.find({}, {"_id": 0, "id": 1, "description": 1}).to_list(1000)}
+    existing = {p["id"]: p for p in await db.access_points.find({"controller_id": ctrl["id"], "deleted": {"$ne": True}}, {"_id": 0}).to_list(50)}
+    kept = []
+    for i in range(n):
+        data = points[i] if i < len(points) else {}
+        doc = {k: data[k] for k in POINT_FIELDS if k in data}
+        doc.setdefault("type", MODEL_TYPES[ctrl["model_type"]]["point_type"])
+        doc.setdefault("description", f"{ctrl['name']} - Ponto {i + 1}")
+        doc.setdefault("direction", "entrada")
+        doc.update({"controller_id": ctrl["id"], "controller_name": ctrl["name"], "site_id": ctrl.get("site_id"),
+                    "site_name": ctrl.get("site_name", ""), "reader": i + 1, "relay": i + 1,
+                    "origin_area_name": areas.get(doc.get("origin_area_id"), ""),
+                    "dest_area_name": areas.get(doc.get("dest_area_id"), "")})
+        pid = data.get("id")
+        if pid in existing:
+            await db.access_points.update_one({"id": pid}, {"$set": doc})
+        else:
+            pid = new_id()
+            await db.access_points.insert_one({**doc, "id": pid, "enabled": True, "deleted": False, "mode": "normal",
+                                               "relay_time": doc.get("relay_time", 5), "door_open_time": doc.get("door_open_time", 20),
+                                               "created_at": now_iso()})
+        kept.append(pid)
+    gone = [pid for pid in existing if pid not in kept]
+    if gone:
+        await db.access_points.update_many({"id": {"$in": gone}}, {"$set": {"deleted": True, "enabled": False}})
+
+
 async def _ctrl_enrich(doc):
     pwd = doc.pop("password", None)
     if pwd:
@@ -17,8 +64,18 @@ async def _ctrl_enrich(doc):
     if doc.get("site_id"):
         s = await db.sites.find_one({"id": doc["site_id"]}, {"_id": 0})
         doc["site_name"] = s["name"] if s else ""
-    doc.setdefault("brand", "simulado")
+    if doc.get("model_type") not in MODEL_TYPES:
+        doc["model_type"] = "beward_facial" if str(doc.get("brand", "")).startswith("beward") else "simulado"
+    mt = MODEL_TYPES[doc["model_type"]]
+    doc["brand"] = _brand_for(doc)
+    doc["model"] = mt["label"]
+    doc["num_access_points"] = max(1, min(int(doc.get("num_access_points") or 1), mt["max"]))
+    for k in ("num_readers", "num_relays"):
+        doc.pop(k, None)
     doc.setdefault("online", True)
+    points = doc.pop("access_points", None)
+    if points is not None:
+        await _save_points(doc, points)
     return doc
 
 
@@ -36,8 +93,23 @@ async def _ap_enrich(doc):
     return doc
 
 
-make_crud(router, "/controllers", "controllers", search_fields=["name", "ip", "model"], sort="name", enrich=_ctrl_enrich)
+async def _ctrl_deleted(ids):
+    await db.access_points.update_many({"controller_id": {"$in": ids}}, {"$set": {"deleted": True, "enabled": False}})
+
+
+make_crud(router, "/controllers", "controllers", search_fields=["name", "ip", "model"], sort="name", enrich=_ctrl_enrich,
+          on_delete=_ctrl_deleted)
 make_crud(router, "/access-points", "access_points", search_fields=["description"], sort="description", enrich=_ap_enrich)
+
+
+@router.get("/model-types")
+async def model_types(user: dict = Depends(get_current_user)):
+    return MODEL_TYPES
+
+
+@router.get("/controllers/{cid}/access-points")
+async def controller_points(cid: str, user: dict = Depends(get_current_user)):
+    return await db.access_points.find({"controller_id": cid, "deleted": {"$ne": True}}, {"_id": 0}).sort("reader", 1).to_list(50)
 
 
 @router.post("/controllers/{cid}/test")
