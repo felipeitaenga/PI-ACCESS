@@ -4,8 +4,10 @@
 # ---------- Estágio 1: build do frontend ----------
 FROM node:20-bookworm-slim AS web
 WORKDIR /web
-COPY frontend/package.json frontend/yarn.lock ./
-RUN yarn install --frozen-lockfile --network-timeout 600000
+# yarn.lock é opcional: se existir no repositório, usa versões travadas
+COPY frontend/package.json frontend/yarn.lock* ./
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile --network-timeout 600000; \
+    else yarn install --network-timeout 600000; fi
 COPY frontend/ ./
 # API por caminho relativo (/api) — sem URL fixa
 ENV REACT_APP_BACKEND_URL="" GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=4096
