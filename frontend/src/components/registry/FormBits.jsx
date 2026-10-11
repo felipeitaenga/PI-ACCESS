@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Plus, Search } from "lucide-react";
+import { ChevronDown, Check, Plus, Search, X } from "lucide-react";
 
 export function Field({ label, required, error, hint, className, children }) {
   return (
@@ -52,14 +52,42 @@ export function TypeSelector({ value, onChange, disabled, allowed }) {
 }
 
 export function CategoryMulti({ categories, value, onChange, error }) {
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const close = useCallback(() => setOpen(false), []);
+  useOutside(ref, close);
   const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const picked = value.map((id) => categories.find((c) => c.id === id)).filter(Boolean);
+  const list = categories.filter((c) => `${c.code} ${c.description || ""}`.toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="flex flex-wrap gap-1.5" data-testid="category-multi">
-      {categories.map((c) => (
-        <button key={c.id} type="button" onClick={() => toggle(c.id)} id={error ? "f-category_ids" : undefined}
-          className={cn("rounded-full border px-3 py-1 text-xs transition-colors", value.includes(c.id) ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:text-foreground")}
-          data-testid={`category-chip-${c.code}`}>{c.code}</button>
-      ))}
+    <div ref={ref} className="relative" data-testid="category-multi">
+      <div onClick={() => setOpen(true)} className={cn("flex min-h-9 cursor-text flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1", error ? "border-red-500/60" : "border-input")}>
+        {picked.map((c) => (
+          <span key={c.id} className="flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/15 py-0.5 pl-2 pr-1 text-xs text-sky-300" data-testid={`category-tag-${c.code}`}>
+            {c.code}
+            <button type="button" onClick={(e) => { e.stopPropagation(); toggle(c.id); }} className="rounded-full p-0.5 hover:bg-sky-500/30" data-testid={`category-tag-remove-${c.code}`}><X className="h-3 w-3" /></button>
+          </span>
+        ))}
+        <input id={error ? "f-category_ids" : undefined} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
+          onKeyDown={(e) => e.key === "Escape" && setOpen(false)} placeholder={picked.length ? "Adicionar…" : "Buscar e selecionar categorias…"}
+          className="min-w-28 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground" data-testid="category-search-input" />
+      </div>
+      {open && (
+        <div className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl" data-testid="category-options">
+          {list.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Nenhuma categoria</p>}
+          {list.map((c) => {
+            const on = value.includes(c.id);
+            return (
+              <button key={c.id} type="button" onClick={() => toggle(c.id)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-secondary" data-testid={`category-chip-${c.code}`}>
+                <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border", on ? "border-sky-500 bg-sky-500 text-slate-950" : "border-border")}>{on && <Check className="h-3 w-3" />}</span>
+                <span className="font-mono text-xs">{c.code}</span>
+                <span className="truncate text-xs text-muted-foreground">{c.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

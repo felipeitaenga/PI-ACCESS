@@ -1,9 +1,10 @@
 import { fromLocalInput, nowLocal, toLocalInput, validCpf, onlyDigits } from "@/lib/br";
+import { docError } from "@/components/visits/visitUtils";
 
 const nn = (v) => v ?? "";
 
 export const emptyForm = (type = "funcionario", extra = {}) => ({
-  person_type: type, name: "", cpf: "", rg: "", document: "", birth: "", phone: "", email: "",
+  person_type: type, name: "", cpf: "", rg: "", document: "", doc_type: "cpf", doc_number: "", can_authorize_visits: true, birth: "", phone: "", email: "",
   company_id: "", notes: "", matricula: "", department: "", role_title: "", manager: "", admission_date: "",
   valid_from: "", valid_until: "", category_ids: [], status: "ativo", status_reason: "", photo: "", consent: false,
   function: "", contract_manager: "", identifiers: [], vehicles: [],
@@ -17,6 +18,7 @@ export const emptyForm = (type = "funcionario", extra = {}) => ({
 
 export const mapPerson = (p) => emptyForm(p.person_type, {
   name: nn(p.name), cpf: nn(p.cpf), rg: nn(p.rg), document: nn(p.document), birth: nn(p.birth).slice(0, 10),
+  doc_type: p.doc_type || "cpf", doc_number: nn(p.doc_number || p.cpf), can_authorize_visits: p.can_authorize_visits !== false,
   phone: nn(p.phone), email: nn(p.email), company_id: nn(p.company_id), notes: nn(p.notes), matricula: nn(p.matricula),
   department: nn(p.department), role_title: nn(p.role_title), manager: nn(p.manager),
   admission_date: nn(p.admission_date).slice(0, 10), valid_from: nn(p.valid_from).slice(0, 10),
@@ -45,7 +47,7 @@ export const mapVisitor = (v) => {
   });
 };
 
-export function validate(f) {
+export function validate(f, docSettings) {
   const e = {};
   const visitor = f.person_type === "visitante";
   if (!f.name.trim()) e.name = "Informe o nome completo";
@@ -57,12 +59,12 @@ export function validate(f) {
     if (!f.expected_end) e.expected_end = "Informe a saída prevista";
     else if (f.expected_start && f.expected_end <= f.expected_start) e.expected_end = "Saída deve ser após a entrada";
   } else {
-    if (!validCpf(f.cpf)) e.cpf = f.cpf ? "CPF inválido" : "Informe o CPF";
+    const de = docError(f.doc_type, f.doc_number, docSettings || { validate_cpf: true });
+    if (de) e.doc_number = de;
     if (!f.company_id) e.company_id = "Selecione a empresa";
     if (!f.category_ids.length) e.category_ids = "Selecione ao menos uma categoria";
   }
   if (f.email && !/^\S+@\S+\.\S+$/.test(f.email)) e.email = "E-mail inválido";
-  if (f.person_type === "funcionario" && !f.matricula.trim()) e.matricula = "Informe a matrícula";
   if (f.person_type === "terceiro") {
     if (!f.valid_from) e.valid_from = "Informe o início da validade";
     if (!f.valid_until) e.valid_until = "Informe o fim da validade";
@@ -77,7 +79,7 @@ export function validate(f) {
   return e;
 }
 
-const PERSON_KEYS = ["person_type", "name", "cpf", "rg", "document", "birth", "phone", "email", "company_id", "notes",
+const PERSON_KEYS = ["person_type", "name", "cpf", "rg", "document", "doc_type", "doc_number", "can_authorize_visits", "birth", "phone", "email", "company_id", "notes",
   "matricula", "department", "role_title", "manager", "admission_date", "valid_from", "valid_until", "category_ids",
   "status", "photo", "consent", "function", "contract_manager", "identifiers", "vehicles", "documents"];
 

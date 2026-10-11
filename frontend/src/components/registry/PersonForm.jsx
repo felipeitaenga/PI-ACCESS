@@ -10,13 +10,15 @@ import { CredentialsSection, DocumentsSection, HistorySection, VehiclesSection }
 import { QuickCompanyDialog } from "@/components/registry/QuickCompanyDialog";
 import { SyncStatus } from "@/components/registry/SyncStatus";
 import { emptyForm, mapPerson, mapVisitor, personBody, validate, visitPayload } from "@/components/registry/formState";
+import { useDocSettings } from "@/components/visits/visitUtils";
 import { AlertOctagon, AlertTriangle, Eraser, LogIn, LogOut, Save, SaveAll, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-const KEEP = ["name", "cpf", "phone", "email", "birth", "photo", "notes"];
+const KEEP = ["name", "cpf", "doc_type", "doc_number", "phone", "email", "birth", "photo", "notes"];
 
 export function PersonForm({ request, companies, categories, departments, onSaved, onCompanyCreated, allowedTypes }) {
   const { hasRole } = useAuth();
+  const docSettings = useDocSettings();
   const [form, setForm] = useState(() => emptyForm(request?.type || "funcionario"));
   const [snap, setSnap] = useState(() => JSON.stringify(form));
   const [editId, setEditId] = useState(null);
@@ -90,7 +92,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
 
   const save = async (mode = "save") => {
     if (saving || !canEdit) return;
-    const e = validate(form);
+    const e = validate(form, docSettings);
     setErrors(e);
     if (Object.keys(e).length) { toast.error("Verifique os campos destacados"); focusFirst(e); return; }
     setSaving(true); setSync({ status: "sending", devices: [] });
@@ -167,7 +169,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr]">
           <div className="mx-auto w-[150px] sm:mx-0"><PhotoBlock photo={form.photo} onChange={(v) => set("photo", v)} /></div>
-          <CommonFields f={form} set={set} errors={errors} companies={companies} nameRef={nameRef} onDocBlur={onDocBlur}
+          <CommonFields f={form} set={set} errors={errors} companies={companies} nameRef={nameRef} onDocBlur={onDocBlur} docSettings={docSettings}
             onPick={editId ? null : (r) => run({ kind: r.kind, id: r.id })}
             onCreateCompany={(name) => setCompanyDlg({ open: true, name })} />
         </div>

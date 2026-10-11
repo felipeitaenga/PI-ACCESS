@@ -140,9 +140,10 @@ async def _check(body, settings):
     comp = await db.companies.find_one({**ND, "id": body.get("host_company_id")}, {"_id": 0, "id": 1, "name": 1})
     if not comp:
         errs["host_company_id"] = "Selecione a empresa visitada"
-    host = await db.people.find_one({**ND, "id": body.get("host_person_id"), "status": "ativo"}, {"_id": 0, "id": 1, "name": 1, "company_id": 1})
+    host = await db.people.find_one({**ND, "id": body.get("host_person_id"), "status": "ativo", "can_authorize_visits": {"$ne": False}},
+                                    {"_id": 0, "id": 1, "name": 1, "company_id": 1})
     if not host or (comp and host.get("company_id") != comp["id"]):
-        errs["host_person_id"] = "Selecione o anfitrião (pessoa ativa da empresa visitada)"
+        errs["host_person_id"] = "Selecione o anfitrião (pessoa ativa da empresa visitada que pode autorizar visitas)"
     if not (body.get("name") or "").strip():
         errs["name"] = "Informe o nome completo"
     dt = body.get("doc_type")

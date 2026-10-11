@@ -32,10 +32,23 @@ async def m0003_visitors_defaults():
                                          "created_at": datetime.now(timezone.utc).isoformat()})
 
 
+async def m0004_people_doc_type():
+    await db.people.update_many({"can_authorize_visits": {"$exists": False}}, {"$set": {"can_authorize_visits": True}})
+    async for p in db.people.find({"doc_type": {"$exists": False}}, {"_id": 1, "cpf": 1, "cpf_digits": 1, "rg": 1}):
+        if p.get("cpf_digits"):
+            s = {"doc_type": "cpf", "doc_number": p.get("cpf") or p["cpf_digits"], "doc_key": p["cpf_digits"]}
+        elif p.get("rg"):
+            s = {"doc_type": "rg", "doc_number": p["rg"], "doc_key": p["rg"].replace(".", "").replace("-", "").upper()}
+        else:
+            s = {"doc_type": "cpf", "doc_number": "", "doc_key": ""}
+        await db.people.update_one({"_id": p["_id"]}, {"$set": s})
+
+
 MIGRATIONS = [
     ("0001_users_defaults", m0001_users_defaults),
     ("0002_settings_mqtt_prefix", m0002_settings_mqtt_prefix),
     ("0003_visitors_defaults", m0003_visitors_defaults),
+    ("0004_people_doc_type", m0004_people_doc_type),
 ]
 
 

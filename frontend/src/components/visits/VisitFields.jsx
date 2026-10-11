@@ -47,7 +47,7 @@ function HostPicker({ companyId, value, name, onPick, error }) {
   }, []);
   useEffect(() => {
     if (!open || !companyId) return undefined;
-    const t = setTimeout(() => api.get(`/registry/people?status=ativo&limit=10&company_id=${companyId}&q=${encodeURIComponent(q)}`)
+    const t = setTimeout(() => api.get(`/registry/people?status=ativo&authorize=true&limit=10&company_id=${companyId}&q=${encodeURIComponent(q)}`)
       .then(({ data }) => setItems(data.items)).catch(() => setItems([])), 250);
     return () => clearTimeout(t);
   }, [q, open, companyId]);

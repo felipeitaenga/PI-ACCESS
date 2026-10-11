@@ -7,13 +7,15 @@ from photo_quality import check_photo, make_thumb
 from registry_common import (ND, only_digits, valid_cpf, fmt_cpf, today, in_days, d10,
                              inside_area_ids, refresh_expired, sync_to_devices)
 from util import log_audit, client_ip
+from visits_core import get_settings, validate_doc, doc_key, DOC_TYPES
 
 router = APIRouter(prefix="/registry", tags=["registry"])
 WRITE = ("admin", "operator", "reception")
 LIST_FIELDS = {"_id": 0, "photo": 0}
 PERSON_FIELDS = ["person_type", "name", "cpf", "rg", "document", "birth", "phone", "email", "company_id",
                  "notes", "matricula", "department", "role_title", "manager", "admission_date", "valid_from",
-                 "valid_until", "category_ids", "status", "photo", "consent", "function", "contract_manager"]
+                 "valid_until", "category_ids", "status", "photo", "consent", "function", "contract_manager",
+                 "can_authorize_visits"]
 
 
 def rx(q):
@@ -74,13 +76,15 @@ async def companies(q: str = "", type: str = "", user: dict = Depends(get_curren
 
 @router.get("/people")
 async def list_people(company_id: str = "", q: str = "", status: str = "", category_id: str = "",
-                      department: str = "", present: str = "", skip: int = 0, limit: int = 50,
+                      department: str = "", present: str = "", authorize: str = "", skip: int = 0, limit: int = 50,
                       user: dict = Depends(get_current_user)):
     query = {**ND}
+    if authorize == "true":
+        query["can_authorize_visits"] = {"$ne": False}
     if company_id:
         query["company_id"] = company_id
     if q:
-        ors = [{"name": rx(q)}, {"cpf": rx(q)}, {"matricula": rx(q)}, {"document": rx(q)}, {"rg": rx(q)}]
+        ors = [{"name": rx(q)}, {"cpf": rx(q)}, {"matricula": rx(q)}, {"document": rx(q)}, {"rg": rx(q)}, {"doc_number": rx(q)}]
         if len(only_digits(q)) >= 3:
             ors.append({"cpf_digits": {"$regex": only_digits(q)}})
         query["$or"] = ors
@@ -174,21 +178,23 @@ async def get_person(pid: str, user: dict = Depends(get_current_user)):
     return p
 
 
-def _validate(b):
+def _validate(b, settings):
     f = {}
     t = b.get("person_type")
     if t not in ("funcionario", "terceiro"):
         f["person_type"] = "Selecione o tipo"
     if not (b.get("name") or "").strip():
         f["name"] = "Informe o nome completo"
-    if not valid_cpf(b.get("cpf")):
-        f["cpf"] = "CPF inválido"
+    if b.get("doc_type") not in DOC_TYPES:
+        f["doc_type"] = "Selecione o tipo de documento"
+    else:
+        b["doc_number"], err = validate_doc(b["doc_type"], b.get("doc_number"), settings)
+        if err:
+            f["doc_number"] = err
     if not b.get("company_id"):
         f["company_id"] = "Selecione a empresa"
     if not b.get("category_ids"):
         f["category_ids"] = "Selecione ao menos uma categoria"
-    if t == "funcionario" and not (b.get("matricula") or "").strip():
-        f["matricula"] = "Informe a matrícula"
     if t == "terceiro":
         if not b.get("valid_from"):
             f["valid_from"] = "Informe o início da validade"
@@ -231,11 +237,14 @@ async def _save_children(pid, b, valid_until):
 
 
 async def _save(b, request, user, pid=None):
-    errs = _validate(b)
-    cpf_d = only_digits(b.get("cpf"))
-    dup = await db.people.find_one({**ND, "cpf_digits": cpf_d, **({"id": {"$ne": pid}} if pid else {})}, {"_id": 0, "name": 1})
+    if not b.get("doc_type"):
+        b["doc_type"], b["doc_number"] = "cpf", b.get("cpf")
+    errs = _validate(b, await get_settings())
+    key = doc_key(b.get("doc_type"), b.get("doc_number"))
+    dup = await db.people.find_one({**ND, "doc_type": b.get("doc_type"), "doc_key": key, **({"id": {"$ne": pid}} if pid else {})},
+                                   {"_id": 0, "name": 1}) if key and "doc_number" not in errs else None
     if dup:
-        errs["cpf"] = f"CPF já cadastrado ({dup['name']})"
+        errs["doc_number"] = f"Documento já cadastrado ({dup['name']})"
     for i, idt in enumerate(b.get("identifiers") or []):
         if idt.get("type") == "cartao" and only_digits(idt.get("value")):
             other = await db.identifiers.find_one({**ND, "type": "cartao", "value": only_digits(idt["value"]),
@@ -248,7 +257,11 @@ async def _save(b, request, user, pid=None):
     if not comp:
         raise HTTPException(status_code=422, detail={"msg": "Empresa não encontrada", "fields": {"company_id": "Empresa inválida"}})
     doc = {k: b.get(k) for k in PERSON_FIELDS if k in b}
-    doc.update({"cpf": fmt_cpf(cpf_d), "cpf_digits": cpf_d, "company_name": comp["name"],
+    is_cpf = b["doc_type"] == "cpf"
+    doc.update({"doc_type": b["doc_type"], "doc_number": b["doc_number"], "doc_key": key, "document": b["doc_number"],
+                "cpf": fmt_cpf(key) if is_cpf else "", "cpf_digits": key if is_cpf else "",
+                **({"rg": b["doc_number"]} if b["doc_type"] == "rg" else {}),
+                "can_authorize_visits": b.get("can_authorize_visits") is not False, "company_name": comp["name"],
                 "company_group_id": comp.get("group_id"), "photo_thumb": make_thumb(b.get("photo") or ""),
                 "status": b.get("status") or "ativo", "updated_at": now_iso()})
     if pid:

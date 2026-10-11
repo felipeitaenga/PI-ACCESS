@@ -1,4 +1,13 @@
 import { maskCpf, toLocalInput, validCpf } from "@/lib/br";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+
+let settingsCache = null;
+export function useDocSettings() {
+  const [s, setS] = useState(settingsCache || { validate_cpf: true, validate_rg: false, default_hours: 8 });
+  useEffect(() => { api.get("/visits/settings").then(({ data }) => { settingsCache = data; setS(data); }).catch(() => {}); }, []);
+  return s;
+}
 
 export const DOC_TYPES = [["cpf", "CPF"], ["rg", "RG"], ["passaporte", "Passaporte"], ["outro", "Outro"]];
 export const ID_TYPES = [["facial", "Facial"], ["cartao", "Cartão"], ["qrcode", "QR Code"]];
