@@ -140,7 +140,10 @@ class MqttBus:
         code = str(ack.get("code", "200"))
         ainfo = ack.get("info") or {}
         ok = code == "200" and str(ainfo.get("result", "ok")).lower() in ("ok", "success", "")
-        return {"ok": ok, "code": code, "detail": ainfo.get("detail") or ainfo.get("Detail") or "", "info": _strip(ainfo)}
+        detail = ainfo.get("detail") or ainfo.get("Detail") or ""
+        if "get pic" in detail.lower():
+            detail = f"Facial não conseguiu obter a foto ({detail})"
+        return {"ok": ok, "code": code, "detail": detail, "info": _strip(ainfo)}
 
     async def flush_queue(self, device_id):
         """Reenvia comandos pendentes quando o facial volta online."""

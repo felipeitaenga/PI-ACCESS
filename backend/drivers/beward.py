@@ -1,6 +1,7 @@
 """Driver BEWARD (linha B2002FR) — transportes HTTP e MQTT, interface Adapter comum."""
 import os
 import json
+import base64
 import logging
 import httpx
 from .base import AccessControlDriver
@@ -213,13 +214,28 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
     async def set_door_mode(self, door_id, mode):
         return await self._publish("SetKeepOpen", {"KeepOpen": 1 if mode == "liberada" else 0})
 
+    async def _photo_b64(self, photo):
+        """Foto sempre embutida em base64 (o facial não alcança URLs externas/HTTPS)."""
+        if photo and photo.startswith("http"):
+            try:
+                async with httpx.AsyncClient(timeout=10, follow_redirects=True) as c:
+                    r = await c.get(photo)
+                if r.status_code == 200 and r.content:
+                    photo = base64.b64encode(r.content).decode()
+                else:
+                    return ""
+            except Exception:  # noqa: BLE001
+                return ""
+        return prepare_photo(photo or "", max_bytes=200_000)
+
     async def sync_person(self, person, strategy_ids=None):
         info = {"customId": str(person.get("id"))[:48], "name": (person.get("name") or "")[:32],
                 "personType": 0, "idCard": person.get("document") or person.get("cpf") or "",
                 "telnum": person.get("phone", ""), "tempCardType": 0}
-        b64 = prepare_photo(person.get("photo") or "")
-        if b64:
-            info["pic"] = f"data:image/jpeg;base64,{b64}"
+        b64 = await self._photo_b64(person.get("photo") or "")
+        if not b64:
+            return {"ok": False, "detail": "Pessoa sem foto válida — o facial exige foto no cadastro"}
+        info["pic"] = f"data:image/jpeg;base64,{b64}"
         if strategy_ids is not None:
             info["strategyID"] = list(strategy_ids)
         return await self._publish("EditPerson", info)
