@@ -128,6 +128,11 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 ## Autocompletar visitante (2026-10-11)
 - [x] Nome e Número do documento no Cadastro de visitante sugerem visitantes (≥3 caracteres, ↑/↓, Enter/clique). Ao escolher preenche visitante + última visita (tipo, empresa visitada, anfitrião ativo autorizado, identificador, observações); início = agora, fim recalculado. Endpoints /api/visits/visitor-search e /api/visits/visitor/{id}/prefill. iteration_12 100%.
 
+## Identidade Pilares — preto e laranja (2026-10-11)
+- [x] Paleta: Tailwind `sky` remapeado para laranja do logo (#ef7d25) e `slate` para neutro/preto; variáveis CSS dos temas escuro (preto) e claro (branco) com laranja.
+- [x] Logo Pilares (frontend/public/brand/pilares-logo.webp, enviado pelo usuário) no menu e no login; imagem do login trocada por catracas/leitor facial gerada (public/brand/login-access.jpg).
+- [x] Campos destacados: fundo `bg-field`, borda visível, foco/hover laranja, rótulos mais fortes (Input, Select, Textarea, seletor de categorias). iteration_13 100%.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).
