@@ -90,6 +90,9 @@ async def record(ctrl, r, via):
     dev_dir = norm_direction(r.get("direction"))
     mismatch = await _check_direction(ctrl, ap, dev_dir)
     person = await db.people.find_one({"id": str(r.get("person_ref") or "")}, {"_id": 0}) if r.get("person_ref") else None
+    if not person and r.get("person_ref"):
+        from visits_core import visitor_person
+        person = await visitor_person(str(r["person_ref"]))
     pic = r.get("pic") or ""
     if pic and not pic.startswith("data:") and not pic.startswith("http"):
         pic = f"data:image/jpeg;base64,{pic}"
@@ -135,6 +138,9 @@ async def on_mqtt(topic, op, data, dev):
     info = data.get("info") or {}
     if op in ("HeartBeat", "Online") or topic.endswith("/heartbeat"):
         await heartbeat(dev, True, info.get("ip"))
+        if op == "Online" and dev and await controller_by_device(dev):
+            # protocolo Beward: o facial reenvia "Online" até receber Online-Ack
+            bus.publish_raw(dev, {"operator": "Online-Ack", "info": {"facesluiceId": str(dev), "result": "ok"}})
         return
     if op == "Offline":
         await heartbeat(dev, False, info.get("ip"))

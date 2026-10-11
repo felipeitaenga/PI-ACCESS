@@ -22,6 +22,7 @@ import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
 import { Cameras, Schedules, Shortcuts, Backup } from "@/pages/Placeholders";
 import Integrations from "@/pages/Integrations";
+import VisitorSettings from "@/pages/VisitorSettings";
 
 function Shell({ children }) {
   return (
@@ -72,6 +73,7 @@ function AppRoutes() {
       {R("/configuracoes/geral", <Admin />)}
       {R("/configuracoes/usuarios", <Admin />)}
       {R("/configuracoes/integracoes", <Integrations />)}
+      {R("/configuracoes/visitantes", <VisitorSettings />)}
       {R("/configuracoes/atalhos", <Shortcuts />)}
       {R("/configuracoes/simulador", <Simulator />)}
       {R("/configuracoes/backup", <Backup />)}

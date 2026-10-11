@@ -10,6 +10,8 @@ import { GlobalSearch } from "@/components/registry/GlobalSearch";
 import { PresentVisitors } from "@/components/registry/PresentVisitors";
 import { LiveAccessFeed } from "@/components/registry/LiveAccessFeed";
 import { QuickCompanyDialog } from "@/components/registry/QuickCompanyDialog";
+import { VisitForm } from "@/components/visits/VisitForm";
+import { PresentNow } from "@/components/visits/PresentNow";
 import { useOpenRecord, useRegistryData, useSearchHotkey, useUrlRequest } from "@/components/registry/useRegistryData";
 import { Search } from "lucide-react";
 
@@ -122,26 +124,23 @@ export function FixedRegister() {
 
 export function VisitorRegister() {
   const d = useRegistryData();
-  const request = useUrlRequest("visitante");
-  const openRecord = useOpenRecord();
   const [tab, setTab] = useState("form");
   const [refreshKey, setRefreshKey] = useState(0);
   const [openSearch, searchNode] = useSearch();
   const saved = () => { setRefreshKey((k) => k + 1); d.reload(); };
   return (
     <div data-testid="page-visitor-register">
-      <PageTop title="Cadastro de visitantes" subtitle="Portaria · cadastro, check-in/out e acessos em tempo real" onSearch={openSearch} />
-      <MobileTabs tabs={[["form", "Cadastro"], ["monitor", "Monitoramento"]]} tab={tab} setTab={setTab} />
-      <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[1fr_420px]">
+      <PageTop title="Cadastro de visitante" subtitle="Portaria · visita com validade, envio ao facial e acessos em tempo real" onSearch={openSearch} />
+      <MobileTabs tabs={[["form", "Cadastro"], ["monitor", "Presentes"]]} tab={tab} setTab={setTab} />
+      <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[1fr_400px]">
         <section className={panel(tab, "form", "h-[85vh] lg:h-auto")}>
-          <PersonForm request={request} allowedTypes={["visitante"]} companies={d.companies} categories={d.categories}
-            departments={d.departments} onSaved={saved} onCompanyCreated={d.reload} />
+          <VisitForm companies={d.companies} categories={d.categories} onSaved={saved} />
         </section>
         <section className={cn("min-h-0 gap-3 lg:flex lg:flex-col", tab === "monitor" ? "flex flex-col" : "hidden")} data-testid="visitor-register-monitor">
-          <div className="flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[3]"><LiveAccessFeed /></div>
-          <div className="flex h-[40vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[2]">
-            <PresentVisitors refreshKey={refreshKey} onOpen={openRecord} onChanged={saved} />
+          <div className="flex h-[45vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[2]">
+            <PresentNow refreshKey={refreshKey} onChanged={saved} />
           </div>
+          <div className="flex h-[45vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[3]"><LiveAccessFeed /></div>
         </section>
       </div>
       {searchNode}

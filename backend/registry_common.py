@@ -81,7 +81,7 @@ async def refresh_expired(ids=None):
             await db.people.update_one({"id": p["id"]}, {"$set": {"status": new, "status_reason": r or ""}})
             changed += 1
     now = now_iso()
-    await db.visits.update_many({**ND, "status": "agendado", "expected_end": {"$lt": now}},
+    await db.visits.update_many({**ND, "status": "agendado", "expected_end": {"$lt": now}, "start_at": {"$exists": False}},
                                 {"$set": {"status": "expirada"}})
     return changed
 
@@ -94,14 +94,14 @@ async def sync_to_devices(subject: dict, label: str, remove=False):
         try:
             drv = get_driver(c)
             if remove or subject.get("status") != "ativo":
-                r = await asyncio.wait_for(drv.delete_person(subject["id"]), 12)
+                r = await asyncio.wait_for(drv.delete_person(subject["id"]), 25)
             else:
-                r = await asyncio.wait_for(drv.sync_person(subject), 12)
+                r = await asyncio.wait_for(drv.sync_person(subject), 45)
                 if r.get("ok") and subject.get("photo"):
                     await asyncio.wait_for(drv.sync_face(subject["id"], subject["photo"]), 12)
             ok = bool(r.get("ok"))
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "ok" if ok else "erro",
-                            "error": "" if ok else str(r.get("error") or "falha")})
+                            "error": "" if ok else str(r.get("error") or r.get("detail") or "falha")})
         except Exception as e:  # noqa: BLE001
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "erro",
                             "error": str(e)[:120] or "timeout"})

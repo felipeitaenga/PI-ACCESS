@@ -201,6 +201,10 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
 
     async def get_device_info(self):
         r = await self._publish("Versions")
+        if not r.get("ok") and self._online():
+            # alguns firmwares não respondem "Versions" por MQTT; o heartbeat recente já prova a comunicação
+            return {"ok": True, "firmware": self.device.get("firmware", ""),
+                    "detail": "Online (heartbeat recente). O facial não respondeu ao comando Versions."}
         return {"ok": r.get("ok"), "firmware": (r.get("info") or {}).get("firmware", ""), **r}
 
     async def set_datetime(self):
@@ -232,6 +236,11 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         info = {"customId": str(person.get("id"))[:48], "name": (person.get("name") or "")[:32],
                 "personType": 0, "idCard": person.get("document") or person.get("cpf") or "",
                 "telnum": person.get("phone", ""), "tempCardType": 0}
+        if person.get("temp_valid"):
+            info.update({"tempCardType": 1, "cardValidBegin": person["card_valid_begin"],
+                         "cardValidEnd": person["card_valid_end"]})
+        if person.get("card_number"):
+            info["RFIDCard"] = str(person["card_number"])
         b64 = await self._photo_b64(person.get("photo") or "")
         if not b64:
             return {"ok": False, "detail": "Pessoa sem foto válida — o facial exige foto no cadastro"}

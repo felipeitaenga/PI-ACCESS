@@ -32,6 +32,7 @@ from routers.cadastros import router as cadastros_router
 from routers.beward import router as beward_router
 from routers.registry import router as registry_router
 from routers.visitors_reg import router as visitors_reg_router
+from routers.visits import router as visits_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
 from mqtt_bus import bus as mqtt_bus
@@ -88,6 +89,7 @@ api_router.include_router(org_router)
 api_router.include_router(cadastros_router)
 api_router.include_router(beward_router)
 api_router.include_router(registry_router)
+api_router.include_router(visits_router)
 api_router.include_router(visitors_reg_router)
 api_router.include_router(integrations_router)
 
@@ -136,6 +138,16 @@ async def expiry_loop():
         await asyncio.sleep(600)
 
 
+async def visits_loop():
+    from visits_core import visits_tick
+    while True:
+        try:
+            await visits_tick()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"visits_loop: {e}")
+        await asyncio.sleep(60)
+
+
 SEED_USERS = [
     ("operador@nxaccess.com", "Operador@2026", "Carlos Operador", "operator"),
     ("recepcao@nxaccess.com", "Recepcao@2026", "Beatriz Recepção", "reception"),
@@ -177,6 +189,7 @@ async def on_startup():
         logger.info(f"Seed demo: {result}")
         start_simulator()
     asyncio.create_task(expiry_loop())
+    asyncio.create_task(visits_loop())
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
     logger.info(f"PI-ACCESS {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")

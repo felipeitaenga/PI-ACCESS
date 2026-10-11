@@ -67,6 +67,7 @@ export const MENU = [
       { label: "Geral do sistema", to: "/configuracoes/geral", icon: SlidersHorizontal, testid: "nav-cfg-general" },
       { label: "Usuários e perfis", to: "/configuracoes/usuarios", icon: UsersRound, testid: "nav-cfg-users" },
       { label: "Integrações", to: "/configuracoes/integracoes", icon: Plug, testid: "nav-cfg-integrations" },
+      { label: "Visitantes", to: "/configuracoes/visitantes", icon: IdCard, testid: "nav-cfg-visitors" },
       { label: "Atalhos", to: "/configuracoes/atalhos", icon: Keyboard, testid: "nav-cfg-shortcuts" },
       { label: "Simulador", to: "/configuracoes/simulador", icon: FlaskConical, testid: "nav-cfg-simulator" },
       { label: "Backup", to: "/configuracoes/backup", icon: DatabaseBackup, testid: "nav-cfg-backup" },
