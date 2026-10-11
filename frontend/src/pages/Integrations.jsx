@@ -27,7 +27,7 @@ function MqttStatus({ st }) {
 }
 
 export default function Integrations() {
-  const [cfg, setCfg] = useState({ host: "", port: 1883, username: "", password: "", client_id: "nx-access-server", enabled: true });
+  const [cfg, setCfg] = useState({ host: "", port: 1883, username: "", password: "", client_id: "pi-access-server", enabled: true });
   const [log, setLog] = useState({ status: null, messages: [] });
   const [test, setTest] = useState(null);
   const [busy, setBusy] = useState(false);

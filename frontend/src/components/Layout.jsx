@@ -114,7 +114,7 @@ export function Layout({ children }) {
           </div>
           {!collapsed && (
             <div className="leading-tight">
-              <div className="font-heading font-extrabold text-slate-100 tracking-tight">NX-ACCESS</div>
+              <div className="font-heading font-extrabold text-slate-100 tracking-tight">PI-ACCESS</div>
               <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Controle de Acesso</div>
             </div>
           )}

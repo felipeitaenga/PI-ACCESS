@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""nx-access-agent — ponte local entre faciais Beward (HTTP, rede local) e o servidor NX-ACCESS (HTTPS).
+"""pi-access-agent — ponte local entre faciais Beward (HTTP, rede local) e o servidor PI-ACCESS (HTTPS).
 
 - Escuta HTTP simples na porta 5011 os caminhos padrão do facial (/Subscribe/Verify, /Subscribe/heartbeat, ...).
 - Identifica o equipamento pelo DeviceID do JSON, responde {"code":200,"desc":"OK"} em até 10 s
   (com openDoor/showInfo quando o servidor decide) e repassa ao servidor central.
 - Fila SQLite: se a internet cair, guarda os eventos e reenvia depois.
 - Executa os comandos do servidor no facial: POST http://<ip>/action/<Operator> com Basic Auth.
-Somente biblioteca padrão do Python 3.8+.  Uso:  python3 nx_access_agent.py agent.json
+Somente biblioteca padrão do Python 3.8+.  Uso:  python3 pi_access_agent.py agent.json
 """
 import base64
 import json
@@ -168,5 +168,5 @@ if __name__ == "__main__":
         sys.exit("Defina advertise_ip (IP deste PC na rede do facial) no agent.json")
     for fn in (config_loop, command_loop, flush_loop):
         threading.Thread(target=fn, daemon=True).start()
-    log.info(f"nx-access-agent escutando http://0.0.0.0:{PORT}/Subscribe/... servidor {SERVER}")
+    log.info(f"pi-access-agent escutando http://0.0.0.0:{PORT}/Subscribe/... servidor {SERVER}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

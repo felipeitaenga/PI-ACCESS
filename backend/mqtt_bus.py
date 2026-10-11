@@ -37,7 +37,7 @@ class MqttBus:
             logger.info("MQTT desabilitado")
             return
         import paho.mqtt.client as mqtt
-        cid = self.cfg.get("client_id") or "nx-access-server"
+        cid = self.cfg.get("client_id") or "pi-access-server"
         try:
             cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cid, clean_session=False)
         except AttributeError:
@@ -188,9 +188,9 @@ async def probe(host, port, username="", password="", seconds=5):
         if not done.done():
             loop.call_soon_threadsafe(done.set_result, v)
     try:
-        cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"nx-access-probe-{new_id()[:6]}")
+        cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"pi-access-probe-{new_id()[:6]}")
     except AttributeError:
-        cli = mqtt.Client(client_id=f"nx-access-probe-{new_id()[:6]}")
+        cli = mqtt.Client(client_id=f"pi-access-probe-{new_id()[:6]}")
     if username:
         cli.username_pw_set(username, password or None)
     cli.on_connect = on_connect

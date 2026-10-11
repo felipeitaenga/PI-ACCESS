@@ -52,7 +52,7 @@ export default function Login() {
             <ShieldHalf className="h-6 w-6" />
           </div>
           <div>
-            <div className="font-heading text-xl font-extrabold text-white">NX-ACCESS</div>
+            <div className="font-heading text-xl font-extrabold text-white">PI-ACCESS</div>
             <div className="text-xs font-mono uppercase tracking-widest text-sky-400">Security Operations</div>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function Login() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500 text-slate-950">
               <ShieldHalf className="h-5 w-5" />
             </div>
-            <span className="font-heading text-lg font-extrabold text-white">NX-ACCESS</span>
+            <span className="font-heading text-lg font-extrabold text-white">PI-ACCESS</span>
           </div>
           <h1 className="font-heading text-2xl font-bold text-white">Acessar o painel</h1>
           <p className="mt-1 text-sm text-slate-500">Use suas credenciais corporativas.</p>

@@ -31,7 +31,7 @@ class _BewardShared:
             "Notes": person.get("role_title", ""),
         }
         if person.get("valid_until"):
-            p["Tempvalid"] = 0  # validade controlada pelo NX-ACCESS, não pelo equipamento
+            p["Tempvalid"] = 0  # validade controlada pelo PI-ACCESS, não pelo equipamento
         if strategy_ids is not None:
             p["strategyInfo"] = {"strategyData": [{"strategyID": s} for s in strategy_ids]}
         if person.get("pin"):
@@ -54,7 +54,7 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
         return f"http://{ip}:{port}/action/{operator}"
 
     async def _post(self, operator, info=None):
-        """Facial na rede local: comando executado pelo nx-access-agent (POST http://ip/action/<Operator>)."""
+        """Facial na rede local: comando executado pelo pi-access-agent (POST http://ip/action/<Operator>)."""
         from routers.integrations import run_via_agent
         return await run_via_agent(self.device, operator, info)
 

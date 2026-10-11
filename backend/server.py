@@ -38,13 +38,13 @@ import asyncio
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="NX-ACCESS API", version="1.0.0", description="Sistema de Controle de Acesso Corporativo")
+app = FastAPI(title="PI-ACCESS API", version="1.0.0", description="Sistema de Controle de Acesso Corporativo")
 api_router = APIRouter(prefix="/api")
 
 
 @api_router.get("/")
 async def root():
-    return {"name": "NX-ACCESS", "status": "online", "drivers": available_brands()}
+    return {"name": "PI-ACCESS", "status": "online", "drivers": available_brands()}
 
 
 @api_router.get("/health")
@@ -153,10 +153,10 @@ async def on_startup():
     if not await db.settings.find_one({"id": "mqtt"}) and os.environ.get("MQTT_BROKER"):
         await db.settings.insert_one({"id": "mqtt", "host": os.environ["MQTT_BROKER"],
                                       "port": int(os.environ.get("MQTT_PORT", "1883")), "username": "",
-                                      "password_enc": "", "client_id": "nx-access-server", "enabled": True})
+                                      "password_enc": "", "client_id": "pi-access-server", "enabled": True})
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
-    logger.info("NX-ACCESS backend iniciado")
+    logger.info("PI-ACCESS backend iniciado")
 
 
 @app.on_event("shutdown")

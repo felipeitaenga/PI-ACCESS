@@ -22,7 +22,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 EMAIL_BASE_URL = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip().rstrip("/") or "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
-EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME") or "NX-ACCESS"
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME") or "PI-ACCESS"
 
 MAX_ATTEMPTS = 5
 LOCK_MINUTES = 15

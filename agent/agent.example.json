@@ -1,5 +1,5 @@
 {
-  "server": "https://SEU-SERVIDOR-NX-ACCESS",
+  "server": "https://SEU-SERVIDOR-PI-ACCESS",
   "token": "nxa_COLE_AQUI_O_TOKEN_GERADO_NA_CONTROLADORA",
   "advertise_ip": "192.168.0.10",
   "port": 5011,

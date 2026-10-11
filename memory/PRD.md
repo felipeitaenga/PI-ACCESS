@@ -1,4 +1,4 @@
-# NX-ACCESS — PRD
+# PI-ACCESS (antigo NX-ACCESS) — PRD
 
 ## Problem Statement (original)
 Aplicação web profissional de CONTROLE DE ACESSO "NX-ACCESS", padrão corporativo (comparável a Genetec Synergis / LenelS2 / Control iD iDSecure). Interface pt-BR, tema escuro padrão + claro, layout painel de operação (sidebar + topbar + conteúdo), responsivo. Backend FastAPI + MongoDB + WebSocket; Frontend React + Tailwind + shadcn/ui + Recharts; JWT auth. Camada de drivers (Adapter) para equipamentos (Control iD, Hikvision, Intelbras, ZKTeco, SIMULADO), agente edge, e módulos completos (Dashboard, Monitoramento, Pessoas, Credenciais, Visitantes, Estrutura, Dispositivos, Regras, Emergência, Relatórios, Alarmes, Administração, Integrações). LGPD e segurança.
@@ -89,16 +89,19 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - Pendente: drivers reais Hikvision (ISAPI), Control iD e CT300-2L (fabricante/protocolo da CT300-2L a confirmar).
 
 ## Driver Beward — MQTT real + agente local HTTP (2026-10-11)
-- [x] `mqtt_bus.py`: cliente de saída ao broker (Configurações › Integrações › MQTT; padrão 156.67.82.199:1883 anônimo; senha criptografada), client_id nx-access-server, QoS1, reconexão, assina mqtt/face/#, comandos com messageId + espera de Ack (10 s), fila quando offline (reenvio ao voltar online), log das últimas mensagens.
+- [x] `mqtt_bus.py`: cliente de saída ao broker (Configurações › Integrações › MQTT; padrão 156.67.82.199:1883 anônimo; senha criptografada), client_id pi-access-server, QoS1, reconexão, assina mqtt/face/#, comandos com messageId + espera de Ack (10 s), fila quando offline (reenvio ao voltar online), log das últimas mensagens.
 - [x] `beward_ingest.py`: HeartBeat/Online/Offline (mqtt/face/heartbeat, mqtt/face/basic), RecPush com foto → Monitoramento + PushAck (também StrSnapPush), validação de sentido (alarme "sentido_divergente"), decisão no servidor (VerifyStatus 22 → Unlock), aviso "sem eventos" configurável por dispositivo (padrão 120 min) só no horário de funcionamento do site, prioridade baixa, sem repetir.
-- [x] Agente local `/app/agent/nx_access_agent.py` (stdlib, porta 5011, /Subscribe/*, fila SQLite, Subscribe com Card/Alarm, comandos POST /action/<Operator> Basic Auth via long-poll HTTPS). Tokens por site com hash, exibidos uma vez, gerar novo/revogar, último uso/IP.
+- [x] Agente local `/app/agent/pi_access_agent.py` (stdlib, porta 5011, /Subscribe/*, fila SQLite, Subscribe com Card/Alarm, comandos POST /action/<Operator> Basic Auth via long-poll HTTPS). Tokens por site com hash, exibidos uma vez, gerar novo/revogar, último uso/IP.
 - [x] UI: página Integrações (MQTT + status + log), painel "Como configurar o facial", token do agente, horário do site, saúde do facial no card.
 - Teste de conectividade: broker 156.67.82.199:1883 OK (anônimo); facial 1457460 ainda não publicou nenhuma mensagem.
 - Verificado: iteration_7 (backend 24/24, frontend 100%).
 
 - Correção (2026-10-11): fotos não chegavam ao facial ("get pic and connect URI IP error") — fotos em URL agora são baixadas no servidor e enviadas em base64 no EditPerson (máx. 200 KB); pessoa sem foto retorna erro claro. Verificado iteration_8 (Ack result ok, personId 296).
 
+## Renomeação para PI-ACCESS (2026-10-11)
+- [x] Nome trocado em toda a interface (login, menu, título da aba), API, remetente de e-mail, README, agente local (`pi_access_agent.py`) e client_id MQTT (`pi-access-server`, também atualizado no banco). Logins/senhas mantidos (NxAccess@2026, @nxaccess.com). Chave do token no navegador virou `pi_access_token` (usuários precisam entrar de novo uma vez).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
-2. Build nx-access-agent service skeleton with SQLite queue.
+2. Finalizar e documentar pi-access-agent (agente local).
 3. Credenciais + Visitantes modules (Resend email QR).

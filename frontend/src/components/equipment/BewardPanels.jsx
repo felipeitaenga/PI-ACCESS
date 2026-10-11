@@ -20,7 +20,7 @@ const MQTT_STEPS = (f) => [
   "Heartbeat e online/offline usam os tópicos fixos mqtt/face/heartbeat e mqtt/face/basic",
 ];
 const HTTP_STEPS = [
-  "Requer o nx-access-agent rodando num PC da mesma rede do facial (o facial só aceita IP + porta, sem domínio/HTTPS)",
+  "Requer o pi-access-agent rodando num PC da mesma rede do facial (o facial só aceita IP + porta, sem domínio/HTTPS)",
   "Configuração MQTT › desmarcar Habilitar",
   "Configuração Http › servidor = IP do PC do agente, porta 5011, caminhos /Subscribe/Verify e /Subscribe/heartbeat",
   "Cartão RFID e Alarme são configurados automaticamente pelo agente (comando Subscribe)",
@@ -72,7 +72,7 @@ export function AgentTokenPanel({ siteId }) {
         <Button type="button" size="sm" variant="outline" onClick={gen} data-testid="agent-token-generate">Gerar novo</Button>
         {cur && <Button type="button" size="sm" variant="ghost" className="text-red-400" onClick={() => revoke(cur.id)} data-testid="agent-token-revoke"><ShieldOff className="mr-1 h-3.5 w-3.5" />Revogar</Button>}
       </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">Executar no PC da rede: <span className="font-mono">python3 nx_access_agent.py agent.json</span> (arquivo em /agent do projeto).</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">Executar no PC da rede: <span className="font-mono">python3 pi_access_agent.py agent.json</span> (arquivo em /agent do projeto).</p>
     </div>
   );
 }

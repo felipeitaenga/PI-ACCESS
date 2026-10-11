@@ -1,4 +1,4 @@
-# NX-ACCESS
+# PI-ACCESS
 
 Sistema profissional de **Controle de Acesso** corporativo (pt-BR) — padrão de mercado comparável a Genetec Synergis / LenelS2 / Control iD iDSecure.
 
@@ -83,7 +83,7 @@ python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().de
 
 ---
 
-## Agente local (EDGE) — `nx-access-agent` (próxima iteração)
+## Agente local (EDGE) — `pi-access-agent` (próxima iteração)
 Serviço Python separado para rodar na rede do cliente (PC/mini-PC/Raspberry):
 - Conversa com os equipamentos na LAN e conecta ao servidor central por **WebSocket/MQTT com TLS** usando um **token de site**.
 - **Fila local SQLite** para guardar eventos quando o servidor estiver offline e reenviar depois.
