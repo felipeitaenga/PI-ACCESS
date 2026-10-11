@@ -15,6 +15,9 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)'
       },
       colors: {
+        sky: { 50: '#fff5ed', 100: '#ffe6d1', 200: '#fdc9a1', 300: '#f9a96a', 400: '#f5913f', 500: '#ef7d25', 600: '#d6671a', 700: '#b14f16', 800: '#8e4017', 900: '#733616', 950: '#3e1a09' },
+        slate: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#78787f', 600: '#52525b', 700: '#3a3a3f', 800: '#262628', 900: '#161617', 950: '#0a0a0a' },
+        field: 'hsl(var(--field))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

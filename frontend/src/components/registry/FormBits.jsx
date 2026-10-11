@@ -8,7 +8,7 @@ import { ChevronDown, Check, Plus, Search, X } from "lucide-react";
 export function Field({ label, required, error, hint, className, children }) {
   return (
     <div className={className}>
-      {label && <Label className="mb-1.5 block text-xs text-muted-foreground">{label}{required && <span className="ml-0.5 text-sky-400">*</span>}</Label>}
+      {label && <Label className="mb-1.5 block text-xs font-semibold text-foreground/85">{label}{required && <span className="ml-0.5 text-sky-400">*</span>}</Label>}
       {children}
       {error ? <p className="mt-1 text-xs text-red-400" data-testid="field-error">{error}</p> : hint ? <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p> : null}
     </div>
@@ -62,7 +62,7 @@ export function CategoryMulti({ categories, value, onChange, error }) {
   const list = categories.filter((c) => `${c.code} ${c.description || ""}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <div ref={ref} className="relative" data-testid="category-multi">
-      <div onClick={() => setOpen(true)} className={cn("flex min-h-9 cursor-text flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1", error ? "border-red-500/60" : "border-input")}>
+      <div onClick={() => setOpen(true)} className={cn("flex min-h-9 cursor-text flex-wrap items-center gap-1 rounded-md border bg-field px-2 py-1 transition-[border-color] hover:border-sky-500/50 focus-within:border-sky-500", error ? "border-red-500/60" : "border-input")}>
         {picked.map((c) => (
           <span key={c.id} className="flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/15 py-0.5 pl-2 pr-1 text-xs text-sky-300" data-testid={`category-tag-${c.code}`}>
             {c.code}

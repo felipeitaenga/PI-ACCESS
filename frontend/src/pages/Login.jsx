@@ -5,7 +5,7 @@ import { formatApiErrorDetail, useAppInfo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldHalf, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -39,22 +39,20 @@ export default function Login() {
       {/* Visual side */}
       <div className="relative hidden lg:flex lg:w-1/2 flex-col justify-between overflow-hidden border-r border-slate-800 p-12">
         <div
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0 opacity-60"
           style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1557597774-9d273605dfa9?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200')",
+            backgroundImage: "url('/brand/login-access.jpg')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
+          data-testid="login-hero-image"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/40" />
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500 text-slate-950">
-            <ShieldHalf className="h-6 w-6" />
-          </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
+        <div className="relative flex items-center gap-4">
+          <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-14 w-auto object-contain" data-testid="login-logo" />
           <div>
             <div className="font-heading text-xl font-extrabold text-white">PI-ACCESS</div>
-            <div className="text-xs font-mono uppercase tracking-widest text-sky-400">Security Operations</div>
+            <div className="text-xs font-mono uppercase tracking-widest text-sky-400">Controle de Acesso</div>
           </div>
         </div>
         <div className="relative max-w-md">
@@ -71,10 +69,8 @@ export default function Login() {
       {/* Form side */}
       <div className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 sm:px-16 lg:px-24">
         <div className="mx-auto w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500 text-slate-950">
-              <ShieldHalf className="h-5 w-5" />
-            </div>
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-10 w-auto object-contain" data-testid="login-logo-mobile" />
             <span className="font-heading text-lg font-extrabold text-white">PI-ACCESS</span>
           </div>
           <h1 className="font-heading text-2xl font-bold text-white">Acessar o painel</h1>

@@ -31,7 +31,7 @@ export function CommonFields({ f, set, errors, companies, onCreateCompany, nameR
       {visitor && T(f, set, errors, "cpf", "CPF", { mask: maskCpf, placeholder: "000.000.000-00", inputMode: "numeric", ...sug })}
       {!visitor && (
         <Field label="Tipo de documento" required error={errors.doc_type}>
-          <select id="f-doc_type" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={f.doc_type}
+          <select id="f-doc_type" className="h-9 w-full rounded-md border border-input bg-field px-3 text-sm hover:border-sky-500/50 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30" value={f.doc_type}
             onChange={(e) => { set("doc_type", e.target.value); set("doc_number", ""); }} data-testid="f-doc_type">
             {DOC_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>

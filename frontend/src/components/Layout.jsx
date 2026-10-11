@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
-  LogOut, Menu, X, ShieldHalf, ChevronDown, Star, Search,
+  LogOut, Menu, X, ChevronDown, Star, Search,
   PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -110,9 +110,7 @@ export function Layout({ children }) {
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex h-16 items-center gap-2 px-4 border-b border-slate-800">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-slate-950">
-            <ShieldHalf className="h-5 w-5" />
-          </div>
+          <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-9 w-auto shrink-0 object-contain" data-testid="sidebar-logo" />
           {!collapsed && (
             <div className="leading-tight">
               <div className="font-heading font-extrabold text-slate-100 tracking-tight">PI-ACCESS</div>
