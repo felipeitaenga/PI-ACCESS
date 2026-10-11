@@ -170,7 +170,7 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
 
 
 class BewardMqttDriver(_BewardShared, AccessControlDriver):
-    """Transporte MQTT via broker externo (mqtt_bus). Comandos em mqtt/face/<ID Equipamento> com Ack."""
+    """Transporte MQTT via broker externo (mqtt_bus). Comandos em <prefixo>/<ID Equipamento> com Ack."""
     brand = "beward_mqtt"
 
     def _dev(self):
@@ -196,7 +196,7 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         from mqtt_bus import bus
         online = await self.connect()
         err = "" if online else ("broker MQTT desconectado" if not bus.connected else
-                                 "sem heartbeat do facial (mqtt/face/heartbeat) nos últimos 3 min")
+                                 "sem heartbeat do facial (<prefixo>/heartbeat) nos últimos 3 min")
         return {"online": online, "error": err, "last_heartbeat": self.device.get("last_heartbeat")}
 
     async def get_device_info(self):
@@ -263,5 +263,5 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
                                                          "VerifyMode": verify_mode, "VerifyResetTime": reset_time})
 
     async def get_events(self, since=None): return []
-    async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa tópicos fixos (mqtt/face/#)"}
+    async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa o prefixo de tópico definido em Integrações"}
     async def reboot(self): return await self._publish("RebootDevice")

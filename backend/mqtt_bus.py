@@ -1,4 +1,4 @@
-"""Cliente MQTT do servidor (saída) — assina mqtt/face/#, publica comandos e aguarda Ack."""
+"""Cliente MQTT do servidor (saída) — assina <prefixo>/#, publica comandos e aguarda Ack."""
 import asyncio
 import json
 import logging
@@ -9,7 +9,7 @@ from models import new_id, now_iso
 from security import decrypt_secret
 
 logger = logging.getLogger("mqtt_bus")
-CMD_TOPIC = "mqtt/face/{}"
+DEFAULT_PREFIX = "mqtt/face"
 ACK_TIMEOUT = 10
 ONLINE_WINDOW = 180  # s sem heartbeat => offline
 
@@ -24,6 +24,10 @@ class MqttBus:
         self.log = deque(maxlen=80)
         self.stats = {"messages": 0, "last_message_at": None, "last_error": "", "connected_at": None}
         self.handler = None  # async (topic, operator, data) -> None
+
+    @property
+    def prefix(self):
+        return normalize_prefix(self.cfg.get("topic_prefix"))
 
     async def load_cfg(self):
         s = await db.settings.find_one({"id": "mqtt"}, {"_id": 0}) or {}
@@ -72,8 +76,8 @@ class MqttBus:
         if ok:
             self.stats["connected_at"] = now_iso()
             self.stats["last_error"] = ""
-            cli.subscribe("mqtt/face/#", qos=1)
-            logger.info("MQTT conectado; assinado mqtt/face/#")
+            cli.subscribe(f"{self.prefix}/#", qos=1)
+            logger.info(f"MQTT conectado; assinado {self.prefix}/#")
         else:
             self.stats["last_error"] = f"CONNACK {rc}"
 
@@ -87,7 +91,7 @@ class MqttBus:
             data = {}
         op = data.get("operator", "")
         info = data.get("info") or {}
-        dev = str(info.get("facesluiceId") or info.get("DeviceID") or _device_from_topic(msg.topic) or "")
+        dev = str(info.get("facesluiceId") or info.get("DeviceID") or _device_from_topic(msg.topic, self.prefix) or "")
         self.stats["messages"] += 1
         self.stats["last_message_at"] = now_iso()
         self.log.appendleft({"at": now_iso(), "topic": msg.topic, "operator": op, "device_id": dev,
@@ -112,7 +116,7 @@ class MqttBus:
     def publish_raw(self, device_id, payload: dict):
         if not (self.client and self.connected):
             return False
-        self.client.publish(CMD_TOPIC.format(device_id), json.dumps(payload), qos=1)
+        self.client.publish(f"{self.prefix}/{device_id}", json.dumps(payload), qos=1)
         return True
 
     async def command(self, device_id, operator, info=None, online=True):
@@ -156,12 +160,18 @@ class MqttBus:
 
     def status(self):
         return {"connected": self.connected, "host": self.cfg.get("host"), "port": self.cfg.get("port"),
-                "enabled": bool(self.cfg.get("enabled")), **self.stats}
+                "enabled": bool(self.cfg.get("enabled")), "topic_prefix": self.prefix, **self.stats}
 
 
-def _device_from_topic(topic):
-    parts = topic.split("/")
-    return parts[2] if len(parts) >= 3 and parts[2] not in ("heartbeat", "basic") else ""
+def normalize_prefix(p):
+    return (p or "").strip().strip("/").replace("#", "").replace("+", "") or DEFAULT_PREFIX
+
+
+def _device_from_topic(topic, prefix):
+    if not topic.startswith(prefix + "/"):
+        return ""
+    seg = topic[len(prefix) + 1:].split("/")[0]
+    return seg if seg not in ("heartbeat", "basic", "Ack") else ""
 
 
 def _strip(d):

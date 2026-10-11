@@ -101,6 +101,9 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 ## Renomeação para PI-ACCESS (2026-10-11)
 - [x] Nome trocado em toda a interface (login, menu, título da aba), API, remetente de e-mail, README, agente local (`pi_access_agent.py`) e client_id MQTT (`pi-access-server`, também atualizado no banco). Logins/senhas mantidos (NxAccess@2026, @nxaccess.com). Chave do token no navegador virou `pi_access_token` (usuários precisam entrar de novo uma vez).
 
+## Prefixo de tópico MQTT configurável (2026-10-11)
+- [x] Campo "Prefixo do tópico" em Configurações › Integrações › MQTT (padrão mqtt/face; barras e #/+ removidos). Assinatura <prefixo>/#, comandos <prefixo>/<ID facial>, heartbeat <prefixo>/heartbeat e <prefixo>/basic. Testado com tjs/mqtt/face (assinatura OK) e voltado para mqtt/face.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).

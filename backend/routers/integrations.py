@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from database import db
 from security import require_role, encrypt_secret, decrypt_secret
 from models import new_id, now_iso
-from mqtt_bus import bus, probe
+from mqtt_bus import bus, probe, normalize_prefix
 from beward_ingest import controller_by_device, heartbeat, record
 from util import log_audit, client_ip
 
@@ -24,12 +24,14 @@ async def get_mqtt(user: dict = Depends(ADMIN)):
 @router.put("/integrations/mqtt")
 async def put_mqtt(body: dict, request: Request, user: dict = Depends(ADMIN)):
     upd = {k: body.get(k) for k in ("host", "port", "username", "client_id", "enabled") if k in body}
+    if "topic_prefix" in body:
+        upd["topic_prefix"] = normalize_prefix(body["topic_prefix"])
     if body.get("password"):
         upd["password_enc"] = encrypt_secret(body["password"])
     if body.get("clear_password"):
         upd["password_enc"] = ""
     await db.settings.update_one({"id": "mqtt"}, {"$set": upd}, upsert=True)
-    await log_audit(user, "editar", "settings", "mqtt", f"MQTT {upd.get('host')}:{upd.get('port')}", client_ip(request))
+    await log_audit(user, "editar", "settings", "mqtt", f"MQTT {upd.get('host')}:{upd.get('port')} tópico {upd.get('topic_prefix', '')}", client_ip(request))
     await bus.start()
     await asyncio.sleep(1.5)
     return {"ok": True, "status": bus.status()}

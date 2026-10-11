@@ -17,7 +17,7 @@ const MQTT_STEPS = (f) => [
   "Retomar do ponto de interrupção = Sim (o servidor responde PushAck a cada evento)",
   `Entrada ou Saída = igual ao sentido do ponto de acesso (${f.point_direction || "entrada"})`,
   "Configuração Http › Verificação = Não inscrever (para não duplicar eventos)",
-  "Heartbeat e online/offline usam os tópicos fixos mqtt/face/heartbeat e mqtt/face/basic",
+  "Heartbeat e online/offline usam <prefixo>/heartbeat e <prefixo>/basic (prefixo definido em Configurações › Integrações › MQTT, padrão mqtt/face)",
 ];
 const HTTP_STEPS = [
   "Requer o pi-access-agent rodando num PC da mesma rede do facial (o facial só aceita IP + porta, sem domínio/HTTPS)",
