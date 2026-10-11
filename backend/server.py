@@ -22,6 +22,10 @@ from routers.people import router as people_router
 from routers.devices import router as devices_router
 from routers.events import router as events_router, alarms_router, emergency_router, admin_router
 from routers.dashboard import router as dashboard_router, reports_router
+from routers.access_model import router as access_router
+from routers.equipment import router as equipment_router
+from routers.org import router as org_router
+from routers.cadastros import router as cadastros_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,6 +54,10 @@ api_router.include_router(emergency_router)
 api_router.include_router(admin_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(reports_router)
+api_router.include_router(access_router)
+api_router.include_router(equipment_router)
+api_router.include_router(org_router)
+api_router.include_router(cadastros_router)
 
 app.include_router(api_router)
 

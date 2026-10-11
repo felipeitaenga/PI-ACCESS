@@ -14,15 +14,9 @@ export function Placeholder({ title, subtitle, note }) {
   );
 }
 
-export function Credentials() {
-  return <Placeholder title="Credenciais" subtitle="Facial, cartão, QR code, PIN e placa (LPR)"
-    note="O módulo de credenciais será implementado na próxima iteração. As credenciais (facial e cartão) já são geradas no seed e visíveis no detalhe de cada pessoa." />;
-}
-export function Visitors() {
-  return <Placeholder title="Visitantes" subtitle="Pré-cadastro, agendamento e QR code temporário"
-    note="O módulo de visitantes com envio de QR code por e-mail (Resend) e check-in/check-out será implementado na próxima iteração." />;
-}
-export function Rules() {
-  return <Placeholder title="Regras de Acesso" subtitle="Zonas de tempo, feriados e níveis de acesso"
-    note="O módulo de regras (zonas de tempo, níveis de acesso, anti-passback, intertravamento e dupla validação) será implementado na próxima iteração. Dados de exemplo já estão no seed." />;
-}
+export const Cameras = () => <Placeholder title="Câmeras" subtitle="Vínculo de câmeras aos pontos de acesso" note="Módulo de câmeras (vínculo e visualização) será implementado em iteração futura." />;
+export const Reception = () => <Placeholder title="Portaria / Recepção" subtitle="Check-in e check-out de visitantes" note="Fluxo de portaria (check-in com captura de foto, entrega de cartão/QR, check-out e expiração) será implementado na etapa de Visitantes." />;
+export const Schedules = () => <Placeholder title="Agendamentos" subtitle="Agendamento de visitas" note="Agendamento de visitas com anfitrião e QR temporário por e-mail será implementado na etapa de Visitantes." />;
+export const Integrations = () => <Placeholder title="Integrações" subtitle="API, Webhooks e MQTT" note="Configuração de API/Swagger, webhooks de eventos e publicação MQTT será implementada em iteração futura." />;
+export const Shortcuts = () => <Placeholder title="Atalhos" subtitle="Atalhos personalizados" note="Personalização de atalhos do operador será implementada em iteração futura." />;
+export const Backup = () => <Placeholder title="Backup" subtitle="Backup do banco de dados" note="Agendamento e download de backup será implementado em iteração futura." />;

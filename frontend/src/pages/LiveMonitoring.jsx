@@ -32,7 +32,7 @@ export default function LiveMonitoring() {
 
   useEffect(() => {
     api.get("/events?limit=30").then(({ data }) => setSeed(data.items));
-    api.get("/structure/doors").then(({ data }) => setDoors(data));
+    api.get("/equipment/access-points/all").then(({ data }) => setDoors(data));
   }, []);
 
   const all = [...live, ...seed]
@@ -44,7 +44,7 @@ export default function LiveMonitoring() {
 
   const doUnlock = async () => {
     try {
-      await api.post(`/devices/doors/${unlockDoor}/open`, { seconds: 5, reason });
+      await api.post(`/equipment/access-points/${unlockDoor}/open`, { seconds: 5, reason });
       toast.success("Porta aberta remotamente");
       setUnlockDoor(null);
       setReason("");
@@ -63,7 +63,7 @@ export default function LiveMonitoring() {
             </SelectTrigger>
             <SelectContent>
               {doors.map((d) => (
-                <SelectItem key={d.id} value={d.id} data-testid={`unlock-door-${d.id}`}>{d.name}</SelectItem>
+                <SelectItem key={d.id} value={d.id} data-testid={`unlock-door-${d.id}`}>{d.description}</SelectItem>
               ))}
             </SelectContent>
           </Select>

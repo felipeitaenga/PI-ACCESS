@@ -37,3 +37,12 @@ async def create_indexes():
     await db.sites.create_index("id", unique=True)
     await db.alarms.create_index([("timestamp", -1)])
     await db.audit_logs.create_index([("timestamp", -1)])
+    # Novo modelo de acesso
+    for c in ["controllers", "access_points", "time_ranges", "holidays", "categories",
+              "companies", "company_groups", "departments", "identifiers", "vehicles",
+              "visitors", "visits"]:
+        await db[c].create_index("id")
+        await db[c].create_index("deleted")
+    await db.identifiers.create_index("person_id")
+    await db.people.create_index("category_ids")
+    await db.access_events.create_index("access_point_id")

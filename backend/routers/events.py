@@ -63,12 +63,12 @@ async def lockdown(site_id: str, request: Request, body: dict = None,
                    user: dict = Depends(require_role("admin", "operator"))):
     """Liberação geral de rota de fuga (incêndio) — todas as portas em modo liberado."""
     mode = (body or {}).get("mode", "liberada")  # liberada | normal
-    doors = await db.doors.find({"site_id": site_id}, {"_id": 0}).to_list(500)
+    doors = await db.access_points.find({"site_id": site_id}, {"_id": 0}).to_list(500)
     for d in doors:
-        await db.doors.update_one({"id": d["id"]}, {"$set": {"mode": mode}})
+        await db.access_points.update_one({"id": d["id"]}, {"$set": {"mode": mode}})
     await manager.broadcast({"type": "emergency", "data": {"site_id": site_id, "mode": mode, "by": user.get("name")}})
     action = "liberacao_geral" if mode == "liberada" else "fim_emergencia"
-    await log_audit(user, action, "site", site_id, f"{len(doors)} portas -> {mode}", client_ip(request))
+    await log_audit(user, action, "site", site_id, f"{len(doors)} pontos -> {mode}", client_ip(request))
     return {"ok": True, "doors_affected": len(doors), "mode": mode}
 
 

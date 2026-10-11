@@ -17,18 +17,18 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
     granted = await db.access_events.count_documents({"timestamp": {"$gte": start_utc}, "access_result": "granted"})
     denied = await db.access_events.count_documents({"timestamp": {"$gte": start_utc}, "access_result": "denied"})
 
-    total_devices = await db.devices.count_documents({})
-    online = await db.devices.count_documents({"online": True})
+    total_devices = await db.controllers.count_documents({"deleted": {"$ne": True}})
+    online = await db.controllers.count_documents({"online": True, "deleted": {"$ne": True}})
     offline = total_devices - online
 
-    total_doors = await db.doors.count_documents({})
-    doors_liberated = await db.doors.count_documents({"mode": "liberada"})
+    total_doors = await db.access_points.count_documents({"deleted": {"$ne": True}})
+    doors_liberated = await db.access_points.count_documents({"mode": "liberada", "deleted": {"$ne": True}})
 
     open_alarms = await db.alarms.count_documents({"acknowledged": False})
     forced = await db.alarms.count_documents({"type": "porta_forcada", "acknowledged": False})
 
-    total_people = await db.people.count_documents({})
-    active_people = await db.people.count_documents({"status": "ativo"})
+    total_people = await db.people.count_documents({"deleted": {"$ne": True}})
+    active_people = await db.people.count_documents({"status": "ativo", "deleted": {"$ne": True}})
 
     # Fluxo por hora (últimas 24h) no fuso SP
     flow = []

@@ -2,9 +2,9 @@ import asyncio
 import json
 import random
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
-from database import db, clean
+from database import db
 from models import new_id, now_iso
 
 logger = logging.getLogger(__name__)
@@ -36,84 +36,32 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-DENY_REASONS = [
-    "Fora do horário permitido",
-    "Credencial não reconhecida",
-    "Acesso expirado",
-    "Sem nível de acesso para a porta",
-    "Pessoa bloqueada",
-    "Anti-passback",
-]
-CREDENTIAL_TYPES = ["facial", "cartao", "pin", "qrcode", "placa"]
-
-
-async def _build_event(person, door, device, result, direction):
-    reason = "" if result == "granted" else random.choice(DENY_REASONS)
-    match_score = round(random.uniform(92.0, 99.8), 1) if result == "granted" else round(random.uniform(10.0, 60.0), 1)
-    captured = person.get("photo", "") if result == "granted" and random.random() > 0.2 else person.get("photo", "")
-    return {
-        "id": new_id(),
-        "timestamp": now_iso(),
-        "site_id": door.get("site_id"),
-        "site_name": door.get("site_name", ""),
-        "area_id": door.get("area_id"),
-        "area_name": door.get("area_name", ""),
-        "door_id": door.get("id"),
-        "door_name": door.get("name"),
-        "device_id": device.get("id") if device else None,
-        "device_name": device.get("name") if device else "",
-        "person_id": person.get("id"),
-        "person_name": person.get("name"),
-        "person_photo": person.get("photo", ""),
-        "captured_photo": captured,
-        "credential_type": random.choice(CREDENTIAL_TYPES),
-        "direction": direction,
-        "access_result": result,
-        "reason": reason,
-        "match_score": match_score,
-    }
-
 
 async def generate_event(persist=True, broadcast=True):
-    """Gera um evento de acesso aleatório a partir dos dados existentes."""
-    doors = await db.doors.find({}, {"_id": 0}).to_list(100)
-    people = await db.people.find({"status": "ativo"}, {"_id": 0}).to_list(500)
-    if not doors or not people:
+    """Gera um evento rodando o motor de decisão real sobre um ponto de acesso aleatório."""
+    from access_service import evaluate  # import tardio evita ciclo
+    aps = await db.access_points.find({"deleted": {"$ne": True}, "enabled": True}, {"_id": 0}).to_list(200)
+    people = await db.people.find({"status": "ativo", "deleted": {"$ne": True}}, {"_id": 0}).to_list(800)
+    if not aps or not people:
         return None
-    door = random.choice(doors)
+    ap = random.choice(aps)
     person = random.choice(people)
-    device = await db.devices.find_one({"door_id": door.get("id")}, {"_id": 0})
-    result = "granted" if random.random() > 0.18 else "denied"
-    direction = random.choice(["entrada", "saida"])
-    event = await _build_event(person, door, device, result, direction)
-    if persist:
-        await db.access_events.insert_one(dict(event))
-        clean(event)
+    res = await evaluate(person, ap, persist=persist)
+    event = res["event"]
     if broadcast:
         await manager.broadcast({"type": "access_event", "data": event})
-    # Alarme aleatório ocasional (porta forçada)
-    if random.random() < 0.03:
-        await _raise_alarm(door, "porta_forcada", "Porta forçada detectada", "alta")
+    if res["granted"] and random.random() < 0.03:
+        await _raise_alarm(ap, "porta_forcada", "Porta forçada detectada", "alta")
     return event
 
 
-async def _raise_alarm(door, alarm_type, message, priority):
-    alarm = {
-        "id": new_id(),
-        "timestamp": now_iso(),
-        "type": alarm_type,
-        "message": message,
-        "priority": priority,
-        "site_id": door.get("site_id"),
-        "site_name": door.get("site_name", ""),
-        "door_id": door.get("id"),
-        "door_name": door.get("name"),
-        "acknowledged": False,
-        "ack_by": None,
-        "comment": "",
-    }
+async def _raise_alarm(ap, alarm_type, message, priority):
+    alarm = {"id": new_id(), "timestamp": now_iso(), "type": alarm_type, "message": message,
+             "priority": priority, "site_id": ap.get("site_id"), "site_name": ap.get("site_name", ""),
+             "door_id": ap.get("id"), "door_name": ap.get("description"),
+             "acknowledged": False, "ack_by": None, "comment": ""}
     await db.alarms.insert_one(dict(alarm))
-    clean(alarm)
+    alarm.pop("_id", None)
     await manager.broadcast({"type": "alarm", "data": alarm})
 
 
