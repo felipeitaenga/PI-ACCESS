@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, DoorOpen } from "lucide-react";
+import { AgentTokenPanel, BewardSetupPanel, NoEventAlertFields } from "@/components/equipment/BewardPanels";
 import { toast } from "sonner";
 
 export const MODELS = {
@@ -57,7 +58,7 @@ function PointCard({ p, i, areas, onChange }) {
   );
 }
 
-function GeneralTab({ form, setForm, sites, editId }) {
+function GeneralTab({ form, setForm, sites, editId, hours, setHours, pointDirection }) {
   const m = MODELS[form.model_type];
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const setModel = (v) => setForm((f) => ({ ...f, model_type: v, num_access_points: Math.min(f.num_access_points || 1, MODELS[v].max) }));
@@ -77,9 +78,12 @@ function GeneralTab({ form, setForm, sites, editId }) {
       <FormRow label="Site" className="col-span-2">{sel(form.site_id, set("site_id"), sites.map((s) => [s.id, s.name]), "Selecione", "controller-site")}</FormRow>
       {form.model_type === "beward_facial" && (
         <>
-          <FormRow label="Protocolo">{sel(form.transport || "http", set("transport"), [["http", "HTTP (V2.0.3)"], ["mqtt", "MQTT"]], "Protocolo", "controller-transport")}</FormRow>
-          <FormRow label="Device ID / SN"><Input value={form.beward_device_id || ""} onChange={(e) => set("beward_device_id")(e.target.value)} data-testid="controller-beward-id" /></FormRow>
+          <FormRow label="Protocolo (exclusivo)">{sel(form.transport || "http", set("transport"), [["mqtt", "MQTT (broker)"], ["http", "HTTP local (via agente)"]], "Protocolo", "controller-transport")}</FormRow>
+          <FormRow label="ID Equipamento (DeviceID)"><Input value={form.beward_device_id || ""} onChange={(e) => set("beward_device_id")(e.target.value)} data-testid="controller-beward-id" /></FormRow>
           <FormRow label="Modo de decisão" className="col-span-2">{sel(form.decision_mode || "servidor", set("decision_mode"), [["servidor", "Decisão no servidor (OpendoorWay=3)"], ["local", "Decisão local (0)"], ["local_remoto", "Local + remoto (2)"]], "Modo", "controller-decision-mode")}</FormRow>
+          <NoEventAlertFields form={form} setForm={setForm} hours={hours} setHours={setHours} />
+          <BewardSetupPanel form={{ ...form, point_direction: pointDirection }} />
+          {form.transport !== "mqtt" && <AgentTokenPanel siteId={form.site_id} />}
         </>
       )}
     </div>
@@ -90,6 +94,7 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
   const [form, setForm] = useState(EMPTY);
   const [points, setPoints] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [hours, setHours] = useState({ days: [1, 2, 3, 4, 5], start: "07:00", end: "19:00" });
   const editId = initial?.id;
 
   useEffect(() => {
@@ -101,6 +106,11 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
     } else { setForm(EMPTY); setPoints([]); }
   }, [open, initial]);
 
+  useEffect(() => {
+    const s = sites.find((x) => x.id === form.site_id);
+    setHours(s?.business_hours || { days: [1, 2, 3, 4, 5], start: "07:00", end: "19:00" });
+  }, [form.site_id, sites]);
+
   const n = Math.min(form.num_access_points || 1, MODELS[form.model_type].max);
   const shown = Array.from({ length: n }, (_, i) => points[i] || newPoint(form, i));
 
@@ -110,6 +120,7 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
     try {
       if (editId) await api.put(`/equipment/controllers/${editId}`, body);
       else await api.post("/equipment/controllers", body);
+      if (form.model_type === "beward_facial" && form.site_id) await api.put(`/structure/sites/${form.site_id}/business-hours`, hours);
       toast.success(`Controladora salva com ${n} ponto(s) de acesso`);
       onOpenChange(false); onSaved();
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
@@ -124,7 +135,7 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
             <TabsTrigger value="general" data-testid="controller-tab-general">Dados gerais</TabsTrigger>
             <TabsTrigger value="points" data-testid="controller-tab-points">Pontos de acesso ({n})</TabsTrigger>
           </TabsList>
-          <TabsContent value="general" className="pt-3"><GeneralTab form={form} setForm={setForm} sites={sites} editId={editId} /></TabsContent>
+          <TabsContent value="general" className="pt-3"><GeneralTab form={form} setForm={setForm} sites={sites} editId={editId} hours={hours} setHours={setHours} pointDirection={shown[0]?.direction} /></TabsContent>
           <TabsContent value="points" className="space-y-3 pt-3">
             {shown.map((p, i) => <PointCard key={p.id || i} p={p} i={i} areas={areas} onChange={(np) => setPoints(() => { const c = [...shown]; c[i] = np; return c; })} />)}
           </TabsContent>

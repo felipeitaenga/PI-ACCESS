@@ -20,7 +20,8 @@ import { Controllers } from "@/pages/Equipment";
 import { Companies, CompanyGroups, Departments, Vehicles, Identifiers } from "@/pages/SimpleCrud";
 import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
-import { Cameras, Schedules, Integrations, Shortcuts, Backup } from "@/pages/Placeholders";
+import { Cameras, Schedules, Shortcuts, Backup } from "@/pages/Placeholders";
+import Integrations from "@/pages/Integrations";
 
 function Shell({ children }) {
   return (

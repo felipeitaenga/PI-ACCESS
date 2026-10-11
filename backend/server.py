@@ -30,6 +30,9 @@ from routers.beward import router as beward_router
 from routers.registry import router as registry_router
 from routers.visitors_reg import router as visitors_reg_router
 from registry_common import refresh_expired
+from routers.integrations import router as integrations_router
+from mqtt_bus import bus as mqtt_bus
+from beward_ingest import watch_loop as beward_watch_loop
 import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -66,6 +69,7 @@ api_router.include_router(cadastros_router)
 api_router.include_router(beward_router)
 api_router.include_router(registry_router)
 api_router.include_router(visitors_reg_router)
+api_router.include_router(integrations_router)
 
 app.include_router(api_router)
 
@@ -146,6 +150,12 @@ async def on_startup():
     logger.info(f"Seed: {result}")
     start_simulator()
     asyncio.create_task(expiry_loop())
+    if not await db.settings.find_one({"id": "mqtt"}) and os.environ.get("MQTT_BROKER"):
+        await db.settings.insert_one({"id": "mqtt", "host": os.environ["MQTT_BROKER"],
+                                      "port": int(os.environ.get("MQTT_PORT", "1883")), "username": "",
+                                      "password_enc": "", "client_id": "nx-access-server", "enabled": True})
+    await mqtt_bus.start()
+    asyncio.create_task(beward_watch_loop())
     logger.info("NX-ACCESS backend iniciado")
 
 

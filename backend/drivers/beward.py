@@ -53,6 +53,11 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
         return f"http://{ip}:{port}/action/{operator}"
 
     async def _post(self, operator, info=None):
+        """Facial na rede local: comando executado pelo nx-access-agent (POST http://ip/action/<Operator>)."""
+        from routers.integrations import run_via_agent
+        return await run_via_agent(self.device, operator, info)
+
+    async def _post_direct(self, operator, info=None):
         user, pwd = self._creds()
         body = json.dumps({"operator": operator, "info": info or {}}).encode("utf-8")
         headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
@@ -164,62 +169,83 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
 
 
 class BewardMqttDriver(_BewardShared, AccessControlDriver):
-    """Transporte MQTT (equipamentos fora da rede/4G). Publica comandos com messageId."""
+    """Transporte MQTT via broker externo (mqtt_bus). Comandos em mqtt/face/<ID Equipamento> com Ack."""
     brand = "beward_mqtt"
-    _seq = 0
 
-    def _client(self):
-        import paho.mqtt.client as mqtt
-        broker = os.environ.get("MQTT_BROKER", "localhost")
-        port = int(os.environ.get("MQTT_PORT", "61613"))
-        cli = mqtt.Client(client_id=f"nxaccess-{self.device.get('id','')[:8]}")
-        cli.connect(broker, port, keepalive=30)
-        return cli
+    def _dev(self):
+        return str(self.device.get("beward_device_id") or "")
 
-    def _topic(self):
-        return f"mqtt/face/{self.device.get('beward_device_id') or self.device.get('id')}"
+    def _online(self):
+        from datetime import datetime, timezone
+        from mqtt_bus import ONLINE_WINDOW
+        hb = self.device.get("last_heartbeat")
+        return bool(hb) and (datetime.now(timezone.utc) - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW
 
     async def _publish(self, operator, info=None):
-        BewardMqttDriver._seq += 1
-        msg = {"operator": operator, "messageId": f"nx-{BewardMqttDriver._seq}", "info": info or {}}
-        try:
-            cli = self._client()
-            cli.publish(self._topic(), json.dumps(msg), qos=1)
-            cli.disconnect()
-            return {"ok": True, "messageId": msg["messageId"], "detail": "publicado (aguarda Ack em /Ack)"}
-        except Exception as e:
-            return {"ok": False, "code": 0, "detail": f"MQTT indisponível: {e}"}
+        from mqtt_bus import bus
+        if not self._dev():
+            return {"ok": False, "detail": "Informe o ID Equipamento (DeviceID)"}
+        return await bus.command(self._dev(), operator, info, online=self._online())
 
     async def connect(self):
-        try:
-            cli = self._client(); cli.disconnect(); return True
-        except Exception:
-            return False
+        from mqtt_bus import bus
+        return bus.connected and self._online()
 
-    async def get_status(self): return {"online": await self.connect()}
-    async def get_device_info(self): return await self._publish("Versions")
-    async def set_datetime(self): return await self._publish("SetSysTime")
+    async def get_status(self):
+        from mqtt_bus import bus
+        online = await self.connect()
+        err = "" if online else ("broker MQTT desconectado" if not bus.connected else
+                                 "sem heartbeat do facial (mqtt/face/heartbeat) nos últimos 3 min")
+        return {"online": online, "error": err, "last_heartbeat": self.device.get("last_heartbeat")}
+
+    async def get_device_info(self):
+        r = await self._publish("Versions")
+        return {"ok": r.get("ok"), "firmware": (r.get("info") or {}).get("firmware", ""), **r}
+
+    async def set_datetime(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        return await self._publish("SetSysTime", {"SysTime": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d %H:%M:%S")})
+
     async def open_door(self, door_id, seconds=5):
-        return await self._publish("Unlock", {"facesluiceId": self.device.get("beward_device_id"),
-                "openDoor": 1, "showInfo": "Acesso liberado"})
+        return await self._publish("Unlock", {"openDoor": "1", "showInfo": "Acesso liberado"})
+
     async def set_door_mode(self, door_id, mode):
         return await self._publish("SetKeepOpen", {"KeepOpen": 1 if mode == "liberada" else 0})
+
     async def sync_person(self, person, strategy_ids=None):
-        info = self.person_payload(person, "picinfo", strategy_ids=strategy_ids)
-        info["customId"] = str(person.get("id"))
+        info = {"customId": str(person.get("id"))[:48], "name": (person.get("name") or "")[:32],
+                "personType": 0, "idCard": person.get("document") or person.get("cpf") or "",
+                "telnum": person.get("phone", ""), "tempCardType": 0}
+        b64 = prepare_photo(person.get("photo") or "")
+        if b64:
+            info["pic"] = f"data:image/jpeg;base64,{b64}"
+        if strategy_ids is not None:
+            info["strategyID"] = list(strategy_ids)
         return await self._publish("EditPerson", info)
+
     async def delete_person(self, person_id):
         ids = person_id if isinstance(person_id, list) else [person_id]
-        return await self._publish("DeletePersons", {"PersonUUID": ids})
+        return await self._publish("DeletePersons", {"customId": [str(i) for i in ids]})
+
     async def sync_face(self, person_id, photo):
-        return await self._publish("EditPerson", {"customId": person_id, "pic": prepare_photo(photo)})
+        return {"ok": True, "detail": "foto enviada junto no EditPerson"}
+
     async def sync_card(self, person_id, card):
         return await self._publish("EditPerson", {"customId": person_id, "RFIDCard": card.get("number")})
+
     async def sync_access_rules(self): return {"ok": True}
+
     async def add_strategy(self, time_range, holidays=None):
         return await self._publish("AddAccessStrategy", time_range_to_strategy(time_range, holidays))
+
     async def bind_person_strategies(self, person_uuid, strategy_ids):
-        return await self._publish("PersonsBindStrategyID", {"PersonUUID": [person_uuid], "strategyID": list(strategy_ids)})
+        return await self._publish("PersonsBindStrategyID", {"customId": [person_uuid], "strategyID": list(strategy_ids)})
+
+    async def set_door_condition(self, decision_mode="servidor", verify_mode=1, wiegand=0, reset_time=3):
+        return await self._publish("SetDoorCondition", {"OpendoorWay": OPENDOOR_BY_MODE.get(decision_mode, 3),
+                                                         "VerifyMode": verify_mode, "VerifyResetTime": reset_time})
+
     async def get_events(self, since=None): return []
-    async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa tópicos, assinatura não necessária"}
+    async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa tópicos fixos (mqtt/face/#)"}
     async def reboot(self): return await self._publish("RebootDevice")

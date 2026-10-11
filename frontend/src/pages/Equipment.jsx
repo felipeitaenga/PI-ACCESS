@@ -9,6 +9,21 @@ import { Plus, Cpu, Wifi, RefreshCw, Pencil, Trash2, ArrowRight } from "lucide-r
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const ago = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
+
+function BewardHealth({ d }) {
+  if (d.model_type !== "beward_facial") return null;
+  return (
+    <div className="mt-2 space-y-1 text-[11px]" data-testid={`beward-health-${d.id}`}>
+      <div className="flex justify-between text-muted-foreground"><span>Modo</span><span className="font-mono text-foreground">{d.brand === "beward_mqtt" ? "MQTT" : "HTTP local (agente)"} · ID {d.beward_device_id || "—"}</span></div>
+      <div className="flex justify-between text-muted-foreground"><span>Último heartbeat</span><span className="font-mono text-foreground">{ago(d.last_heartbeat)}</span></div>
+      <div className="flex justify-between text-muted-foreground"><span>Último evento</span><span className="font-mono text-foreground">{ago(d.last_event_at)}</span></div>
+      {d.no_event_alerted && <p className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300" data-testid={`beward-no-event-${d.id}`}>Facial online sem eventos de acesso: verifique &apos;Evento de Identificação = enviar com imagem&apos; no painel do equipamento.</p>}
+      {d.direction_mismatch && <p className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300" data-testid={`beward-direction-${d.id}`}>Sentido divergente: facial envia {d.direction_mismatch.device?.toUpperCase()} e o ponto está como {d.direction_mismatch.point?.toUpperCase()}.</p>}
+    </div>
+  );
+}
+
 function ControllerCard({ d, points, canEdit, isAdmin, syncing, onTest, onSync, onEdit, onRemove }) {
   return (
     <Card className="border-border bg-card p-4" data-testid={`controller-card-${d.id}`}>
@@ -24,6 +39,7 @@ function ControllerCard({ d, points, canEdit, isAdmin, syncing, onTest, onSync, 
         <div className="flex justify-between"><span>Pontos de acesso</span><span className="font-mono text-foreground" data-testid={`controller-points-count-${d.id}`}>{d.num_access_points ?? points.length}</span></div>
         <div className="flex justify-between"><span>Firmware</span><span className="font-mono text-foreground">{d.firmware || "—"}</span></div>
       </dl>
+      <BewardHealth d={d} />
       <div className="mt-3 space-y-1">
         {points.map((p) => (
           <div key={p.id} className="flex items-center gap-1.5 rounded border border-border/60 px-2 py-1 text-[11px]" data-testid={`controller-point-${p.id}`}>

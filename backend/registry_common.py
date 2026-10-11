@@ -94,11 +94,11 @@ async def sync_to_devices(subject: dict, label: str, remove=False):
         try:
             drv = get_driver(c)
             if remove or subject.get("status") != "ativo":
-                r = await asyncio.wait_for(drv.delete_person(subject["id"]), 6)
+                r = await asyncio.wait_for(drv.delete_person(subject["id"]), 12)
             else:
-                r = await asyncio.wait_for(drv.sync_person(subject), 6)
+                r = await asyncio.wait_for(drv.sync_person(subject), 12)
                 if r.get("ok") and subject.get("photo"):
-                    await asyncio.wait_for(drv.sync_face(subject["id"], subject["photo"]), 6)
+                    await asyncio.wait_for(drv.sync_face(subject["id"], subject["photo"]), 12)
             ok = bool(r.get("ok"))
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "ok" if ok else "erro",
                             "error": "" if ok else str(r.get("error") or "falha")})

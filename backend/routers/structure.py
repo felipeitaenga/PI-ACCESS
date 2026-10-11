@@ -27,6 +27,14 @@ async def update_site(site_id: str, payload: SiteInput, user: dict = Depends(req
     return clean(await db.sites.find_one({"id": site_id}))
 
 
+@router.put("/sites/{site_id}/business-hours")
+async def site_hours(site_id: str, body: dict, user: dict = Depends(require_role("admin", "operator"))):
+    hours = {"days": [int(d) for d in body.get("days", []) if 1 <= int(d) <= 7], "start": body.get("start", "07:00"),
+             "end": body.get("end", "19:00")}
+    await db.sites.update_one({"id": site_id}, {"$set": {"business_hours": hours}})
+    return hours
+
+
 @router.delete("/sites/{site_id}")
 async def delete_site(site_id: str, user: dict = Depends(require_role("admin"))):
     await db.sites.delete_one({"id": site_id})
