@@ -1,4 +1,5 @@
 """Cadastro de visita (portaria), tipos de visita e configurações de visitantes."""
+import re
 import secrets
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -99,6 +100,49 @@ async def lookup(doc_type: str, doc_number: str, user: dict = Depends(get_curren
         return {"found": False}
     return {"found": True, "visitor": {k: v.get(k) for k in ("id", "name", "origin_company", "photo", "plate",
                                                               "blacklist", "blacklist_reason")}}
+
+
+@router.get("/visitor-search")
+async def visitor_search(q: str, user: dict = Depends(get_current_user)):
+    q = q.strip()
+    if len(q) < 3:
+        return []
+    rxq = {"$regex": re.escape(q), "$options": "i"}
+    ors = [{"name": rxq}, {"doc_number": rxq}, {"document": rxq}]
+    dig = re.sub(r"\D", "", q)
+    if len(dig) >= 3:
+        ors += [{"doc_key": {"$regex": dig}}, {"cpf_digits": {"$regex": dig}}, {"document_digits": {"$regex": dig}}]
+    items = await db.visitors.find({**ND, "$or": ors}, {"_id": 0, "id": 1, "name": 1, "doc_type": 1, "doc_number": 1, "document": 1,
+                                                       "origin_company": 1, "photo_thumb": 1, "blacklist": 1}).sort("updated_at", -1).limit(8).to_list(8)
+    for v in items:
+        v["doc_number"] = v.get("doc_number") or v.get("document", "")
+    return items
+
+
+@router.get("/visitor/{vid}/prefill")
+async def prefill(vid: str, user: dict = Depends(get_current_user)):
+    v = await db.visitors.find_one({**ND, "id": vid}, {"_id": 0})
+    if not v:
+        raise HTTPException(status_code=404, detail="Visitante não encontrado")
+    doc_type = v.get("doc_type") or ("cpf" if v.get("cpf_digits") else "outro")
+    out = {"visitor": {"id": v["id"], "name": v.get("name", ""), "doc_type": doc_type,
+                       "doc_number": v.get("doc_number") or (v.get("cpf") if doc_type == "cpf" else v.get("document", "")),
+                       "origin_company": v.get("origin_company", ""), "photo": v.get("photo", ""),
+                       "plate": v.get("plate", ""), "blacklist": bool(v.get("blacklist")),
+                       "blacklist_reason": v.get("blacklist_reason", "")}, "last_visit": None}
+    last = await db.visits.find_one({**ND, "visitor_id": vid}, {"_id": 0}, sort=[("created_at", -1)])
+    if last:
+        vt = await db.visit_types.find_one({**ND, "id": last.get("visit_type_id"), "active": True}, {"_id": 0, "id": 1})
+        host = await db.people.find_one({**ND, "id": last.get("host_person_id") or last.get("host_id"), "status": "ativo",
+                                         "can_authorize_visits": {"$ne": False}}, {"_id": 0, "id": 1, "name": 1, "company_id": 1})
+        ident = last.get("identifier") or {"type": last.get("credential_type") or "facial", "value": last.get("credential_value", "")}
+        out["last_visit"] = {"visit_type_id": vt["id"] if vt else "",
+                             "host_company_id": (host or {}).get("company_id") or last.get("host_company_id", ""),
+                             "host_person_id": (host or {}).get("id", ""), "host_name": (host or {}).get("name", ""),
+                             "id_type": ident.get("type") if ident.get("type") in ID_TYPES else "facial",
+                             "id_value": ident.get("value", "") if ident.get("type") == "cartao" else "",
+                             "notes": last.get("notes", ""), "plate": last.get("plate") or last.get("vehicle_plate", "")}
+    return out
 
 
 @router.get("/visitor-companies")

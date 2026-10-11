@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Field, CompanyCombo } from "@/components/registry/FormBits";
 import { cn } from "@/lib/utils";
 import { addHours, endOfDay, DOC_TYPES, ID_TYPES, maskDoc, maskPlate } from "@/components/visits/visitUtils";
+import { VisitorSuggest } from "@/components/visits/VisitorSuggest";
 
 const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
 
@@ -86,7 +87,7 @@ export function HostFields({ v, companies }) {
 }
 
 export function VisitorFields({ v }) {
-  const { f, set, settings, errors } = v;
+  const { f, set, settings, errors, prefill } = v;
   const [sug, setSug] = useState([]);
   useEffect(() => {
     const t = setTimeout(() => api.get(`/visits/visitor-companies?q=${encodeURIComponent(f.visitor_company)}`).then(({ data }) => setSug(data)).catch(() => {}), 300);
@@ -95,7 +96,7 @@ export function VisitorFields({ v }) {
   return (
     <div className="grid gap-3 sm:grid-cols-6">
       <Field className="sm:col-span-6" label="Nome completo do visitante" required error={errors.name}>
-        <Input value={f.name} onChange={(e) => set("name", e.target.value)} data-testid="visit-name-input" />
+        <VisitorSuggest value={f.name} onChange={(x) => set("name", x)} onPick={prefill} testid="visit-name-input" field="name" />
       </Field>
       <Field className="sm:col-span-2" label="Tipo de documento" required error={errors.doc_type}>
         <select className={sel} value={f.doc_type} onChange={(e) => { set("doc_type", e.target.value); set("doc_number", ""); }} data-testid="visit-doc-type-select">
@@ -103,7 +104,7 @@ export function VisitorFields({ v }) {
         </select>
       </Field>
       <Field className="sm:col-span-4" label="Número do documento" required error={errors.doc_number}>
-        <Input value={f.doc_number} onChange={(e) => set("doc_number", maskDoc(f.doc_type, e.target.value, settings))} className="font-mono" data-testid="visit-doc-number-input" />
+        <VisitorSuggest value={f.doc_number} onChange={(x) => set("doc_number", maskDoc(f.doc_type, x, settings))} onPick={prefill} className="font-mono" testid="visit-doc-number-input" field="doc" />
       </Field>
       <Field className="sm:col-span-6" label="Empresa do visitante">
         <Input list="visitor-company-suggestions" value={f.visitor_company} onChange={(e) => set("visitor_company", e.target.value)} data-testid="visit-visitor-company-input" />

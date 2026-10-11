@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { fromLocalInput, nowLocal } from "@/lib/br";
 import { addHours, docError, plateError, typeHours } from "@/components/visits/visitUtils";
@@ -19,6 +19,7 @@ export function useVisitForm(onSaved) {
   const [busy, setBusy] = useState(false);
   const [sync, setSync] = useState(null);
   const [last, setLast] = useState(null);
+  const picked = useRef("");
   const set = useCallback((k, v) => setF((s) => ({ ...s, [k]: v })), []);
   const vtype = types.find((t) => t.id === f.visit_type_id);
 
@@ -38,6 +39,7 @@ export function useVisitForm(onSaved) {
 
   useEffect(() => {
     if (docError(f.doc_type, f.doc_number, settings)) return undefined;
+    if (picked.current === `${f.doc_type}|${f.doc_number}`) return undefined;
     const t = setTimeout(() => {
       api.get(`/visits/lookup?doc_type=${f.doc_type}&doc_number=${encodeURIComponent(f.doc_number)}`).then(({ data }) => {
         if (!data.found) { setF((s) => ({ ...s, blacklist: null })); return; }
@@ -102,6 +104,27 @@ export function useVisitForm(onSaved) {
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
-  const clear = () => { setF(blank({ visit_type_id: f.visit_type_id })); setErrors({}); setSync(null); setLast(null); };
-  return { f, set, setF, types, vtype, settings, errors, busy, sync, last, save, endVisit, clear };
+  const prefill = async (id) => {
+    try {
+      const { data } = await api.get(`/visits/visitor/${id}/prefill`);
+      const v = data.visitor;
+      const lv = data.last_visit || {};
+      picked.current = `${v.doc_type}|${v.doc_number}`;
+      setF((s) => ({
+        ...s, name: v.name, doc_type: v.doc_type, doc_number: v.doc_number, visitor_company: v.origin_company,
+        photo: v.photo || "", plate: lv.plate || v.plate || "", blacklist: v.blacklist ? (v.blacklist_reason || "acesso proibido") : null,
+        ...(data.last_visit ? {
+          visit_type_id: lv.visit_type_id || s.visit_type_id, host_company_id: lv.host_company_id || "",
+          host_person_id: lv.host_person_id || "", host_name: lv.host_name || "", id_type: lv.id_type || "facial",
+          id_value: lv.id_value || "", notes: lv.notes || "",
+        } : {}),
+        start_at: nowLocal(), end_at_manual: false,
+      }));
+      setErrors({});
+      toast.info(v.blacklist ? "Visitante em LISTA NEGRA" : data.last_visit ? "Dados da última visita preenchidos" : "Dados do visitante preenchidos");
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
+
+  const clear = () => { picked.current = ""; setF(blank({ visit_type_id: f.visit_type_id })); setErrors({}); setSync(null); setLast(null); };
+  return { f, set, setF, types, vtype, settings, errors, busy, sync, last, save, endVisit, clear, prefill };
 }
