@@ -12,6 +12,8 @@ from app_config import mqtt_env, FIXED_TOPICS
 logger = logging.getLogger("mqtt_bus")
 DEFAULT_PREFIX = "mqtt/face"
 ACK_TIMEOUT = 10
+# Comandos com foto/lote: o facial extrai o rosto antes de responder (pode passar de 10 s)
+ACK_TIMEOUT_BY_OP = {"EditPerson": 40, "EditPersonsNew": 90, "DeletePersons": 20, "DeleteAllPerson": 60}
 ONLINE_WINDOW = 180  # s sem heartbeat => offline
 
 
@@ -157,11 +159,12 @@ class MqttBus:
         self.pending[mid] = fut
         self.publish_raw(device_id, msg)
         try:
-            ack = await asyncio.wait_for(fut, ACK_TIMEOUT)
+            ack = await asyncio.wait_for(fut, ACK_TIMEOUT_BY_OP.get(operator, ACK_TIMEOUT))
         except asyncio.TimeoutError:
             self.pending.pop(mid, None)
             await db.mqtt_commands.update_one({"messageId": mid}, {"$set": {"status": "queued", "detail": "sem Ack"}})
-            return {"ok": False, "queued": True, "detail": "sem Ack do facial em 10 s — comando na fila"}
+            t = ACK_TIMEOUT_BY_OP.get(operator, ACK_TIMEOUT)
+            return {"ok": False, "queued": True, "detail": f"sem Ack do facial em {t} s — comando na fila"}
         code = str(ack.get("code", "200"))
         ainfo = ack.get("info") or {}
         ok = code == "200" and str(ainfo.get("result", "ok")).lower() in ("ok", "success", "")

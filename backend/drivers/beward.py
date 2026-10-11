@@ -201,6 +201,10 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
 
     async def get_device_info(self):
         r = await self._publish("Versions")
+        if not r.get("ok") and self._online():
+            # alguns firmwares não respondem "Versions" por MQTT; o heartbeat recente já prova a comunicação
+            return {"ok": True, "firmware": self.device.get("firmware", ""),
+                    "detail": "Online (heartbeat recente). O facial não respondeu ao comando Versions."}
         return {"ok": r.get("ok"), "firmware": (r.get("info") or {}).get("firmware", ""), **r}
 
     async def set_datetime(self):

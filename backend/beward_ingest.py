@@ -135,6 +135,9 @@ async def on_mqtt(topic, op, data, dev):
     info = data.get("info") or {}
     if op in ("HeartBeat", "Online") or topic.endswith("/heartbeat"):
         await heartbeat(dev, True, info.get("ip"))
+        if op == "Online" and dev and await controller_by_device(dev):
+            # protocolo Beward: o facial reenvia "Online" até receber Online-Ack
+            bus.publish_raw(dev, {"operator": "Online-Ack", "info": {"facesluiceId": str(dev), "result": "ok"}})
         return
     if op == "Offline":
         await heartbeat(dev, False, info.get("ip"))
