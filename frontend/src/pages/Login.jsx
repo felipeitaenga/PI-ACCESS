@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { formatApiErrorDetail } from "@/lib/api";
+import { formatApiErrorDetail, useAppInfo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const info = useAppInfo();
 
   useEffect(() => {
     if (user) navigate("/", { replace: true });
@@ -92,9 +93,11 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-slate-300">Senha</Label>
-                <Link to="/esqueci-senha" className="text-xs text-sky-400 hover:text-sky-300" data-testid="forgot-password-link">
-                  Esqueceu a senha?
-                </Link>
+                {info?.email_enabled && (
+                  <Link to="/esqueci-senha" className="text-xs text-sky-400 hover:text-sky-300" data-testid="forgot-password-link">
+                    Esqueceu a senha?
+                  </Link>
+                )}
               </div>
               <Input
                 id="password" type="password" data-testid="login-password-input"
@@ -113,10 +116,13 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-500">
-            <div className="font-mono uppercase tracking-wide text-slate-600 mb-1">Demo — Administrador</div>
-            felipejferreira@gmail.com / NxAccess@2026
-          </div>
+          {info?.demo && (
+            <div className="mt-6 rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-500" data-testid="login-demo-box">
+              <div className="font-mono uppercase tracking-wide text-slate-600 mb-1">Demo — Administrador</div>
+              felipejferreira@gmail.com / NxAccess@2026
+            </div>
+          )}
+          {info && <p className="mt-6 text-center font-mono text-[11px] text-slate-600" data-testid="login-version">{info.cliente_nome} · v{info.version}</p>}
         </div>
       </div>
     </div>

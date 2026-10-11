@@ -17,12 +17,28 @@ ADMIN = require_role("admin")
 # ---------- MQTT ----------
 @router.get("/integrations/mqtt")
 async def get_mqtt(user: dict = Depends(ADMIN)):
-    s = await db.settings.find_one({"id": "mqtt"}, {"_id": 0, "password_enc": 0}) or {}
-    return {"config": s, "status": bus.status()}
+    if bus.managed:
+        c = bus.cfg
+        s = {k: c.get(k) for k in ("host", "port", "username", "client_id", "enabled", "tls")}
+        s["topic_prefix"] = c["topic_base"]
+    else:
+        s = await db.settings.find_one({"id": "mqtt"}, {"_id": 0, "password_enc": 0}) or {}
+    return {"config": s, "status": bus.status(), "managed": bus.managed}
+
+
+@router.get("/integrations/mqtt/device-setup")
+async def device_setup(user: dict = Depends(require_role("admin", "operator"))):
+    """Dados que o instalador digita no painel do facial."""
+    c = bus.cfg
+    return {"host": c.get("host", ""), "port": c.get("port", 1883), "username": c.get("username", ""),
+            "password": c.get("password", "") if user.get("role") == "admin" else None,
+            "tls": bool(c.get("tls")), "topic_base": bus.prefix}
 
 
 @router.put("/integrations/mqtt")
 async def put_mqtt(body: dict, request: Request, user: dict = Depends(ADMIN)):
+    if bus.managed:
+        raise HTTPException(status_code=409, detail="MQTT definido por variáveis de ambiente (MQTT_HOST etc.) — altere o .env do cliente")
     upd = {k: body.get(k) for k in ("host", "port", "username", "client_id", "enabled") if k in body}
     if "topic_prefix" in body:
         upd["topic_prefix"] = normalize_prefix(body["topic_prefix"])
@@ -39,6 +55,9 @@ async def put_mqtt(body: dict, request: Request, user: dict = Depends(ADMIN)):
 
 @router.post("/integrations/mqtt/test")
 async def test_mqtt(body: dict, user: dict = Depends(ADMIN)):
+    if bus.managed:
+        c = bus.cfg
+        return await probe(c["host"], c["port"], c["username"], c["password"], tls=c["tls"])
     s = await db.settings.find_one({"id": "mqtt"}, {"_id": 0}) or {}
     host = body.get("host") or s.get("host")
     port = body.get("port") or s.get("port") or 1883

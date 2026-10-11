@@ -7,6 +7,7 @@ from collections import deque
 from database import db
 from models import new_id, now_iso
 from security import decrypt_secret
+from app_config import mqtt_env, FIXED_TOPICS
 
 logger = logging.getLogger("mqtt_bus")
 DEFAULT_PREFIX = "mqtt/face"
@@ -24,13 +25,25 @@ class MqttBus:
         self.log = deque(maxlen=80)
         self.stats = {"messages": 0, "last_message_at": None, "last_error": "", "connected_at": None}
         self.handler = None  # async (topic, operator, data) -> None
+        self.managed = False
 
     @property
     def prefix(self):
+        if self.managed:
+            return self.cfg["topic_base"]
         return normalize_prefix(self.cfg.get("topic_prefix"))
 
+    def topics(self):
+        base = self.prefix
+        return [f"{base}/#"] + [t for t in FIXED_TOPICS if not t.startswith(base + "/")]
+
     async def load_cfg(self):
+        env = mqtt_env()
+        self.managed = env is not None
+        if env:
+            return env
         s = await db.settings.find_one({"id": "mqtt"}, {"_id": 0}) or {}
+        s["password"] = decrypt_secret(s.get("password_enc", ""))
         return s
 
     async def start(self):
@@ -47,8 +60,10 @@ class MqttBus:
         except AttributeError:
             cli = mqtt.Client(client_id=cid, clean_session=False)
         if self.cfg.get("username"):
-            cli.username_pw_set(self.cfg["username"], decrypt_secret(self.cfg.get("password_enc", "")) or None)
-        cli.reconnect_delay_set(min_delay=2, max_delay=30)
+            cli.username_pw_set(self.cfg["username"], self.cfg.get("password") or None)
+        if self.cfg.get("tls"):
+            cli.tls_set()
+        cli.reconnect_delay_set(min_delay=2, max_delay=60)
         cli.on_connect = self._on_connect
         cli.on_disconnect = self._on_disconnect
         cli.on_message = self._on_message
@@ -76,8 +91,9 @@ class MqttBus:
         if ok:
             self.stats["connected_at"] = now_iso()
             self.stats["last_error"] = ""
-            cli.subscribe(f"{self.prefix}/#", qos=1)
-            logger.info(f"MQTT conectado; assinado {self.prefix}/#")
+            for t in self.topics():
+                cli.subscribe(t, qos=1)
+            logger.info(f"MQTT conectado como {self.cfg.get('client_id')}; assinado {', '.join(self.topics())}")
         else:
             self.stats["last_error"] = f"CONNACK {rc}"
 
@@ -92,14 +108,19 @@ class MqttBus:
         op = data.get("operator", "")
         info = data.get("info") or {}
         dev = str(info.get("facesluiceId") or info.get("DeviceID") or _device_from_topic(msg.topic, self.prefix) or "")
-        self.stats["messages"] += 1
-        self.stats["last_message_at"] = now_iso()
-        self.log.appendleft({"at": now_iso(), "topic": msg.topic, "operator": op, "device_id": dev,
-                             "summary": _summary(op, info, data)})
         if self.loop:
             asyncio.run_coroutine_threadsafe(self._dispatch(msg.topic, op, data, dev), self.loop)
 
     async def _dispatch(self, topic, op, data, dev):
+        if not topic.startswith(self.prefix + "/"):
+            # tópicos fixos compartilhados: só dispositivos cadastrados neste cliente
+            from beward_ingest import controller_by_device
+            if not dev or not await controller_by_device(dev):
+                return
+        self.stats["messages"] += 1
+        self.stats["last_message_at"] = now_iso()
+        self.log.appendleft({"at": now_iso(), "topic": topic, "operator": op, "device_id": dev,
+                             "summary": _summary(op, data.get("info") or {}, data)})
         if topic.endswith("/Ack") or op.endswith("-Ack"):
             fut = self.pending.pop(str(data.get("messageId")), None)
             if fut and not fut.done():
@@ -160,7 +181,9 @@ class MqttBus:
 
     def status(self):
         return {"connected": self.connected, "host": self.cfg.get("host"), "port": self.cfg.get("port"),
-                "enabled": bool(self.cfg.get("enabled")), "topic_prefix": self.prefix, **self.stats}
+                "enabled": bool(self.cfg.get("enabled")), "topic_prefix": self.prefix, "topics": self.topics(),
+                "managed": self.managed, "client_id": self.cfg.get("client_id"), "tls": bool(self.cfg.get("tls")),
+                **self.stats}
 
 
 def normalize_prefix(p):
@@ -186,7 +209,7 @@ def _summary(op, info, data):
     return str(data.get("code", ""))[:40]
 
 
-async def probe(host, port, username="", password="", seconds=5):
+async def probe(host, port, username="", password="", seconds=5, tls=False):
     """Teste isolado de conexão ao broker."""
     import paho.mqtt.client as mqtt
     res = {"ok": False, "detail": ""}
@@ -203,6 +226,8 @@ async def probe(host, port, username="", password="", seconds=5):
         cli = mqtt.Client(client_id=f"pi-access-probe-{new_id()[:6]}")
     if username:
         cli.username_pw_set(username, password or None)
+    if tls:
+        cli.tls_set()
     cli.on_connect = on_connect
     t0 = time.time()
     try:

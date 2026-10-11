@@ -38,48 +38,10 @@ Nunca comite credenciais; use sempre `.env`.
 
 ---
 
-## Deploy em Docker (servidor Linux próprio, atrás de proxy reverso HTTPS)
+## Deploy em produção (Docker, um container + um MongoDB por cliente)
 
-Exemplo de `docker-compose.yml`:
-```yaml
-version: "3.9"
-services:
-  mongo:
-    image: mongo:7
-    restart: always
-    volumes: ["mongo_data:/data/db"]
-    networks: [nx]
-
-  backend:
-    build: ./backend
-    restart: always
-    environment:
-      - MONGO_URL=mongodb://mongo:27017
-      - DB_NAME=nxaccess
-      - JWT_SECRET=${JWT_SECRET}
-      - FERNET_KEY=${FERNET_KEY}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - FRONTEND_URL=https://acesso.suaempresa.com
-    depends_on: [mongo]
-    networks: [nx]
-
-  frontend:
-    build: ./frontend
-    restart: always
-    environment:
-      - REACT_APP_BACKEND_URL=https://acesso.suaempresa.com
-    depends_on: [backend]
-    networks: [nx]
-
-volumes: { mongo_data: {} }
-networks: { nx: {} }
-```
-Coloque Nginx/Traefik como proxy reverso com certificado TLS (Let's Encrypt), roteando `/api` → backend:8001 e o restante → frontend:3000. Gere segredos:
-```bash
-python -c "import secrets;print(secrets.token_hex(32))"              # JWT_SECRET
-python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"  # FERNET_KEY
-```
+Veja **[deploy/README.md](deploy/README.md)**: imagem única `ghcr.io/felipeitaenga/pi-access` (Dockerfile multi-stage na raiz),
+`deploy/docker-compose.yml`, `deploy/.env.example`, build por tag `vX.Y.Z` no GitHub Actions, operação de clientes, backup e restauração.
 
 ---
 

@@ -1,0 +1,2 @@
+caddy=2.6.2-5
+mosquitto=2.0.11-1.2+deb12u2

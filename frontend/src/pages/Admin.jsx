@@ -16,7 +16,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 const ROLE_LABEL = { admin: "Administrador", operator: "Operador", reception: "Recepção", viewer: "Somente leitura" };
@@ -27,6 +27,16 @@ export default function Admin() {
   const [settings, setSettings] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "operator" });
+  const [pwdUser, setPwdUser] = useState(null);
+  const [newPwd, setNewPwd] = useState("");
+
+  const resetPassword = async () => {
+    try {
+      await api.put(`/auth/users/${pwdUser.id}`, { password: newPwd });
+      toast.success(`Senha de ${pwdUser.name} redefinida`);
+      setPwdUser(null); setNewPwd("");
+    } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
+  };
 
   const load = async () => {
     const [u, a, s] = await Promise.all([
@@ -101,16 +111,26 @@ export default function Admin() {
                     <TableCell className="font-mono text-sm">{u.email}</TableCell>
                     <TableCell><Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">{u.role_label}</Badge></TableCell>
                     <TableCell>{u.active ? <span className="text-emerald-400 text-sm">Ativo</span> : <span className="text-slate-500 text-sm">Inativo</span>}</TableCell>
-                    <TableCell className="text-right"><Button variant="ghost" size="icon" className="text-red-400" onClick={() => removeUser(u.id)} data-testid={`user-delete-${u.id}`}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                    <TableCell className="text-right"><Button variant="ghost" size="icon" className="text-sky-400" title="Redefinir senha" onClick={() => { setPwdUser(u); setNewPwd(""); }} data-testid={`user-reset-password-${u.id}`}><KeyRound className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-red-400" onClick={() => removeUser(u.id)} data-testid={`user-delete-${u.id}`}><Trash2 className="h-4 w-4" /></Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </Card>
+          <Dialog open={!!pwdUser} onOpenChange={(o) => !o && setPwdUser(null)}>
+            <DialogContent data-testid="reset-password-dialog">
+              <DialogHeader><DialogTitle>Redefinir senha — {pwdUser?.name}</DialogTitle></DialogHeader>
+              <p className="text-xs text-muted-foreground">{pwdUser?.email} · as sessões abertas deste usuário serão encerradas.</p>
+              <div><Label className="mb-1.5 block text-xs text-muted-foreground">Nova senha (mín. 8 caracteres)</Label><Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} data-testid="reset-password-input" /></div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPwdUser(null)}>Cancelar</Button>
+                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" disabled={newPwd.length < 8} onClick={resetPassword} data-testid="reset-password-save">Salvar nova senha</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
-        <TabsContent value="audit">
-          <Card className="border-border bg-card">
+        <TabsContent value="audit">          <Card className="border-border bg-card">
             <Table>
               <TableHeader><TableRow><TableHead>Data/Hora</TableHead><TableHead>Usuário</TableHead><TableHead>Ação</TableHead><TableHead>Entidade</TableHead><TableHead>Detalhes</TableHead><TableHead>IP</TableHead></TableRow></TableHeader>
               <TableBody>

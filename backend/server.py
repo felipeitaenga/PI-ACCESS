@@ -7,11 +7,14 @@ load_dotenv(ROOT_DIR / ".env")
 import os
 import logging
 from datetime import datetime, timezone
-from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, Response, HTTPException
+from fastapi.responses import FileResponse
 from starlette.middleware.cors import CORSMiddleware
 
+import app_config as cfg
 from database import db, create_indexes
-from security import hash_password, verify_password, resolve_user_from_token
+from migrations import run_migrations
+from security import hash_password, resolve_user_from_token
 from drivers.factory import available_brands
 from realtime import manager, start_simulator, stop_simulator
 from seed import generate_seed
@@ -38,7 +41,7 @@ import asyncio
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="PI-ACCESS API", version="1.0.0", description="Sistema de Controle de Acesso Corporativo")
+app = FastAPI(title="PI-ACCESS API", version=cfg.APP_VERSION, description="Sistema de Controle de Acesso Corporativo")
 api_router = APIRouter(prefix="/api")
 
 
@@ -48,8 +51,25 @@ async def root():
 
 
 @api_router.get("/health")
-async def health():
-    return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
+async def health(response: Response):
+    try:
+        await db.command("ping")
+        mongo = "ok"
+    except Exception as e:  # noqa: BLE001
+        mongo = f"erro: {e}"
+    st = mqtt_bus.status()
+    mqtt = "conectado" if st["connected"] else ("desconectado" if st["enabled"] else "desabilitado")
+    if mongo != "ok":
+        response.status_code = 503
+    return {"status": "ok" if mongo == "ok" else "erro", "mongo": mongo, "mqtt": mqtt,
+            "mqtt_topics": st.get("topics"), "version": cfg.APP_VERSION, "cliente": cfg.CLIENTE,
+            "ts": datetime.now(timezone.utc).isoformat()}
+
+
+@api_router.get("/version")
+async def version():
+    return {"version": cfg.APP_VERSION, "cliente": cfg.CLIENTE, "cliente_nome": cfg.CLIENTE_NOME,
+            "email_enabled": cfg.EMAIL_ENABLED, "demo": cfg.SEED_DEMO}
 
 
 api_router.include_router(auth_router)
@@ -95,7 +115,7 @@ async def websocket_endpoint(websocket: WebSocket):
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "http://localhost:3000"],
+    allow_origins=[o for o in [cfg.PUBLIC_URL, *(os.environ.get("CORS_ORIGINS") or "").split(",")] if o.strip() and o.strip() != "*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -124,16 +144,19 @@ SEED_USERS = [
 
 
 async def seed_admin():
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
-    existing = await db.users.find_one({"email": admin_email})
-    if existing is None:
-        await db.users.insert_one({
-            "email": admin_email, "password_hash": hash_password(admin_password),
-            "name": "Felipe Ferreira", "role": "admin", "site_ids": [], "active": True,
-            "token_version": 0, "created_at": datetime.now(timezone.utc).isoformat()})
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    """Cria o administrador inicial SOMENTE se não existir nenhum usuário."""
+    if await db.users.count_documents({}) == 0:
+        email, pwd = os.environ.get("ADMIN_EMAIL"), os.environ.get("ADMIN_PASSWORD")
+        if not email or not pwd:
+            logger.error("Nenhum usuário e ADMIN_EMAIL/ADMIN_PASSWORD não definidos — use python -m app.reset_admin")
+        else:
+            await db.users.insert_one({
+                "email": email.strip().lower(), "password_hash": hash_password(pwd),
+                "name": "Administrador", "role": "admin", "site_ids": [], "active": True,
+                "token_version": 0, "created_at": datetime.now(timezone.utc).isoformat()})
+            logger.info(f"Administrador inicial criado: {email}")
+    if not cfg.SEED_DEMO:
+        return
     for email, pwd, name, role in SEED_USERS:
         if not await db.users.find_one({"email": email}):
             await db.users.insert_one({
@@ -144,21 +167,35 @@ async def seed_admin():
 
 @app.on_event("startup")
 async def on_startup():
+    for sub in ("photos", "uploads", "exports"):
+        os.makedirs(os.path.join(cfg.DATA_DIR, sub), exist_ok=True)
     await create_indexes()
+    await run_migrations()
     await seed_admin()
-    result = await generate_seed()
-    logger.info(f"Seed: {result}")
-    start_simulator()
+    if cfg.SEED_DEMO:
+        result = await generate_seed()
+        logger.info(f"Seed demo: {result}")
+        start_simulator()
     asyncio.create_task(expiry_loop())
-    if not await db.settings.find_one({"id": "mqtt"}) and os.environ.get("MQTT_BROKER"):
-        await db.settings.insert_one({"id": "mqtt", "host": os.environ["MQTT_BROKER"],
-                                      "port": int(os.environ.get("MQTT_PORT", "1883")), "username": "",
-                                      "password_enc": "", "client_id": "pi-access-server", "enabled": True})
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
-    logger.info("PI-ACCESS backend iniciado")
+    logger.info(f"PI-ACCESS {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
     stop_simulator()
+    await mqtt_bus.stop()
+
+
+if cfg.STATIC_DIR and os.path.isdir(cfg.STATIC_DIR):
+    _static_root = Path(cfg.STATIC_DIR).resolve()
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Não encontrado")
+        f = (_static_root / path).resolve()
+        if path and f.is_file() and _static_root in f.parents:
+            return FileResponse(f)
+        return FileResponse(_static_root / "index.html", headers={"Cache-Control": "no-cache"})

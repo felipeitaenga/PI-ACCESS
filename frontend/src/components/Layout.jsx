@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtime } from "@/context/RealtimeContext";
-import { api } from "@/lib/api";
+import { api, useAppInfo } from "@/lib/api";
 import { MENU, MENU_FLAT } from "@/config/menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function Layout({ children }) {
   const [cmd, setCmd] = useState(false);
   const [query, setQuery] = useState("");
   const [alarmCount, setAlarmCount] = useState(0);
+  const info = useAppInfo();
 
   useEffect(() => { save(LS.collapsed, collapsed); }, [collapsed]);
   useEffect(() => { save(LS.groups, groupState); }, [groupState]);
@@ -177,6 +178,9 @@ export function Layout({ children }) {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
+          {!collapsed && info && (
+            <p className="px-3 pt-1 font-mono text-[10px] text-slate-600" data-testid="app-version">PI-ACCESS v{info.version} · {info.cliente_nome}</p>
+          )}
         </div>
       </aside>
 

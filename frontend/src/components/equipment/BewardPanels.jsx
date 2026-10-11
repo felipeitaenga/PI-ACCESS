@@ -10,14 +10,13 @@ import { toast } from "sonner";
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR") : "—");
 
 const MQTT_STEPS = (f) => [
-  "Configuração MQTT › Habilitar = Sim",
+  "Configuração MQTT › Habilitar = Sim; Endereço, Porta, ID Núvem (usuário) e Senha conforme o quadro acima",
   `ID Equipamento = ${f.beward_device_id || "<Device ID informado aqui>"} (é o DeviceID/facesluiceId e o client ID)`,
-  "Endereço/Porta = broker configurado em Configurações › Integrações › MQTT; ID Núvem/Senha = usuário/senha do broker (vazio se anônimo)",
-  "Evento de Identificação = enviar com imagem (sem isso os acessos não chegam)",
-  "Retomar do ponto de interrupção = Sim (o servidor responde PushAck a cada evento)",
+  "Tópico = tópico base do quadro acima (o facial completa com /<ID Equipamento>)",
+  "Evento de Identificação = Enviar com Foto (sem isso os acessos não chegam)",
+  "Retomar do ponto de interrupção = Habilitar (o servidor responde PushAck a cada evento)",
   `Entrada ou Saída = igual ao sentido do ponto de acesso (${f.point_direction || "entrada"})`,
   "Configuração Http › Verificação = Não inscrever (para não duplicar eventos)",
-  "Heartbeat e online/offline usam <prefixo>/heartbeat e <prefixo>/basic (prefixo definido em Configurações › Integrações › MQTT, padrão mqtt/face)",
 ];
 const HTTP_STEPS = [
   "Requer o pi-access-agent rodando num PC da mesma rede do facial (o facial só aceita IP + porta, sem domínio/HTTPS)",
@@ -27,11 +26,34 @@ const HTTP_STEPS = [
   "Gere o token do agente abaixo e cole no agent.json junto com o endereço do servidor e o IP do PC (advertise_ip)",
 ];
 
+function BrokerInfo({ deviceId }) {
+  const [d, setD] = useState(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => { api.get("/integrations/mqtt/device-setup").then(({ data }) => setD(data)).catch(() => {}); }, []);
+  if (!d) return null;
+  const rows = [
+    ["Broker", d.host || "—", "broker"], ["Porta", `${d.port}${d.tls ? " (TLS)" : ""}`, "port"],
+    ["Usuário (ID Núvem)", d.username || "(anônimo)", "user"],
+    ["Senha", d.password == null ? "(visível só para administrador)" : !d.password ? "(sem senha)" : show ? d.password : "••••••••", "password"],
+    ["Tópico base", d.topic_base, "topic"], ["Tópico de comandos", `${d.topic_base}/${deviceId || "<ID>"}`, "cmd-topic"],
+  ];
+  return (
+    <div className="mb-2 grid grid-cols-1 gap-1 rounded border border-border bg-background/40 p-2 font-mono text-[11px] sm:grid-cols-2" data-testid="beward-broker-info">
+      {rows.map(([k, v, id]) => (
+        <div key={id} className="flex gap-2"><span className="text-muted-foreground">{k}:</span><span className="break-all text-foreground" data-testid={`beward-setup-${id}`}>{v}</span>
+          {id === "password" && d.password && <button type="button" className="text-sky-400" onClick={() => setShow(!show)} data-testid="beward-setup-show-password">{show ? "ocultar" : "mostrar"}</button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BewardSetupPanel({ form }) {
   const mqtt = form.transport === "mqtt";
   return (
     <div className="col-span-2 rounded-md border border-sky-500/30 bg-sky-500/5 p-3 text-xs" data-testid="beward-setup-panel">
       <p className="mb-2 font-semibold text-sky-300">Como configurar o facial — modo {mqtt ? "MQTT" : "HTTP local"} (MQTT e HTTP são exclusivos)</p>
+      {mqtt && <BrokerInfo deviceId={form.beward_device_id} />}
       <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">{(mqtt ? MQTT_STEPS(form) : HTTP_STEPS).map((s) => <li key={s}>{s}</li>)}</ol>
     </div>
   );

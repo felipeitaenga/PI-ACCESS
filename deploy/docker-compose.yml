@@ -1,0 +1,51 @@
+# PI-ACCESS — UM cliente por pasta (ex.: /opt/piaccess/clientes/pilares)
+# Uso: cp .env.example .env && editar && docker compose up -d
+name: piaccess_${CLIENTE}
+
+services:
+  app:
+    image: ghcr.io/felipeitaenga/pi-access:${VERSAO:-latest}
+    container_name: piaccess_${CLIENTE}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/?authSource=admin
+    volumes:
+      - ./dados/app:/app/data
+    mem_limit: 512m
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [interna, proxy]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  mongo:
+    image: mongo:7
+    container_name: piaccess_${CLIENTE}_mongo
+    restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - ./dados/mongo:/data/db
+    mem_limit: 400m
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [interna]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+# Nenhuma porta publicada no host: o Caddy (rede "proxy") acessa piaccess_<cliente>:8000
+networks:
+  interna: {}
+  proxy:
+    external: true

@@ -31,10 +31,11 @@ export default function Integrations() {
   const [log, setLog] = useState({ status: null, messages: [] });
   const [test, setTest] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [managed, setManaged] = useState(false);
 
   const loadLog = useCallback(() => api.get("/integrations/mqtt/log").then(({ data }) => setLog(data)).catch(() => {}), []);
   useEffect(() => {
-    api.get("/integrations/mqtt").then(({ data }) => setCfg((c) => ({ ...c, ...data.config, password: "" }))).catch(() => {});
+    api.get("/integrations/mqtt").then(({ data }) => { setManaged(!!data.managed); setCfg((c) => ({ ...c, ...data.config, password: "" })); }).catch(() => {});
     loadLog();
     const t = setInterval(loadLog, 5000);
     return () => clearInterval(t);
@@ -59,18 +60,19 @@ export default function Integrations() {
       <Card className="mb-4 border-border bg-card p-5">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground"><Radio className="h-4 w-4 text-sky-400" />Broker MQTT</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <FormRow label="Endereço"><Input value={cfg.host || ""} onChange={(e) => set("host")(e.target.value)} data-testid="mqtt-host" /></FormRow>
-          <FormRow label="Porta (TCP)"><Input type="number" value={cfg.port || ""} onChange={(e) => set("port")(e.target.value)} data-testid="mqtt-port" /></FormRow>
-          <FormRow label="Client ID do servidor"><Input value={cfg.client_id || ""} onChange={(e) => set("client_id")(e.target.value)} data-testid="mqtt-client-id" /></FormRow>
-          <FormRow label="Prefixo do tópico"><Input placeholder="mqtt/face" value={cfg.topic_prefix || ""} onChange={(e) => set("topic_prefix")(e.target.value)} data-testid="mqtt-topic-prefix" /></FormRow>
-          <FormRow label="Usuário (vazio = anônimo)"><Input value={cfg.username || ""} onChange={(e) => set("username")(e.target.value)} data-testid="mqtt-username" /></FormRow>
-          <FormRow label="Senha (criptografada)"><Input type="password" placeholder="(inalterada)" value={cfg.password} onChange={(e) => set("password")(e.target.value)} data-testid="mqtt-password" /></FormRow>
-          <label className="flex items-center gap-2 pt-6 text-sm"><Switch checked={!!cfg.enabled} onCheckedChange={set("enabled")} data-testid="mqtt-enabled" />Habilitado</label>
+          <FormRow label="Endereço"><Input disabled={managed} value={cfg.host || ""} onChange={(e) => set("host")(e.target.value)} data-testid="mqtt-host" /></FormRow>
+          <FormRow label="Porta (TCP)"><Input disabled={managed} type="number" value={cfg.port || ""} onChange={(e) => set("port")(e.target.value)} data-testid="mqtt-port" /></FormRow>
+          <FormRow label="Client ID do servidor"><Input disabled={managed} value={cfg.client_id || ""} onChange={(e) => set("client_id")(e.target.value)} data-testid="mqtt-client-id" /></FormRow>
+          <FormRow label={managed ? "Tópico base" : "Prefixo do tópico"}><Input disabled={managed} placeholder="mqtt/face" value={cfg.topic_prefix || ""} onChange={(e) => set("topic_prefix")(e.target.value)} data-testid="mqtt-topic-prefix" /></FormRow>
+          <FormRow label="Usuário (vazio = anônimo)"><Input disabled={managed} value={cfg.username || ""} onChange={(e) => set("username")(e.target.value)} data-testid="mqtt-username" /></FormRow>
+          <FormRow label="Senha (criptografada)"><Input disabled={managed} type="password" placeholder={managed ? "(definida no .env)" : "(inalterada)"} value={cfg.password} onChange={(e) => set("password")(e.target.value)} data-testid="mqtt-password" /></FormRow>
+          <label className="flex items-center gap-2 pt-6 text-sm"><Switch disabled={managed} checked={!!cfg.enabled} onCheckedChange={set("enabled")} data-testid="mqtt-enabled" />{managed ? (cfg.tls ? "Habilitado · TLS" : "Habilitado") : "Habilitado"}</label>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">O servidor conecta de saída ao broker (QoS 1, reconexão automática) e assina <span className="font-mono" data-testid="mqtt-topic-preview">{prefix}/#</span>. Comandos vão para <span className="font-mono">{prefix}/&lt;ID do facial&gt;</span>; heartbeat em <span className="font-mono">{prefix}/heartbeat</span> e <span className="font-mono">{prefix}/basic</span>. Configure o mesmo prefixo no facial.</p>
+        {managed && <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300" data-testid="mqtt-managed-note">Definido pelas variáveis de ambiente do cliente (MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASSWORD, MQTT_TLS, MQTT_PREFIX). Para alterar, edite o .env e reinicie o container.</p>}
+        <p className="mt-3 text-xs text-muted-foreground">O servidor conecta de saída ao broker (QoS 1, reconexão automática) e assina <span className="font-mono" data-testid="mqtt-topic-preview">{(log.status?.topics || [`${prefix}/#`]).join(", ")}</span>. Comandos vão para <span className="font-mono">{prefix}/&lt;ID do facial&gt;</span>. Nos tópicos fixos mqtt/face/heartbeat e mqtt/face/basic só são processados faciais cadastrados neste cliente.</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={runTest} data-testid="mqtt-test-button"><PlugZap className="mr-2 h-4 w-4" />Testar conexão</Button>
-          <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={busy} onClick={save} data-testid="mqtt-save-button"><Save className="mr-2 h-4 w-4" />Salvar e reconectar</Button>
+          {!managed && <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={busy} onClick={save} data-testid="mqtt-save-button"><Save className="mr-2 h-4 w-4" />Salvar e reconectar</Button>}
           {test && <span className={cn("text-sm", test.ok ? "text-emerald-400" : "text-red-400")} data-testid="mqtt-test-result">{test.detail}{test.latency_ms ? ` (${test.latency_ms} ms)` : ""}</span>}
         </div>
       </Card>

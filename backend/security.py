@@ -1,4 +1,6 @@
 import os
+import base64
+import hashlib
 import jwt
 import bcrypt
 from datetime import datetime, timezone, timedelta
@@ -17,7 +19,15 @@ ROLE_LABELS = {
     "viewer": "Somente leitura",
 }
 
-_fernet = Fernet(os.environ["FERNET_KEY"].encode())
+def _fernet_key(raw: str) -> bytes:
+    try:
+        Fernet(raw.encode())
+        return raw.encode()
+    except Exception:
+        return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
+
+
+_fernet = Fernet(_fernet_key(os.environ["ENCRYPTION_KEY"]))
 
 
 def encrypt_secret(value: str) -> str:

@@ -12,6 +12,7 @@ from drivers.factory import get_driver
 from drivers.beward_common import map_verify, dedup_key, ALARM_CODES
 from beward_faces import make_face_token, decode_face_token
 from models import new_id, now_iso
+from app_config import PUBLIC_URL
 import os
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ async def do_subscribe(cid: str, user: dict = Depends(require_role("admin", "ope
     if not ctrl:
         return {"ok": False, "detail": "Controladora não encontrada"}
     site = ctrl.get("site_id")
-    base = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    base = PUBLIC_URL
     driver = get_driver(ctrl)
     payload = {"DeviceID": ctrl.get("beward_device_id"), "Num": 1,
                "Topics": ["Snap", "VerifyWithSnap", "Card", "QRCode", "Alarm"],

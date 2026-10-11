@@ -1,10 +1,11 @@
 import os
 import logging
+import asyncio
 import hashlib
+import smtplib
 import secrets as pysecrets
-import httpx
+from email.message import EmailMessage
 from html import escape
-from urllib.parse import urlparse
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, Response, HTTPException, Depends, BackgroundTasks
 from bson import ObjectId
@@ -16,13 +17,12 @@ from security import (hash_password, verify_password, create_access_token,
                       create_refresh_token, set_auth_cookies, get_current_user,
                       require_role, get_jwt_secret, ROLE_LABELS)
 import jwt as pyjwt
+import app_config as cfg
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-EMAIL_BASE_URL = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip().rstrip("/") or "https://integrations.emergentagent.com"
-EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
-EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME") or "PI-ACCESS"
+EMAIL_FROM_NAME = cfg.CLIENTE_NOME and f"PI-ACCESS · {cfg.CLIENTE_NOME}" or "PI-ACCESS"
 
 MAX_ATTEMPTS = 5
 LOCK_MINUTES = 15
@@ -40,14 +40,25 @@ def _public_user(user: dict) -> dict:
     }
 
 
+def _smtp_send(msg: EmailMessage):
+    if cfg.SMTP_PORT == 465:
+        s = smtplib.SMTP_SSL(cfg.SMTP_HOST, cfg.SMTP_PORT, timeout=30)
+    else:
+        s = smtplib.SMTP(cfg.SMTP_HOST, cfg.SMTP_PORT, timeout=30)
+        s.ehlo()
+        if s.has_extn("starttls"):
+            s.starttls()
+            s.ehlo()
+    with s:
+        if cfg.SMTP_USER:
+            s.login(cfg.SMTP_USER, cfg.SMTP_PASSWORD)
+        s.send_message(msg)
+
+
 async def send_password_reset_email(to_email: str, token: str) -> bool:
-    base = os.environ.get("FRONTEND_URL", "").rstrip("/")
-    link = f"{base}/reset-password?token={token}"
-    if not EMAIL_KEY or EMAIL_KEY.startswith("{") or not base.startswith("https://"):
-        if urlparse(base).hostname in ("localhost", "127.0.0.1", "::1"):
-            logger.warning("Email não configurado; link de redefinição: %s", link)
-        else:
-            logger.error("Email de redefinição não configurado (EMERGENT_EMAIL_KEY / FRONTEND_URL)")
+    link = f"{cfg.PUBLIC_URL}/reset-password?token={token}"
+    if not cfg.EMAIL_ENABLED or not cfg.PUBLIC_URL:
+        logger.error("E-mail de redefinição não configurado (SMTP_HOST / PUBLIC_URL)")
         return False
     brand = escape(EMAIL_FROM_NAME)
     html = (
@@ -59,15 +70,14 @@ async def send_password_reset_email(to_email: str, token: str) -> bool:
         f'<p style="font-size:12px;color:#888">Enviado por {brand}. Nunca pedimos sua senha por e-mail.</p>'
         f'</td></tr></table>'
     )
+    msg = EmailMessage()
+    msg["Subject"] = f"Redefinição de senha {EMAIL_FROM_NAME}"
+    msg["From"] = f"{EMAIL_FROM_NAME} <{cfg.SMTP_FROM}>"
+    msg["To"] = to_email
+    msg.set_content(f"Para redefinir sua senha acesse: {link}\nO link expira em 1 hora.")
+    msg.add_alternative(html, subtype="html")
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{EMAIL_BASE_URL}/api/v1/email/send",
-                headers={"X-Email-Key": EMAIL_KEY},
-                json={"to": [to_email], "subject": f"Redefinição de senha {EMAIL_FROM_NAME}",
-                      "html": html, "from_name": EMAIL_FROM_NAME},
-            )
-        resp.raise_for_status()
+        await asyncio.to_thread(_smtp_send, msg)
         return True
     except Exception as e:
         logger.error(f"Falha no e-mail de redefinição: {e}")
@@ -176,6 +186,8 @@ async def refresh(request: Request, response: Response):
 @router.post("/forgot-password")
 async def forgot_password(payload: ForgotPasswordInput, background_tasks: BackgroundTasks):
     email = payload.email.lower()
+    if not cfg.EMAIL_ENABLED:
+        raise HTTPException(status_code=400, detail="Recuperação por e-mail desativada. Peça ao administrador para redefinir sua senha.")
     generic = {"message": "Se o e-mail estiver cadastrado, um link de redefinição foi enviado."}
     await db.password_reset_requests.insert_one({"email": email, "created_at": datetime.now(timezone.utc)})
     window = datetime.now(timezone.utc) - timedelta(minutes=15)

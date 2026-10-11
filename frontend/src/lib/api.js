@@ -1,6 +1,8 @@
 import axios from "axios";
+import { useEffect, useState } from "react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Produção: vazio => mesma origem (/api). Preview: URL externa do backend.
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 export const API = `${BACKEND_URL}/api`;
 
 const ACCESS_KEY = "pi_access_token";
@@ -71,7 +73,19 @@ export function formatApiErrorDetail(detail) {
 }
 
 export function wsUrl() {
-  const base = BACKEND_URL.replace(/^http/, "ws");
+  const base = BACKEND_URL
+    ? BACKEND_URL.replace(/^http/, "ws")
+    : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
   const t = tokenStore.access;
   return `${base}/api/ws${t ? `?token=${t}` : ""}`;
+}
+
+let infoPromise = null;
+export function useAppInfo() {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    infoPromise = infoPromise || api.get("/version").then((r) => r.data).catch(() => { infoPromise = null; return null; });
+    infoPromise.then(setInfo);
+  }, []);
+  return info;
 }
