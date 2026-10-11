@@ -96,6 +96,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - Teste de conectividade: broker 156.67.82.199:1883 OK (anônimo); facial 1457460 ainda não publicou nenhuma mensagem.
 - Verificado: iteration_7 (backend 24/24, frontend 100%).
 
+- Correção (2026-10-11): fotos não chegavam ao facial ("get pic and connect URI IP error") — fotos em URL agora são baixadas no servidor e enviadas em base64 no EditPerson (máx. 200 KB); pessoa sem foto retorna erro claro. Verificado iteration_8 (Ack result ok, personId 296).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.
