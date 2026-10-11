@@ -30,7 +30,7 @@ def _brand_for(doc):
 
 async def _save_points(ctrl, points):
     n = ctrl["num_access_points"]
-    areas = {a["id"]: a["description"] for a in await db.areas.find({}, {"_id": 0, "id": 1, "description": 1}).to_list(1000)}
+    areas = {a["id"]: a.get("description") or a.get("name", "") for a in await db.areas.find({}, {"_id": 0, "id": 1, "description": 1, "name": 1}).to_list(1000)}
     existing = {p["id"]: p for p in await db.access_points.find({"controller_id": ctrl["id"], "deleted": {"$ne": True}}, {"_id": 0}).to_list(50)}
     kept = []
     for i in range(n):
@@ -87,9 +87,9 @@ async def _ap_enrich(doc):
         s = await db.sites.find_one({"id": c.get("site_id")}, {"_id": 0})
         doc["site_name"] = s["name"] if s else ""
     o = await db.areas.find_one({"id": doc.get("origin_area_id")}, {"_id": 0})
-    doc["origin_area_name"] = o["description"] if o else ""
+    doc["origin_area_name"] = (o.get("description") or o.get("name", "")) if o else ""
     d = await db.areas.find_one({"id": doc.get("dest_area_id")}, {"_id": 0})
-    doc["dest_area_name"] = d["description"] if d else ""
+    doc["dest_area_name"] = (d.get("description") or d.get("name", "")) if d else ""
     return doc
 
 

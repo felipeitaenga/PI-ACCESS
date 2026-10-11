@@ -104,6 +104,14 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 ## Prefixo de tópico MQTT configurável (2026-10-11)
 - [x] Campo "Prefixo do tópico" em Configurações › Integrações › MQTT (padrão mqtt/face; barras e #/+ removidos). Assinatura <prefixo>/#, comandos <prefixo>/<ID facial>, heartbeat <prefixo>/heartbeat e <prefixo>/basic. Testado com tjs/mqtt/face (assinatura OK) e voltado para mqtt/face.
 
+## Empacotamento para produção multi-cliente (2026-10-11)
+- [x] Dockerfile multi-stage (node build → python:3.11-slim), uvicorn único :8000 (/api, /api/ws, SPA fallback), não-root uid 10001, HEALTHCHECK /api/health (mongo+mqtt), proxy headers.
+- [x] Config 100% env (backend/app_config.py): CLIENTE, CLIENTE_NOME, PUBLIC_URL, ENCRYPTION_KEY, SEED_DEMO, DATA_DIR, MQTT_*, SMTP_*. Admin inicial só se não houver usuários.
+- [x] MQTT env-managed: base <MQTT_PREFIX>/face, assina base/# + mqtt/face/heartbeat|basic (filtrados por facial cadastrado), client_id piaccess-<CLIENTE>, TLS opcional; Integrações somente leitura (PUT 409); painel "Como configurar o facial" com broker/porta/usuário/senha/tópico.
+- [x] migrations.py (schema_migrations), reset_admin.py (python -m app.reset_admin), /api/version + versão no rodapé/login, SMTP próprio (sem SMTP: link "Esqueceu a senha?" oculto), redefinir senha em Administração › Usuários.
+- [x] deploy/docker-compose.yml, deploy/.env.example (+ cópia na raiz), deploy/README.md, .github/workflows/docker-publish.yml (ghcr.io/felipeitaenga/pi-access).
+- [x] Testado em simulação de produção sem Docker (/root/prodtest: Caddy + Mosquitto com senha) — iteration_9 100%. Corrigido KeyError de áreas sem description em equipment.py.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).
