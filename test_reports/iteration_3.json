@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 3 — Registry & Visitors refactor. Backend: 34/34 PASS (new /app/backend/tests/test_registry.py) covering companies (6 w/ stats+alerts, Alfa blocked/vencido, Gama 'contrato em 7 dias'), visitor-companies (4 origins, 3 present), people list w/ filters+pagination+stats+cred_types, global search by matrícula/name/CPF-digits, 422 validations (invalid CPF, missing matrícula, missing valid_from/until for terceiro, duplicate CPF, duplicate card), successful create returning person+sync (all 'ok' on SIMULADO drivers), nested identifiers/vehicles/documents persisted, terceiro w/ expired doc auto 'vencido', logical delete, bulk set_category/block/unblock/renew/sync, photo/check (blank -> 'Nenhum rosto detectado'; pravatar face detected), visitors lookup+save+reuse-by-document+blacklist 409 (seeded 'Delta Engenharia' visitor), checkout, present list, and Permissions-Policy: camera=(self) header. Frontend: /pessoas 3 columns rendered (company-column, people-column-empty, person-form), pinned-own + pinned-visitors-today present, 'Visitantes' chip shows 4 origin cards, clicking a company card loads people column (not form), stats show 'X ativos · Y bloq · Z presentes', +Empresa modal opens, Ctrl+K opens global-search-input and 'F1001' returns 1 result, bulk-bar appears after selecting 2+ checkboxes. /portaria shows big portaria-doc-input + 3 present-checkout buttons; unknown document correctly prefills a new form with document field populated. /visitantes defaults to VISITANTE type button active. CameraCapture: clicking 'Capturar webcam' opens camera-modal (and renders photo-file-input fallback). Mobile 390px shows mobile-tab-companies/people/form switching columns correctly. No regressions, no console errors, no overlay/clickability issues observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_registry.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/routers/visitors_reg.py list_visitors uses raw user input in $regex (name/document) without re.escape — minor ReDoS/injection surface. registry.py uses re.escape via rx(); keep consistent.",
+    "registry._save sets current_area_id to 'Externa Pedestre' for ALL new people including terceiros using veículos/caminhões categories. Same seed/engine mismatch raised in iteration 2 can propagate — ensure new terceiros 'veículo'/'caminhão' categories pick the matching external area, or the engine's control_origin logic must accept any is_exterior as compatible with external origins.",
+    "backend/photo_quality.py loads CascadeClassifier at import time; keep in mind cold-start cost and that cascade may fail silently if haarcascade file missing — ok today, but add a startup smoke check.",
+    "Permissions-Policy middleware is attached after CORS middleware; works but note the ordering — Starlette runs middleware in reverse of add order. Current result is correct per test, keep as-is.",
+    "PersonForm.jsx is 234 lines and already near the 'split-into-modules' threshold. Future growth should pull FormHeader & save() hook into separate files.",
+    "/registry/people list endpoint returns photo_thumb (good) but LIST_FIELDS excludes 'photo' only — large base64 photos never leak; keep. However /registry/people/{id} returns full 'photo' — acceptable for edit flow but adds 100–200KB per fetch; consider lazy-loading via a dedicated /photo endpoint.",
+    "Visit _iso() silently returns the original string on empty/with +/Z, but accepts naïve local 'YYYY-MM-DDTHH:MM'. If a client ever passes seconds (YYYY-MM-DDTHH:MM:SS) it will still parse (fromisoformat ok). Add an explicit validation to reject malformed inputs with 422."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_registry.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {"backend": "100% (34/34 registry+visitors; 23/23 access_model + 12/12 engine from prior iters still green)", "frontend": "100% of exercised flows (3-col layout, chips, origins, company->people->form, dirty-switch confirm, Ctrl+K search, +Empresa modal, bulk bar, portaria doc-search + presentes, visitantes default type, webcam modal + file fallback, mobile tabs)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 — OK (login via POST /api/auth/login returns access_token and sets httpOnly cookies).",
+  "seed_data_creation": "Verified seed: 6 companies (NX Corp propria, Alfa/Beta/Gama terceirizadas, Transportadora X + Rodo Sul transportadoras), 30 own employees (F1001..F1030, 2 blocked/inativo), 15 terceiros (5 per Alfa/Beta/Gama; Alfa has 1 'vencido' with expired ASO), 6 transportadora drivers with plates, 10 visitors across 4 origins (Acme/Delta/Omega/Fornecedor Sigma), 3 presentes, 1 blacklisted (Delta). Tests inserted TEST_* records and auto-cleaned via module fixture.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL https://nx-access-demo.preview.emergentagent.com. Run registry tests with `pytest backend/tests/test_registry.py -n 0` (NOTE: must use -n 0 to disable xdist parallelism — tests share class state across TestPersonCRUD->TestBulk; xdist's loadscope groups by class so cross-class state is lost). Login returns both access_token in JSON and sets access_token httpOnly cookie; Bearer header works. Dashboard uses `/` after login (no `/dashboard` redirect) — wait on 'text=Dashboard' not URL. People cards in /pessoas use PersonCard which renders a label row containing checkboxes `[data-testid^=person-check-]` and clickable area with `[data-testid^=person-open-]`; the people-list container holds divs, not direct buttons. Camera modal opens even in headless; a getUserMedia error may surface as [data-testid=camera-error] inside the modal — in this run it opened cleanly without error element. All data-testids from the request worked as documented."
+}

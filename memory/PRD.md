@@ -65,6 +65,16 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Testes: `tests/test_beward.py` (8) — conversão faixa→strategy, status/type, dedup, retroativo; +12 do motor. Verificado via curl: heartbeat, VerifyPush online (openDoor conforme motor), retroativo suprime reabertura, token de face decodifica.
 - Pendente: telas "Configuração do equipamento" e "Comparar (sistema × equipamento)" completas; job agendado de expiração que remove pessoa/visitante do equipamento ao vencer; implementação completa do loop de Ack/retry MQTT e QueryProgress.
 
+## Refactor Pessoas Fixas + Visitantes + Portaria (2026-10-11)
+- [x] Tela fixa 3 colunas (`pages/Registry.jsx`, modos people/visitors/portaria; abas no celular): Empresas (busca, chips, cards c/ stats+alertas, grupos recolhíveis, fixos "Funcionários próprios"/"Visitantes do dia", "+ Empresa" rápido) | Pessoas da empresa (filtros, scroll infinito 50, seleção + lote: categoria/bloquear/desbloquear/renovar/sincronizar/exportar) | Formulário fixo (FUNCIONÁRIO/TERCEIRO/VISITANTE, seções Credenciais/Veículos/Documentos/Histórico, Salvar/Salvar e novo/Salvar e check-in, Ctrl+S, aviso de alterações não salvas, status de sync por equipamento).
+- [x] Busca global Ctrl+K (nome, CPF, documento, matrícula, cartão, placa, visitantes).
+- [x] Backend `routers/registry.py`, `routers/visitors_reg.py`, `registry_common.py` (validação CPF, bloqueio automático por validade/documento/contrato → status `vencido`, loop a cada 10 min, sync com controladoras + log em sync_jobs), `photo_quality.py` (OpenCV Haar: 1 rosto, centralizado, nitidez, iluminação; miniatura).
+- [x] Visitantes: reaproveitamento por documento, lista negra (409), credencial temporária (QR gerado/cartão/face), check-in/check-out, expiração de visitas agendadas.
+- [x] CameraCapture reescrito (getUserMedia no clique, isSecureContext, seletor de câmera lembrado, guia oval, recorte 3x4 JPEG ≤200KB/1080p, erros amigáveis, stop tracks, logs [Camera]); header `Permissions-Policy: camera=(self)` no backend e dev server.
+- [x] Seed v4: NX Corp (30), 3 terceirizadas (5 cada, 1 ASO vencido), 2 transportadoras (3 motoristas c/ placa), 10 visitantes de 4 empresas (3 presentes, 1 em lista negra).
+- Verificado: iteration_3 — backend 34/34, frontend 100%.
+- Pendente: QR por e-mail (Resend); visitantes ainda não passam pelo motor de decisão nas leitoras (só sincronizados como pessoa temporária).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.
