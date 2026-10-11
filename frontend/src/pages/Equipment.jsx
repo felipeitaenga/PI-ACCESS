@@ -92,7 +92,7 @@ export function Controllers() {
             <FormRow label="Marca / Driver">
               <Select value={form.brand} onValueChange={(v) => setForm({ ...form, brand: v })}>
                 <SelectTrigger data-testid="controller-brand"><SelectValue /></SelectTrigger>
-                <SelectContent>{["simulado", "controlid", "hikvision", "intelbras", "zkteco"].map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                <SelectContent>{["simulado", "beward_http", "beward_mqtt", "controlid", "hikvision", "intelbras", "zkteco"].map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
               </Select>
             </FormRow>
             <FormRow label="Modelo"><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></FormRow>
@@ -108,6 +108,21 @@ export function Controllers() {
             </FormRow>
             <FormRow label="Leitoras"><Input type="number" value={form.num_readers} onChange={(e) => setForm({ ...form, num_readers: +e.target.value })} /></FormRow>
             <FormRow label="Relés"><Input type="number" value={form.num_relays} onChange={(e) => setForm({ ...form, num_relays: +e.target.value })} /></FormRow>
+            {String(form.brand).startsWith("beward") && (
+              <>
+                <FormRow label="Device ID / SN (Beward)"><Input value={form.beward_device_id || ""} onChange={(e) => setForm({ ...form, beward_device_id: e.target.value })} data-testid="controller-beward-id" /></FormRow>
+                <FormRow label="Modo de decisão">
+                  <Select value={form.decision_mode || "servidor"} onValueChange={(v) => setForm({ ...form, decision_mode: v })}>
+                    <SelectTrigger data-testid="controller-decision-mode"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="servidor">Decisão no servidor (OpendoorWay=3)</SelectItem>
+                      <SelectItem value="local">Decisão local (0)</SelectItem>
+                      <SelectItem value="local_remoto">Local + remoto (2)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormRow>
+              </>
+            )}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Voltar</Button><Button className="bg-sky-500 text-slate-950" onClick={save} data-testid="controller-save">Salvar</Button></DialogFooter>
         </DialogContent>

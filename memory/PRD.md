@@ -54,6 +54,17 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - **Etapa 7 — Sincronização real com drivers** (Control iD time_zones/areas/portals/access_rules; Hikvision planos de horário) + drivers reais + agente edge.
 - Limpeza: aposentar endpoints legados `/structure/doors` e `/devices` (substituídos por `/equipment/*`).
 
+## Driver BEWARD B2002FR (2026-06)
+- [x] **Dois transportes** com interface Adapter comum, selecionáveis no cadastro: `beward_http` e `beward_mqtt` (registrados no factory; núcleo intocado). Marca adicionada na lista de Controladoras + campos Device ID/SN e Modo de decisão (servidor/local/local+remoto).
+- [x] **HTTP (protocolo V2.0.3)**: POST /action/<Operator>, Basic auth, Content-Length, {operator,code,info{Result,Detail}}. Comandos: GetSysParam (connect/test, salva DeviceID), SetSysTime, EditPersonNew (IdType=2/PersonUUID, picinfo/picURI, PersonType lista branca/negra, PIN, strategyInfo), EditPersonsNew (lote até 1000 via picURI + endpoint público de face com token JWT curto `/api/public/faces/<token>.jpg`), DeletePerson/DeleteAllPerson, searchPersonNum, OpenDoor, SetKeepOpen (Emergência), RebootDevice, Get/SetDoorCondition (OpendoorWay), Get/SetFaceParam, searchControl, Subscribe.
+- [x] **Faixas horárias → AccessStrategy** (`time_range_to_strategy`, pura/testada): strategyID estável (crc32), dias sem acesso omitidos, feriados→holidayInfo (período vazio se faixa não vale em feriado), PersonsBindStrategyID como **substituição total** (união das faixas das categorias que contêm a área de destino). Endpoint `/api/beward/controllers/{cid}/sync-strategies`.
+- [x] **Credenciais**: facial (prepare_photo valida/redimensiona ≤1MB via Pillow opcional), cartão RFID (dec/hex), Wiegand (MjCardFrom=2, WiegandType), PIN.
+- [x] **Recebimento de eventos (Subscribe)**: endpoints por site `/api/beward/<site>/{verify,heartbeat,snap,card,qrcode,alarm,password}`; heartbeat marca online; **dedup** por DeviceID+CreateTime+PersonID (coleção TTL); mapeamento VerifyStatus/VerfyType/Direction e códigos de alarme.
+- [x] **Decisão online** (OpendoorWay=3): no VerifyPush o backend acha a pessoa por PersonUUID + ponto de acesso da controladora, roda o **motor de decisão existente** e responde no mesmo request com `openDoor` + `showInfo` (≤64B); retroativos (Sendintime=0) e VerfyType=27 só respondem `{code:200}` sem reabrir; publica no WebSocket (foto capturada x cadastrada). Modos local/local+remoto e nota de contingência (watchdog troca OpendoorWay).
+- [x] **MQTT** (`beward_mqtt`, paho-mqtt): tópicos mqtt/face/<ID>, messageId/Ack, EditPerson/DeletePersons/AddAccessStrategy/Unlock/SetKeepOpen/Reboot; **Mosquitto** adicionado ao docker-compose (61613/61614) + MQTT_BROKER/PORT no backend.
+- [x] Testes: `tests/test_beward.py` (8) — conversão faixa→strategy, status/type, dedup, retroativo; +12 do motor. Verificado via curl: heartbeat, VerifyPush online (openDoor conforme motor), retroativo suprime reabertura, token de face decodifica.
+- Pendente: telas "Configuração do equipamento" e "Comparar (sistema × equipamento)" completas; job agendado de expiração que remove pessoa/visitante do equipamento ao vencer; implementação completa do loop de Ack/retry MQTT e QueryProgress.
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.

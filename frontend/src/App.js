@@ -9,7 +9,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import LiveMonitoring from "@/pages/LiveMonitoring";
-import People from "@/pages/People";
+import Registry from "@/pages/Registry";
 import Alarms from "@/pages/Alarms";
 import Emergency from "@/pages/Emergency";
 import Reports from "@/pages/Reports";
@@ -17,10 +17,10 @@ import Admin from "@/pages/Admin";
 import Categories from "@/pages/Categories";
 import { TimeRanges, Holidays, Areas } from "@/pages/AccessModel";
 import { Controllers, AccessPoints } from "@/pages/Equipment";
-import { Companies, CompanyGroups, Departments, Vehicles, Identifiers, VisitorsList } from "@/pages/SimpleCrud";
+import { Companies, CompanyGroups, Departments, Vehicles, Identifiers } from "@/pages/SimpleCrud";
 import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
-import { Cameras, Reception, Schedules, Integrations, Shortcuts, Backup } from "@/pages/Placeholders";
+import { Cameras, Schedules, Integrations, Shortcuts, Backup } from "@/pages/Placeholders";
 
 function Shell({ children }) {
   return (
@@ -44,8 +44,8 @@ function AppRoutes() {
       {R("/monitoramento", <LiveMonitoring />)}
       {R("/ocupacao", <Occupancy />)}
       {R("/alarmes", <Alarms />)}
-      {R("/pessoas", <People />)}
-      {R("/visitantes", <VisitorsList />)}
+      {R("/pessoas", <Registry key="people" mode="people" />)}
+      {R("/visitantes", <Registry key="visitors" mode="visitors" />)}
       {R("/veiculos", <Vehicles />)}
       {R("/identificadores", <Identifiers />)}
       {R("/categorias", <Categories />)}
@@ -58,7 +58,7 @@ function AppRoutes() {
       {R("/empresas", <Companies />)}
       {R("/grupos-empresas", <CompanyGroups />)}
       {R("/departamentos", <Departments />)}
-      {R("/portaria", <Reception />)}
+      {R("/portaria", <Registry key="portaria" mode="portaria" />)}
       {R("/agendamentos", <Schedules />)}
       {R("/emergencia", <Emergency />)}
       {R("/relatorios", <Reports />)}

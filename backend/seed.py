@@ -15,7 +15,21 @@ LAST = ["Silva", "Santos", "Oliveira", "Souza", "Lima", "Pereira", "Costa", "Rod
         "Almeida", "Nascimento", "Carvalho", "Gomes", "Martins", "Araújo", "Ribeiro", "Barbosa"]
 DEPTS = ["TI", "RH", "Operações", "Logística", "Financeiro"]
 ROLES = ["Analista", "Coordenador", "Gerente", "Assistente", "Técnico", "Motorista", "Operador"]
-SEED_FLAG = "seed_v3"
+SEED_FLAG = "seed_v4"
+VISIT_ORIGINS = ["Acme Consultoria", "Delta Engenharia", "Omega Telecom", "Fornecedor Sigma"]
+
+
+def gen_cpf():
+    n = [random.randint(0, 9) for _ in range(9)]
+    for i in (9, 10):
+        s = sum(n[k] * ((i + 1) - k) for k in range(i))
+        n.append((s * 10 % 11) % 10)
+    d = "".join(map(str, n))
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}", d
+
+
+def day(n):
+    return (datetime.now(timezone.utc) + timedelta(days=n)).strftime("%Y-%m-%d")
 
 
 async def already_seeded():
@@ -33,7 +47,7 @@ async def generate_seed():
     for c in ["sites", "areas", "doors", "devices", "controllers", "access_points",
               "time_ranges", "holidays", "categories", "companies", "company_groups",
               "departments", "people", "identifiers", "vehicles", "visitors", "visits",
-              "access_events", "alarms", "credentials", "sync_jobs"]:
+              "access_events", "alarms", "credentials", "sync_jobs", "person_documents"]:
         await db[c].delete_many({})
 
     site = _doc({"name": "Sede Corporativa São Paulo", "address": "Av. Paulista, 1000 - São Paulo/SP",
@@ -133,16 +147,21 @@ async def generate_seed():
 
     # Empresas / grupos / departamentos
     grp = _doc({"name": "Grupo NX"})
+    grp_srv = _doc({"name": "Grupo Serviços Integrados"})
     await db.company_groups.insert_one(dict(grp))
-    comp_own = _doc({"name": "NX Corp", "cnpj": "12.345.678/0001-90", "trade_name": "NX Corp Ltda",
-                     "type": "propria", "group_id": grp["id"], "contract_valid_until": None})
-    comp_tx = _doc({"name": "Transportadora X", "cnpj": "98.765.432/0001-10", "trade_name": "Transp. X S.A.",
-                    "type": "transportadora", "group_id": None, "contract_valid_until": "2027-12-31"})
-    comp_alfa = _doc({"name": "Prestadora Alfa", "cnpj": "11.222.333/0001-44", "trade_name": "Alfa Serviços",
-                      "type": "terceirizada", "group_id": None, "contract_valid_until": "2026-12-31"})
-    comp_beta = _doc({"name": "Prestadora Beta", "cnpj": "55.666.777/0001-88", "trade_name": "Beta Manutenção",
-                      "type": "terceirizada", "group_id": None, "contract_valid_until": "2026-12-31"})
-    for c in [comp_own, comp_tx, comp_alfa, comp_beta]:
+    await db.company_groups.insert_one(dict(grp_srv))
+
+    def comp(name, cnpj, trade, ctype, group, valid, default_cat):
+        return _doc({"name": name, "cnpj": cnpj, "trade_name": trade, "type": ctype,
+                     "group_id": group["id"] if group else None, "contract_valid_until": valid,
+                     "default_category_id": default_cat["id"]})
+    comp_own = comp("NX Corp", "12.345.678/0001-90", "NX Corp Ltda", "propria", grp, None, cat_ped)
+    comp_alfa = comp("Prestadora Alfa", "11.222.333/0001-44", "Alfa Serviços", "terceirizada", grp_srv, day(400), cat_ped)
+    comp_beta = comp("Beta Manutenção", "55.666.777/0001-88", "Beta Manutenção Industrial", "terceirizada", grp_srv, day(200), cat_ped)
+    comp_gama = comp("Gama Limpeza", "22.333.444/0001-55", "Gama Facilities", "terceirizada", None, day(5), cat_ped)
+    comp_tx = comp("Transportadora X", "98.765.432/0001-10", "Transp. X S.A.", "transportadora", None, day(500), cat_tx)
+    comp_rs = comp("Rodo Sul Logística", "33.444.555/0001-66", "Rodo Sul", "transportadora", None, day(300), cat_cam)
+    for c in [comp_own, comp_alfa, comp_beta, comp_gama, comp_tx, comp_rs]:
         await db.companies.insert_one(dict(c))
     depts = []
     for dn in DEPTS:
@@ -151,22 +170,38 @@ async def generate_seed():
         await db.departments.insert_one(dict(d))
 
     # Pessoas
-    async def person(name, ptype, company, dept, cat_ids, valid_until=None, current_area=None):
+    async def person(name, ptype, company, dept, cat_ids, valid_until=None, current_area=None,
+                     matricula="", status="ativo", valid_from=None, docs=(), plate=None):
         idx = random.randint(1, 70)
-        p = _doc({"name": name, "matricula": str(random.randint(10000, 99999)),
-                  "cpf": f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}",
-                  "rg": str(random.randint(1000000, 9999999)), "document": "",
+        cpf, cpf_d = gen_cpf()
+        photo = f"https://i.pravatar.cc/200?img={idx}"
+        p = _doc({"name": name, "matricula": matricula, "cpf": cpf, "cpf_digits": cpf_d,
+                  "rg": str(random.randint(1000000, 9999999)), "document": "", "photo_thumb": photo,
+                  "admission_date": day(-random.randint(60, 3000)) if ptype == "funcionario" else None,
+                  "function": random.choice(ROLES) if ptype == "terceiro" else "",
+                  "contract_manager": "Marcos Lima" if ptype == "terceiro" else "", "notes": "",
                   "birth": f"19{random.randint(70,99)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
                   "phone": f"(11) 9{random.randint(1000,9999)}-{random.randint(1000,9999)}",
                   "email": f"{name.split()[0].lower()}@exemplo.com",
-                  "photo": f"https://i.pravatar.cc/200?img={idx}", "person_type": ptype,
+                  "photo": photo, "person_type": ptype,
                   "company_id": company["id"], "company_name": company["name"],
                   "company_group_id": company.get("group_id"), "department_id": dept["id"] if dept else None,
                   "department": dept["name"] if dept else "", "role_title": random.choice(ROLES),
-                  "manager": "", "valid_from": None, "valid_until": valid_until,
-                  "category_ids": cat_ids, "current_area_id": (current_area or a_ped_e)["id"],
-                  "status": random.choices(["ativo", "inativo", "bloqueado"], [0.9, 0.07, 0.03])[0], "consent": True})
+                  "manager": "Ana Souza" if ptype == "funcionario" else "", "valid_from": valid_from,
+                  "valid_until": valid_until, "category_ids": cat_ids,
+                  "current_area_id": (current_area or a_ped_e)["id"], "status": status,
+                  "status_reason": "Documento vencido: ASO" if status == "vencido" else "", "consent": True})
         await db.people.insert_one(dict(p))
+        if p["current_area_id"] not in (a_ped_e["id"], a_cam_e["id"], a_vei_e["id"]) and status == "ativo":
+            await db.areas.update_one({"id": p["current_area_id"]}, {"$inc": {"current_occupancy": 1}})
+        for dtype, dval in docs:
+            await db.person_documents.insert_one({"id": new_id(), "person_id": p["id"], "type": dtype,
+                                                  "valid_until": dval, "file": "", "file_name": "",
+                                                  "deleted": False, "created_at": now_iso()})
+        if plate:
+            await db.vehicles.insert_one(dict(_doc({"person_id": p["id"], "plate": plate,
+                                                    "model": random.choice(["Scania R450", "Volvo FH", "VW Constellation"]),
+                                                    "color": random.choice(["Branco", "Prata", "Vermelho"])})))
         card = random.randint(1000000, 9999999)
         await db.identifiers.insert_one(dict(_doc({"person_id": p["id"], "type": "facial", "value": "template",
                                                    "active": True, "valid_until": valid_until})))
@@ -175,6 +210,9 @@ async def generate_seed():
                                                    "active": True, "valid_until": valid_until})))
         return p
 
+    def nm():
+        return f"{random.choice(FIRST)} {random.choice(LAST)}"
+
     people = []
     for i in range(30):
         ids = [cat_ped["id"]]
@@ -182,32 +220,59 @@ async def generate_seed():
             ids = [cat_full["id"]]
         elif i % 5 == 0:
             ids.append(cat_vei["id"])
-        people.append(await person(f"{random.choice(FIRST)} {random.choice(LAST)}", "funcionario",
-                                    comp_own, random.choice(depts), ids, current_area=a_ped_e))
-    terc_companies = [comp_tx, comp_alfa, comp_beta]
-    vu = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
-    for i in range(15):
-        comp = terc_companies[i % 3]
-        ids = [cat_tx["id"], cat_cam["id"]] if comp is comp_tx else [cat_ped["id"]]
-        start_area = a_cam_e if comp is comp_tx else a_ped_e
-        people.append(await person(f"{random.choice(FIRST)} {random.choice(LAST)}", "terceiro",
-                                    comp, None, ids, valid_until=vu, current_area=start_area))
+        st = "bloqueado" if i == 29 else ("inativo" if i == 28 else "ativo")
+        people.append(await person(nm(), "funcionario", comp_own, random.choice(depts), ids,
+                                   current_area=a_ped_i if i % 3 == 0 else a_ped_e,
+                                   matricula=f"F{1001 + i}", status=st))
+    for comp_t in [comp_alfa, comp_beta, comp_gama]:
+        for i in range(5):
+            expired = comp_t is comp_alfa and i == 0
+            docs = [("ASO", day(-3) if expired else day(180)), ("Integração", day(300))]
+            if comp_t is comp_beta:
+                docs.append(("NR-10", day(4) if i == 1 else day(200)))
+            people.append(await person(nm(), "terceiro", comp_t, None, [cat_ped["id"]],
+                                       valid_until=day(90), valid_from=day(-30), docs=docs,
+                                       current_area=a_ped_i if i == 2 else a_ped_e,
+                                       status="vencido" if expired else "ativo"))
+    for comp_t, cats_t in [(comp_tx, [cat_tx["id"], cat_cam["id"]]), (comp_rs, [cat_cam["id"]])]:
+        for i in range(3):
+            plate = f"{random.choice(['ABC', 'RSX', 'TXK', 'FGH'])}{random.randint(1, 9)}{random.choice('ABCDEFGHJ')}{random.randint(10, 99)}"
+            people.append(await person(nm(), "terceiro", comp_t, None, cats_t, valid_until=day(60),
+                                       valid_from=day(-10), docs=[("CNH", day(365))], current_area=a_cam_e,
+                                       plate=plate))
 
-    # Visitantes + visitas
+    # Visitantes (10, 4 empresas de origem, 3 presentes agora, 1 em lista negra)
+    hosts = [p for p in people if p["person_type"] == "funcionario" and p["status"] == "ativo"]
+    now_dt = datetime.now(timezone.utc)
+    plan = ["presente"] * 3 + ["agendado"] * 3 + ["finalizado"] * 4
     for i in range(10):
-        v = _doc({"name": f"{random.choice(FIRST)} {random.choice(LAST)}",
-                  "document": str(random.randint(10000000, 99999999)),
-                  "phone": f"(11) 9{random.randint(1000,9999)}-{random.randint(1000,9999)}",
-                  "email": "", "origin_company": random.choice(["Visita Comercial", "Entrega", "Manutenção"]),
-                  "photo": f"https://i.pravatar.cc/200?img={i+40}", "blacklist": False, "notes": ""})
+        cpf, cpf_d = gen_cpf()
+        rg = f"{random.randint(10, 99)}.{random.randint(100, 999)}.{random.randint(100, 999)}-{random.randint(0, 9)}"
+        black = i == 9
+        v = _doc({"name": nm(), "document": rg, "document_digits": "".join(c for c in rg if c.isdigit()),
+                  "cpf": cpf, "cpf_digits": cpf_d, "phone": f"(11) 9{random.randint(1000,9999)}-{random.randint(1000,9999)}",
+                  "email": "", "origin_company": VISIT_ORIGINS[i % 4],
+                  "photo": f"https://i.pravatar.cc/200?img={i+40}", "photo_thumb": f"https://i.pravatar.cc/200?img={i+40}",
+                  "blacklist": black, "blacklist_reason": "Comportamento inadequado em visita anterior" if black else "",
+                  "notes": ""})
         await db.visitors.insert_one(dict(v))
-        host = random.choice(people)
-        await db.visits.insert_one(dict(_doc({"visitor_id": v["id"], "visitor_name": v["name"],
-                                              "host_id": host["id"], "host_name": host["name"],
-                                              "reason": "Reunião", "scheduled_at": now_iso(),
-                                              "valid_from": now_iso(), "valid_until": vu,
-                                              "category_id": cat_vis["id"], "require_escort": True,
-                                              "status": random.choice(["agendado", "presente", "finalizado"])})))
+        host = random.choice(hosts)
+        st = plan[i]
+        if st == "presente":
+            start, end = now_dt - timedelta(hours=1), now_dt + timedelta(hours=3)
+        elif st == "agendado":
+            start, end = now_dt + timedelta(hours=1 + i), now_dt + timedelta(hours=3 + i)
+        else:
+            start, end = now_dt - timedelta(days=i), now_dt - timedelta(days=i) + timedelta(hours=2)
+        await db.visits.insert_one(dict(_doc({
+            "visitor_id": v["id"], "visitor_name": v["name"], "visitor_document": rg,
+            "origin_company": v["origin_company"], "host_id": host["id"], "host_name": host["name"],
+            "reason": random.choice(["Reunião comercial", "Manutenção", "Entrevista", "Entrega técnica"]),
+            "expected_start": start.isoformat(), "expected_end": end.isoformat(),
+            "category_id": cat_vis["id"], "require_escort": True, "credential_type": "qrcode",
+            "credential_value": f"NXV-{random.randint(100000, 999999)}", "vehicle_plate": "", "status": st,
+            "checkin_at": start.isoformat() if st in ("presente", "finalizado") else None,
+            "checkout_at": end.isoformat() if st == "finalizado" else None})))
 
     # Eventos dos últimos 7 dias
     active = [p for p in people if p["status"] == "ativo"]
@@ -216,8 +281,8 @@ async def generate_seed():
     cred = ["facial", "cartao", "qrcode", "pin"]
     events = []
     now = datetime.now(timezone.utc)
-    for day in range(7):
-        base = now - timedelta(days=day)
+    for dn in range(7):
+        base = now - timedelta(days=dn)
         for _ in range(random.randint(120, 180)):
             p = random.choice(active)
             point = random.choice(aps)

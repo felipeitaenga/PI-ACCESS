@@ -30,6 +30,7 @@ function makeDevServerV5Compatible(devServerConfig) {
   compatibleConfig.headers = {
     ...compatibleConfig.headers,
     "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(self)",
   };
 
   if (onBeforeSetupMiddleware || setupMiddlewares) {

@@ -1,9 +1,13 @@
 from .simulated import SimulatedDriver
+from .beward import BewardHttpDriver, BewardMqttDriver
 
 # Registro de drivers. Para adicionar uma nova marca, importe a classe e registre
 # aqui — nenhuma alteração no núcleo é necessária.
 _REGISTRY = {
     "simulado": SimulatedDriver,
+    "beward_http": BewardHttpDriver,
+    "beward_mqtt": BewardMqttDriver,
+    "beward": BewardHttpDriver,
 }
 
 

@@ -26,6 +26,11 @@ from routers.access_model import router as access_router
 from routers.equipment import router as equipment_router
 from routers.org import router as org_router
 from routers.cadastros import router as cadastros_router
+from routers.beward import router as beward_router
+from routers.registry import router as registry_router
+from routers.visitors_reg import router as visitors_reg_router
+from registry_common import refresh_expired
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -58,6 +63,9 @@ api_router.include_router(access_router)
 api_router.include_router(equipment_router)
 api_router.include_router(org_router)
 api_router.include_router(cadastros_router)
+api_router.include_router(beward_router)
+api_router.include_router(registry_router)
+api_router.include_router(visitors_reg_router)
 
 app.include_router(api_router)
 
@@ -87,6 +95,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def permissions_policy(request, call_next):
+    resp = await call_next(request)
+    resp.headers["Permissions-Policy"] = "camera=(self)"
+    return resp
+
+
+async def expiry_loop():
+    while True:
+        try:
+            await refresh_expired()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"expiry_loop: {e}")
+        await asyncio.sleep(600)
+
 
 SEED_USERS = [
     ("operador@nxaccess.com", "Operador@2026", "Carlos Operador", "operator"),
@@ -121,6 +145,7 @@ async def on_startup():
     result = await generate_seed()
     logger.info(f"Seed: {result}")
     start_simulator()
+    asyncio.create_task(expiry_loop())
     logger.info("NX-ACCESS backend iniciado")
 
 

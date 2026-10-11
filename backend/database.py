@@ -46,3 +46,4 @@ async def create_indexes():
     await db.identifiers.create_index("person_id")
     await db.people.create_index("category_ids")
     await db.access_events.create_index("access_point_id")
+    await db.beward_dedup.create_index("at", expireAfterSeconds=86400)
