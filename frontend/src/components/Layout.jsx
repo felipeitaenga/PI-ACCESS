@@ -7,7 +7,7 @@ import { MENU, MENU_FLAT } from "@/config/menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   LogOut, Menu, X, ShieldHalf, ChevronDown, Star, Search,
   PanelLeftClose, PanelLeftOpen,
@@ -92,7 +92,7 @@ export function Layout({ children }) {
             <span className="rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badgeVal(it.badge)}</span>
           )}
           {!collapsed && (
-            <button onClick={(e) => toggleFav(it.to, e)} className="opacity-0 group-hover/item:opacity-100 transition-opacity">
+            <button onClick={(e) => toggleFav(it.to, e)} data-testid={`fav-star-${it.testid || it.to}`} className="opacity-0 group-hover/item:opacity-100 transition-opacity">
               <Star className={cn("h-3.5 w-3.5", favs.includes(it.to) ? "fill-amber-400 text-amber-400" : "text-slate-500")} />
             </button>
           )}
@@ -198,6 +198,7 @@ export function Layout({ children }) {
 
       <Dialog open={cmd} onOpenChange={setCmd}>
         <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Buscar telas</DialogTitle>
           <div className="flex items-center gap-2 border-b border-border px-4">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} data-testid="command-search-input"

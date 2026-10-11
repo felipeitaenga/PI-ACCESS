@@ -91,20 +91,9 @@ async def access_report(start: str = None, end: str = None, person_id: str = Non
 
 @reports_router.get("/occupancy")
 async def occupancy_report(user: dict = Depends(get_current_user)):
-    areas = await db.areas.find({}, {"_id": 0}).to_list(100)
-    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-    result = []
-    for area in areas:
-        events = await db.access_events.find(
-            {"area_id": area["id"], "access_result": "granted", "person_id": {"$ne": None},
-             "timestamp": {"$gte": since}}, {"_id": 0}).sort("timestamp", -1).to_list(2000)
-        last_dir = {}
-        for e in events:
-            if e["person_id"] not in last_dir:
-                last_dir[e["person_id"]] = e["direction"]
-        inside = sum(1 for d in last_dir.values() if d == "entrada")
-        result.append({"area_id": area["id"], "area_name": area["name"],
-                       "max_occupancy": area.get("max_occupancy", 0), "current": inside})
+    areas = await db.areas.find({"deleted": {"$ne": True}, "is_exterior": {"$ne": True}}, {"_id": 0}).sort("description", 1).to_list(100)
+    result = [{"area_id": a["id"], "area_name": a.get("description", ""),
+               "max_occupancy": a.get("max_occupancy", 0), "current": a.get("current_occupancy", 0)} for a in areas]
     return {"areas": result}
 
 

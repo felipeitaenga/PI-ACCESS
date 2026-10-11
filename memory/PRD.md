@@ -36,6 +36,24 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - **P2 Regras de acesso**: zonas de tempo, feriados, níveis, anti-passback runtime, intertravamento, dupla validação, limite ocupação.
 - **P2 Integrações**: Swagger público, webhooks, MQTT publish, endpoint alarme externo (incêndio/BMS); exportação PDF/Excel nos relatórios; retenção automática (cron) LGPD.
 
+## Refactor — Novo modelo de acesso (2026-06, etapas 1-4)
+- [x] **Menu lateral configurável** (`src/config/menu.js`): grupos recolhíveis c/ estado salvo, modo recolhido (ícones+tooltip), busca Ctrl+K, favoritos (estrela, localStorage), filtro por permissão, drawer mobile, badge de alarmes.
+- [x] **Hub de Configurações** (cards) + subpáginas (Geral, Usuários, Integrações, Atalhos, Simulador, Backup).
+- [x] **Faixas horárias** (dias da semana, feriados, intervalos), **Feriados** (recorrente/abrangência), **Áreas** (anti-dupla, lotação calculada + EXTERIOR).
+- [x] **Controladoras** (test/sync com resumo TZ/Áreas/Pontos/Regras/Pessoas) + **Pontos de acesso** (leitora+relé, origem→destino, sentido, tipo).
+- [x] **Categorias** (abas Dados gerais com flags: control_origin, anti-dupla, escort, reentrada temporizada, impeditiva, contingência; Áreas de acesso c/ faixa+escort; Pessoas associadas em lote).
+- [x] **Motor de decisão** puro e testável (`engine.py`, 12 testes unitários) + serviço (`access_service.py`) usado no realtime e no **Simulador** (passo a passo). Fluxo origem→destino, impeditiva, faixa horária, origem, anti-dupla, reentrada, lotação.
+- [x] **Organização** (Empresas, Grupos, Departamentos), **Cadastros** (Identificadores, Veículos, Visitantes lista), **Logs** (Acessos, Auditoria, Sincronização), **Ocupação por área**.
+- [x] CRUD genérico (`crud.py` / `CrudPage.jsx`): soft-delete, busca, paginação (Primeira/< n >/Última/Ver todas), seleção, Mais ações (habilitar/desabilitar/excluir/exportar CSV), auditoria.
+- [x] Seed v3 recriado (mantém usuários): 7 áreas + EXTERIOR, 2 faixas, 2 feriados, 6 categorias, 2 controladoras, 6 pontos, 4 empresas, 5 deptos, 45 pessoas, 10 visitantes, 7 dias de eventos. current_area inicial por tipo (pedestre→Externa Pedestre, caminhão→Externa Caminhões).
+- Verificado: 23 testes backend novos + 12 do motor passam; frontend (menu/busca/CRUD/categorias/simulador/configurações/ocupação/logs/RBAC) ok. Regressões corrigidas (occupancy/muster area description, favoritos, a11y DialogTitle).
+
+## Backlog restante (etapas 5-7)
+- **Etapa 5 — Pessoas fixas** em abas completas (Dados pessoais, Vínculo, Categorias, Identificadores, Veículos, Documentos ASO/NR c/ bloqueio por vencimento, Histórico).
+- **Etapa 6 — Visitantes/Portaria**: pré-cadastro, agendamento, QR por e-mail (Resend), check-in/out, expiração, visitantes presentes.
+- **Etapa 7 — Sincronização real com drivers** (Control iD time_zones/areas/portals/access_rules; Hikvision planos de horário) + drivers reais + agente edge.
+- Limpeza: aposentar endpoints legados `/structure/doors` e `/devices` (substituídos por `/equipment/*`).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.

@@ -1,0 +1,57 @@
+{
+  "summary": "Iteration 2 (refactor): tested new access-control model (time-ranges, holidays, areas, controllers, access-points, categories), org, cadastros, simulator, menu/sidebar, favorites, config hub and RBAC. New backend tests: 23/23 PASS in /app/backend/tests/test_access_model.py (plus the 12 pre-existing engine unit tests). Admin login + sidebar + Ctrl+K search palette + CRUD pages (faixas-horarias 2 rows incl Livre+Comercial, feriados 2, areas 8 w/ EXTERIOR, pontos-acesso 6, empresas 4, departamentos 5) + category edit tabs (Dados gerais w/ impeditive flag, Áreas de acesso, Pessoas associadas) + Configurações hub (6 cards) + Logs (acessos & sincronização) + viewer RBAC (Configurações group hidden, no crud-add, no category-edit) all work. Controller test/sync works and sync-job summary shows TZ:2 Áreas:8 Pontos:2 Regras:6 Pessoas:40/40. BLOCKED simulator correctly returns 'Pessoa inativa/bloqueada'. BUT the headline GRANTED simulator scenario FAILS: an active funcionario on 'Catraca Pedestre - Entrada' at 10:00 BRT returns DENIED 'Origem inválida' because seed sets person.current_area_id to EXTERIOR (global, is_exterior=true) while the entry turnstile origin_area_id is 'Área Externa Pedestre'; PEDESTRE category has control_origin=true so engine step rejects. Additionally, two legacy endpoints are broken by the refactor (/reports/occupancy and /emergency/muster both 500 due to area['name'] but new areas use area['description']); /structure/doors and /devices now return empty arrays (collections replaced).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/access/simulate", "issue": "GRANTED scenario fails. Active funcionario (person_type=funcionario, status=ativo, category PEDESTRE) simulating 'Catraca Pedestre - Entrada' at Tue 10:00 BRT returns denied with reason 'Origem inválida'. Root cause: seed sets person.current_area_id = EXTERIOR (is_exterior=true, id different from the AP origin 'Área Externa Pedestre'); PEDESTRE category has control_origin=true. Either (a) seed must set funcionarios' current_area_id to 'Área Externa Pedestre' (and vehicles/trucks to their respective external areas), or (b) entry AP origins must be the global EXTERIOR area, or (c) engine should treat is_exterior areas as compatible with any 'external' origin. This is the core deliverable scenario per the playbook.", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/reports/occupancy", "issue": "Returns 500 — code reads area['name'] but new areas model stores 'description'. Breaks /ocupacao page (console shows two 500s). Fix: use area.get('description') (and area.get('is_exterior') to skip or include EXTERIOR).", "priority": "HIGH"},
+      {"endpoint": "GET /api/emergency/muster/{site_id}", "issue": "Returns 500 — same area['name'] vs 'description' regression. Breaks Emergência screen 'muster report'.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/structure/doors", "issue": "Returns empty array; refactor moved doors to /equipment/access-points. Either alias to access_points or remove the endpoint to avoid dead API surface."},
+      {"endpoint": "GET /api/devices", "issue": "Returns empty array; refactor moved devices to /equipment/controllers. Same cleanup needed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Sidebar favorites", "issue": "Hovering a nav item (e.g., [data-testid=nav-dashboard]) does not reveal any [data-testid^='fav-star-'] element — count is 0. Playbook requires star-on-hover to pin to Favoritos. Likely either the star is not rendered at all, or the testid prefix differs. Investigate Layout.jsx NavItem for the favorite button rendering.", "selector": "[data-testid^='fav-star-']", "priority": "HIGH"},
+      {"component": "DialogContent (shadcn)", "issue": "Console warning on every page open: '`DialogContent` requires a `DialogTitle` for the component to be accessible'. Add VisuallyHidden DialogTitle (or an explicit one) to the command-palette Dialog and any other DialogContent missing a title.", "selector": "command palette Dialog", "priority": "LOW"},
+      {"component": "Sidebar groups", "issue": "Expected testid 'group-Portaria' not found — the group label is actually 'Portaria / Recepção' so the testid becomes 'group-Portaria / Recepção'. Not a bug, but the slash in a testid is fragile; consider slugging the testid (e.g., group-portaria-recepcao).", "selector": "[data-testid='group-Portaria']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Ocupação por área", "issue": "Page relies on GET /reports/occupancy which returns 500 (see backend issue). Cards never render; EXTERIOR not visible.", "affected_selectors": ["[data-testid^='occupancy-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_access_model.py",
+    "/app/backend/tests/test_engine.py",
+    "/app/backend/tests/test_nx_access.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix GRANTED simulator path: align seed so funcionarios/vehicles/trucks have current_area_id matching the origin of their respective entry access points (or make entry APs originate from the global EXTERIOR area). Then re-run /api/access/simulate for an active funcionario on 'Catraca Pedestre - Entrada' at commercial hours — must return granted:true.",
+    "Fix /api/reports/occupancy and /api/emergency/muster: replace area['name'] with area['description'] in routers/dashboard.py and routers/events.py, and consider skipping is_exterior areas in the muster/occupancy outputs.",
+    "Investigate favorites: ensure hover on NavItem shows a button with data-testid starting 'fav-star-' and that clicking it persists under localStorage 'nx_favorites' and renders a 'Favoritos' group at the top.",
+    "Add DialogTitle (VisuallyHidden) to the command-palette Dialog to silence a11y warning.",
+    "Clean up legacy endpoints /api/structure/doors and /api/devices (either remove or redirect to the new equipment collections)."
+  ],
+  "critical_code_review_comments": [
+    "Routers/dashboard.py occupancy_report and routers/events.py muster_report still use the old area['name'] field — breaks the whole page/screen without a graceful fallback.",
+    "crud.py uses MongoDB regex $regex with the raw user query string — potential ReDoS/injection surface. Consider re.escape on q before building $regex.",
+    "equipment.py sync_controller inserts a dict directly (dict(job) before cleaning _id); ok, but the function is long (~45 lines) and mixes driver IO, DB persistence, and audit — split into service helpers.",
+    "No consistent error contract from decision engine: evaluate() returns {granted: bool, reason, steps, ...} but tests may expect access_result; document the response shape in a Pydantic response_model.",
+    "Seed is not fully consistent: current_area_id of all people is set to the global EXTERIOR, but control_origin categories require origin to match the AP's non-exterior external area. Either seed must initialise each person at the correct external area or control_origin logic should treat any is_exterior area as valid origin for entry APs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_access_model.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {"backend": "88% (35/40: 23 new access-model tests + 12 engine pass; 5 legacy tests fail due to known refactor regressions in /structure/doors, /devices, /reports/occupancy, /emergency/muster)", "frontend": "90% (menu/search/CRUD/categorias/simulador/configurações/ocupação cards framework/logs/RBAC verified; favorites star + /ocupacao data broken)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026, Viewer leitura@nxaccess.com / Leitura@2026 — all working.",
+  "seed_data_creation": "Seed produced the expected 8 areas (incl EXTERIOR), 2 time-ranges (Livre+Comercial), 2 holidays, 6 categories, 2 controllers, 6 access points, 4 companies, 5 departments, 45 people, 10 visitors. BUT people.current_area_id is set to EXTERIOR globally, mismatching the non-exterior origin of entry access points for categories with control_origin=true.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL is https://nx-access-demo.preview.emergentagent.com (NOT nx-access-ui). Simulate endpoint returns {granted: bool, reason, steps, escort_required, ...} — not access_result. People use 'person_type' field (not 'type'). Areas use 'description' (not 'name'). To fetch all items use /{resource}/all (bypasses pagination). /api/access/areas/all, /api/equipment/access-points/all, /api/equipment/controllers/all, /api/access/categories/all, /api/org/companies/all, /api/org/departments/all. Category edit opens an in-place full-page view (URL stays /categorias) with tabs Dados gerais, Áreas de acesso, Pessoas associadas and the 'impeditive' flag is present. Viewer RBAC verified working at both route (Configurações hidden) and action (no crud-add, no category-edit) levels. Legacy /structure/doors and /devices now return [] after refactor — expected cleanup needed. See iteration_2.json action_items.",
+  "rca of the issue": "Simulator GRANTED path: in seed.py, every person's current_area_id defaults to the global EXTERIOR area id (is_exterior=true). But in the access-point graph, the Catraca Pedestre - Entrada has origin_area_id = 'Área Externa Pedestre' (is_exterior=false). The PEDESTRE category (assigned to funcionarios) has control_origin=true, so engine.decide() rejects at step 108-111: `if person.current_area_id != ap.origin_area_id -> deny('Origem inválida')`. Fix the seed to set current_area_id per person_type (funcionarios→Área Externa Pedestre, vehicles→Área Externa Veículos, caminhões→Área Externa Caminhões) OR relax engine.decide() so that is_exterior areas are considered compatible with any 'external' origin when the AP is of direction='entrada'. Reproduction: GET /api/people?limit=200 → pick first person_type=funcionario, status=ativo; GET /api/equipment/access-points/all → pick description containing 'Catraca Pedestre' and direction='entrada'; POST /api/access/simulate {person_id, access_point_id, datetime:'2026-01-13T10:00:00-03:00'} → expected granted=true, actual granted=false, reason='Origem inválida'."
+}

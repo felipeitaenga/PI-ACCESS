@@ -75,7 +75,7 @@ async def lockdown(site_id: str, request: Request, body: dict = None,
 @emergency_router.get("/muster/{site_id}")
 async def muster_report(site_id: str, user: dict = Depends(get_current_user)):
     """Lista de evacuação: quem está dentro de cada área (último evento = entrada)."""
-    areas = await db.areas.find({"site_id": site_id}, {"_id": 0}).to_list(100)
+    areas = await db.areas.find({"site_id": site_id, "is_exterior": {"$ne": True}}, {"_id": 0}).to_list(100)
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     report = []
     for area in areas:
@@ -88,7 +88,7 @@ async def muster_report(site_id: str, user: dict = Depends(get_current_user)):
                 last_dir[e["person_id"]] = e
         inside = [{"person_id": pid, "name": e["person_name"], "photo": e.get("person_photo", ""),
                    "since": e["timestamp"]} for pid, e in last_dir.items() if e["direction"] == "entrada"]
-        report.append({"area_id": area["id"], "area_name": area["name"], "count": len(inside), "people": inside})
+        report.append({"area_id": area["id"], "area_name": area.get("description", ""), "count": len(inside), "people": inside})
     return {"site_id": site_id, "areas": report}
 
 

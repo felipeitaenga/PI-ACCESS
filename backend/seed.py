@@ -15,7 +15,7 @@ LAST = ["Silva", "Santos", "Oliveira", "Souza", "Lima", "Pereira", "Costa", "Rod
         "Almeida", "Nascimento", "Carvalho", "Gomes", "Martins", "Araújo", "Ribeiro", "Barbosa"]
 DEPTS = ["TI", "RH", "Operações", "Logística", "Financeiro"]
 ROLES = ["Analista", "Coordenador", "Gerente", "Assistente", "Técnico", "Motorista", "Operador"]
-SEED_FLAG = "seed_v2"
+SEED_FLAG = "seed_v3"
 
 
 async def already_seeded():
@@ -151,7 +151,7 @@ async def generate_seed():
         await db.departments.insert_one(dict(d))
 
     # Pessoas
-    async def person(name, ptype, company, dept, cat_ids, valid_until=None):
+    async def person(name, ptype, company, dept, cat_ids, valid_until=None, current_area=None):
         idx = random.randint(1, 70)
         p = _doc({"name": name, "matricula": str(random.randint(10000, 99999)),
                   "cpf": f"{random.randint(100,999)}.{random.randint(100,999)}.{random.randint(100,999)}-{random.randint(10,99)}",
@@ -164,7 +164,7 @@ async def generate_seed():
                   "company_group_id": company.get("group_id"), "department_id": dept["id"] if dept else None,
                   "department": dept["name"] if dept else "", "role_title": random.choice(ROLES),
                   "manager": "", "valid_from": None, "valid_until": valid_until,
-                  "category_ids": cat_ids, "current_area_id": a_ext["id"],
+                  "category_ids": cat_ids, "current_area_id": (current_area or a_ped_e)["id"],
                   "status": random.choices(["ativo", "inativo", "bloqueado"], [0.9, 0.07, 0.03])[0], "consent": True})
         await db.people.insert_one(dict(p))
         card = random.randint(1000000, 9999999)
@@ -183,14 +183,15 @@ async def generate_seed():
         elif i % 5 == 0:
             ids.append(cat_vei["id"])
         people.append(await person(f"{random.choice(FIRST)} {random.choice(LAST)}", "funcionario",
-                                    comp_own, random.choice(depts), ids))
+                                    comp_own, random.choice(depts), ids, current_area=a_ped_e))
     terc_companies = [comp_tx, comp_alfa, comp_beta]
     vu = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
     for i in range(15):
         comp = terc_companies[i % 3]
         ids = [cat_tx["id"], cat_cam["id"]] if comp is comp_tx else [cat_ped["id"]]
+        start_area = a_cam_e if comp is comp_tx else a_ped_e
         people.append(await person(f"{random.choice(FIRST)} {random.choice(LAST)}", "terceiro",
-                                    comp, None, ids, valid_until=vu))
+                                    comp, None, ids, valid_until=vu, current_area=start_area))
 
     # Visitantes + visitas
     for i in range(10):
