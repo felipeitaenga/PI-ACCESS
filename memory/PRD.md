@@ -75,6 +75,12 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - Verificado: iteration_3 — backend 34/34, frontend 100%.
 - Pendente: QR por e-mail (Resend); visitantes ainda não passam pelo motor de decisão nas leitoras (só sincronizados como pessoa temporária).
 
+## Telas separadas de Cadastro (2026-10-11)
+- [x] Menu "Cadastro": Cadastro de visitantes (/cadastro/visitantes), Cadastro de fixos (/cadastro/fixos), Visitantes (/visitantes, consulta por origem + presentes), Fixos (/pessoas, empresas + grade de pessoas + lote). Clique na consulta abre o cadastro em edição (?person= / ?visitor=). /portaria redireciona para Cadastro de visitantes.
+- [x] Cadastro de visitantes: formulário + à direita monitoramento ao vivo (fixos e visitantes, filtros) e visitantes presentes com check-out. Simulador gera eventos de visitantes presentes; eventos trazem person_type/company_name.
+- [x] Busca por autocomplete nos próprios campos (nome, documento, CPF, RG) — visitantes sugere só visitantes, fixos só pessoas fixas; campo grande de busca removido.
+- Verificado: iteration_4 e iteration_5 (100%).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.
