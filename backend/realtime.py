@@ -46,6 +46,15 @@ async def generate_event(persist=True, broadcast=True):
         return None
     ap = random.choice(aps)
     person = random.choice(people)
+    visits = await db.visits.find({"status": "presente", "deleted": {"$ne": True}}, {"_id": 0}).to_list(200)
+    if visits and random.random() < 0.3:
+        vi = random.choice(visits)
+        v = await db.visitors.find_one({"id": vi["visitor_id"]}, {"_id": 0, "photo": 1}) or {}
+        person = {"id": vi["visitor_id"], "name": vi["visitor_name"], "photo": v.get("photo", ""),
+                  "status": "ativo", "person_type": "visitante", "origin_company": vi.get("origin_company", ""),
+                  "category_ids": [vi["category_id"]] if vi.get("category_id") else [],
+                  "valid_from": vi.get("expected_start"), "valid_until": vi.get("expected_end"),
+                  "current_area_id": vi.get("current_area_id")}
     res = await evaluate(person, ap, persist=persist)
     event = res["event"]
     if broadcast:

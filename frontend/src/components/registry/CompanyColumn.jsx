@@ -51,9 +51,10 @@ function Pinned({ icon: Icon, label, value, active, onClick, testid }) {
   );
 }
 
-export function CompanyColumn({ companies, visitorData, selection, onSelect, onNewCompany }) {
+export function CompanyColumn({ companies, visitorData, selection, onSelect, onNewCompany, variant = "fixed" }) {
+  const fixed = variant === "fixed";
   const [q, setQ] = useState("");
-  const [chip, setChip] = useState("all");
+  const [chip, setChip] = useState(fixed ? "all" : "visitantes");
   const [grouped, setGrouped] = useState(false);
   const [closed, setClosed] = useState({});
   const own = companies.find((c) => c.type === "propria");
@@ -74,15 +75,15 @@ export function CompanyColumn({ companies, visitorData, selection, onSelect, onN
     <div className="flex h-full min-h-0 flex-col" data-testid="company-column">
       <div className="space-y-2 border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <h2 className="flex-1 font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground">Empresas</h2>
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onNewCompany} data-testid="company-add-button"><Plus className="mr-1 h-3.5 w-3.5" />Empresa</Button>
+          <h2 className="flex-1 font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground">{fixed ? "Empresas" : "Empresas de origem"}</h2>
+          {fixed && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onNewCompany} data-testid="company-add-button"><Plus className="mr-1 h-3.5 w-3.5" />Empresa</Button>}
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-8" placeholder="Buscar empresa…" value={q} onChange={(e) => setQ(e.target.value)} data-testid="company-search-input" />
+          <Input className="h-9 pl-8" placeholder={fixed ? "Buscar empresa…" : "Buscar empresa de origem…"} value={q} onChange={(e) => setQ(e.target.value)} data-testid="company-search-input" />
         </div>
         <div className="flex flex-wrap gap-1">
-          {CHIPS.map(([k, l]) => (
+          {fixed && CHIPS.filter(([k]) => k !== "visitantes").map(([k, l]) => (
             <button key={k} type="button" onClick={() => setChip(k)} data-testid={`company-chip-${k}`}
               className={cn("rounded-full border px-2.5 py-0.5 text-[11px] transition-colors", chip === k ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:text-foreground")}>{l}</button>
           ))}
@@ -92,8 +93,8 @@ export function CompanyColumn({ companies, visitorData, selection, onSelect, onN
         )}
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {own && <Pinned icon={Building2} label="Funcionários próprios" value={own.stats?.active ?? 0} active={isSel("company", own.id)} onClick={() => onSelect({ kind: "company", id: own.id, company: own })} testid="pinned-own" />}
-        <Pinned icon={CalendarCheck} label="Visitantes do dia" value={visitorData?.today ?? 0} active={selection?.kind === "visitors_today"} onClick={() => onSelect({ kind: "visitors_today", name: "Visitantes do dia" })} testid="pinned-visitors-today" />
+        {fixed && own && <Pinned icon={Building2} label="Funcionários próprios" value={own.stats?.active ?? 0} active={isSel("company", own.id)} onClick={() => onSelect({ kind: "company", id: own.id, company: own })} testid="pinned-own" />}
+        {!fixed && <Pinned icon={CalendarCheck} label="Visitantes do dia" value={visitorData?.today ?? 0} active={selection?.kind === "visitors_today"} onClick={() => onSelect({ kind: "visitors_today", name: "Visitantes do dia" })} testid="pinned-visitors-today" />}
         <div className="h-1" />
         {chip === "visitantes" ? (
           <>

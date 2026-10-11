@@ -26,7 +26,7 @@ function Filters({ f, setF, categories, departments }) {
   );
 }
 
-export function PeopleColumn({ selection, activeId, categories, refreshKey, onOpen, onNew }) {
+export function PeopleColumn({ selection, activeId, categories, refreshKey, onOpen, onNew, wide }) {
   const isCompany = selection?.kind === "company";
   const [q, setQ] = useState("");
   const [f, setF] = useState({ status: "", category_id: "", department: "", present: "" });
@@ -97,14 +97,14 @@ export function PeopleColumn({ selection, activeId, categories, refreshKey, onOp
         )}
       </div>
       {checked.length > 0 && <BulkBar selected={checked} items={data.items} categories={categories} onClear={() => setChecked([])} onDone={() => { setChecked([]); fetchPage(0); }} />}
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3" data-testid="people-list">
+      <div className={wide ? "grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto p-3 xl:grid-cols-2 2xl:grid-cols-3" : "min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3"} data-testid="people-list">
         {data.items.map((p) => isCompany ? (
           <PersonCard key={p.id} p={p} active={activeId === p.id} checked={checked.includes(p.id)}
             onCheck={(v) => setChecked((c) => (v ? [...c, p.id] : c.filter((x) => x !== p.id)))} onOpen={() => onOpen("person", p.id)} />
         ) : <VisitorCard key={p.id} v={p} active={activeId === p.id} onOpen={() => onOpen("visitor", p.id)} />)}
-        {!loading && data.items.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">Nenhum registro encontrado</p>}
-        <div ref={sentinel} className="h-4" />
-        {loading && <p className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-sky-400" /></p>}
+        {!loading && data.items.length === 0 && <p className="col-span-full py-6 text-center text-xs text-muted-foreground">Nenhum registro encontrado</p>}
+        <div ref={sentinel} className="col-span-full h-4" />
+        {loading && <p className="col-span-full flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-sky-400" /></p>}
       </div>
     </div>
   );

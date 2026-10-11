@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,14 +9,24 @@ import { PeopleColumn } from "@/components/registry/PeopleColumn";
 import { PersonForm } from "@/components/registry/PersonForm";
 import { GlobalSearch } from "@/components/registry/GlobalSearch";
 import { PresentVisitors } from "@/components/registry/PresentVisitors";
+import { LiveAccessFeed } from "@/components/registry/LiveAccessFeed";
 import { QuickCompanyDialog } from "@/components/registry/QuickCompanyDialog";
+import { useOpenRecord, useRegistryData, useSearchHotkey, useUrlRequest } from "@/components/registry/useRegistryData";
 import { IdCard, Search } from "lucide-react";
 
-const TITLES = {
-  people: ["Pessoas e Empresas", "Navegue por empresa · cadastro fixo sempre disponível"],
-  visitors: ["Visitantes", "Visitantes por empresa de origem · agendamento e credencial temporária"],
-  portaria: ["Portaria", "Recepção de visitantes · check-in e check-out"],
-};
+function PageTop({ title, subtitle, onSearch }) {
+  return (
+    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex-1">
+        <h1 className="font-heading text-2xl font-bold tracking-tight" data-testid="page-title">{title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+      <Button variant="outline" className="justify-start text-muted-foreground sm:w-80" onClick={onSearch} data-testid="global-search-button">
+        <Search className="mr-2 h-4 w-4" />Buscar pessoa, CPF, cartão, placa…<kbd className="ml-auto font-mono text-[10px]">Ctrl+K</kbd>
+      </Button>
+    </div>
+  );
+}
 
 function MobileTabs({ tabs, tab, setTab }) {
   return (
@@ -29,11 +39,94 @@ function MobileTabs({ tabs, tab, setTab }) {
   );
 }
 
-function DocSearch({ onSearch }) {
-  const [doc, setDoc] = useState("");
-  const go = () => doc.trim() && onSearch(doc.trim());
+const panel = (tab, k, extra = "") => cn("min-h-0 overflow-hidden rounded-lg border border-border bg-card lg:flex lg:flex-col", tab === k ? "flex flex-col" : "hidden", extra);
+
+function useSearch() {
+  const [open, setOpen] = useState(false);
+  useSearchHotkey(setOpen);
+  const openRecord = useOpenRecord();
+  const node = <GlobalSearch open={open} onOpenChange={setOpen} onPick={(r) => openRecord(r.kind, r.id)} />;
+  return [() => setOpen(true), node];
+}
+
+export function FixedBrowse() {
+  const d = useRegistryData();
+  const nav = useNavigate();
+  const [sel, setSel] = useState(null);
+  const [tab, setTab] = useState("companies");
+  const [companyDlg, setCompanyDlg] = useState(false);
+  const [openSearch, searchNode] = useSearch();
   return (
-    <Card className="mb-4 flex flex-col gap-2 border-sky-500/30 bg-card p-3 sm:flex-row" data-testid="portaria-doc-search">
+    <div data-testid="page-fixed-browse">
+      <PageTop title="Fixos" subtitle="Funcionários e terceiros por empresa — clique para abrir o cadastro" onSearch={openSearch} />
+      <MobileTabs tabs={[["companies", "Empresas"], ["people", "Pessoas"]]} tab={tab} setTab={setTab} />
+      <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[300px_1fr]">
+        <section className={panel(tab, "companies", "h-[70vh] lg:h-auto")}>
+          <CompanyColumn companies={d.companies} visitorData={d.visitorData} selection={sel} onSelect={(s) => { setSel(s); setTab("people"); }} onNewCompany={() => setCompanyDlg(true)} />
+        </section>
+        <section className={panel(tab, "people", "h-[75vh] lg:h-auto")}>
+          <PeopleColumn wide selection={sel} categories={d.categories} refreshKey={0}
+            onOpen={(k, id) => nav(`/cadastro/fixos?person=${id}`)}
+            onNew={(s) => nav(`/cadastro/fixos?company=${s.id}&type=${s.company?.type === "propria" ? "funcionario" : "terceiro"}`)} />
+        </section>
+      </div>
+      {searchNode}
+      <QuickCompanyDialog open={companyDlg} onOpenChange={setCompanyDlg} categories={d.categories} onCreated={d.reload} />
+    </div>
+  );
+}
+
+export function VisitorsBrowse() {
+  const d = useRegistryData();
+  const nav = useNavigate();
+  const openRecord = useOpenRecord();
+  const [sel, setSel] = useState({ kind: "visitors_today", name: "Visitantes do dia" });
+  const [tab, setTab] = useState("people");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [openSearch, searchNode] = useSearch();
+  return (
+    <div data-testid="page-visitors-browse">
+      <PageTop title="Visitantes" subtitle="Visitantes por empresa de origem — clique para abrir o cadastro" onSearch={openSearch} />
+      <MobileTabs tabs={[["companies", "Origem"], ["people", "Visitantes"], ["present", "Presentes"]]} tab={tab} setTab={setTab} />
+      <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[280px_1fr_340px]">
+        <section className={panel(tab, "companies", "h-[70vh] lg:h-auto")}>
+          <CompanyColumn variant="visitors" companies={d.companies} visitorData={d.visitorData} selection={sel} onSelect={(s) => { setSel(s); setTab("people"); }} />
+        </section>
+        <section className={panel(tab, "people", "h-[75vh] lg:h-auto")}>
+          <PeopleColumn selection={sel} categories={d.categories} refreshKey={refreshKey} onOpen={openRecord}
+            onNew={(s) => nav(`/cadastro/visitantes${s.kind === "visitor_origin" ? `?origin=${encodeURIComponent(s.name)}` : ""}`)} />
+        </section>
+        <section className={panel(tab, "present", "h-[70vh] lg:h-auto")}>
+          <PresentVisitors refreshKey={refreshKey} onOpen={openRecord} onChanged={() => { setRefreshKey((k) => k + 1); d.reload(); }} />
+        </section>
+      </div>
+      {searchNode}
+    </div>
+  );
+}
+
+export function FixedRegister() {
+  const d = useRegistryData();
+  const request = useUrlRequest("funcionario");
+  const [openSearch, searchNode] = useSearch();
+  return (
+    <div data-testid="page-fixed-register">
+      <PageTop title="Cadastro de fixos" subtitle="Funcionários e terceiros · Ctrl+S salva" onSearch={openSearch} />
+      <Card className="flex h-[85vh] min-h-0 flex-col overflow-hidden border-border bg-card lg:h-[calc(100vh-13rem)]">
+        <PersonForm request={request} allowedTypes={["funcionario", "terceiro"]} companies={d.companies} categories={d.categories}
+          departments={d.departments} onSaved={d.reload} onCompanyCreated={d.reload} />
+      </Card>
+      {searchNode}
+    </div>
+  );
+}
+
+function DocSearch() {
+  const nav = useNavigate();
+  const [doc, setDoc] = useState("");
+  const go = () => doc.trim() && nav(`/cadastro/visitantes?doc=${encodeURIComponent(doc.trim())}&t=${Date.now()}`);
+  return (
+    <Card className="mb-3 flex flex-col gap-2 border-sky-500/30 bg-card p-3 sm:flex-row" data-testid="portaria-doc-search">
       <div className="relative flex-1">
         <IdCard className="absolute left-4 top-3.5 h-5 w-5 text-sky-400" />
         <Input autoFocus className="h-12 pl-12 text-lg" placeholder="Buscar por documento (RG, CPF, passaporte)…" value={doc}
@@ -44,91 +137,32 @@ function DocSearch({ onSearch }) {
   );
 }
 
-export default function Registry({ mode = "people" }) {
-  const portaria = mode === "portaria";
-  const visitorMode = mode !== "people";
-  const [companies, setCompanies] = useState([]);
-  const [visitorData, setVisitorData] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [selection, setSelection] = useState(visitorMode ? { kind: "visitors_today", name: "Visitantes do dia" } : null);
-  const [request, setRequest] = useState({ kind: "new", type: visitorMode ? "visitante" : "funcionario", nonce: 0 });
-  const [activeId, setActiveId] = useState(null);
+export function VisitorRegister() {
+  const d = useRegistryData();
+  const request = useUrlRequest("visitante");
+  const openRecord = useOpenRecord();
+  const [tab, setTab] = useState("form");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [tab, setTab] = useState(portaria ? "form" : "companies");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [companyDlg, setCompanyDlg] = useState(false);
-
-  const loadCompanies = useCallback(() => {
-    api.get("/registry/companies").then(({ data }) => setCompanies(data)).catch(() => {});
-    api.get("/registry/visitor-companies").then(({ data }) => setVisitorData(data)).catch(() => {});
-  }, []);
-  useEffect(() => { loadCompanies(); }, [loadCompanies, refreshKey]);
-  useEffect(() => {
-    api.get("/access/categories/all").then(({ data }) => setCategories(data.filter((c) => c.enabled !== false))).catch(() => {});
-    api.get("/org/departments/all").then(({ data }) => setDepartments(data.map((d) => d.name))).catch(() => {});
-  }, []);
-  useEffect(() => {
-    const h = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); setSearchOpen(true); }
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, []);
-
-  const open = (kind, id) => { setActiveId(id); setRequest({ kind, id, nonce: Date.now() }); setTab("form"); };
-  const newIn = (sel) => {
-    setActiveId(null);
-    if (sel.kind === "company") setRequest({ kind: "new", type: sel.company?.type === "propria" ? "funcionario" : "terceiro", company_id: sel.id, nonce: Date.now() });
-    else setRequest({ kind: "new", type: "visitante", origin_company: sel.kind === "visitor_origin" ? sel.name : "", nonce: Date.now() });
-    setTab("form");
-  };
-  const pickSearch = (r) => {
-    if (r.kind === "person") {
-      const c = companies.find((x) => x.id === r.company_id);
-      if (c) setSelection({ kind: "company", id: c.id, company: c });
-    }
-    open(r.kind, r.id);
-  };
-  const onSaved = () => setRefreshKey((k) => k + 1);
-  const [title, subtitle] = TITLES[mode];
-  const tabs = portaria ? [["present", "Presentes"], ["form", "Cadastro"]] : [["companies", "Empresas"], ["people", "Pessoas"], ["form", "Cadastro"]];
-  const col = (k) => cn("min-h-0 overflow-hidden rounded-lg border border-border bg-card", tab === k ? "flex flex-col" : "hidden", "lg:flex lg:flex-col");
-
+  const [openSearch, searchNode] = useSearch();
+  const saved = () => { setRefreshKey((k) => k + 1); d.reload(); };
   return (
-    <div data-testid={`registry-page-${mode}`}>
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <h1 className="font-heading text-2xl font-bold tracking-tight">{title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        </div>
-        <Button variant="outline" className="justify-start text-muted-foreground sm:w-80" onClick={() => setSearchOpen(true)} data-testid="global-search-button">
-          <Search className="mr-2 h-4 w-4" />Buscar pessoa, CPF, cartão, placa…<kbd className="ml-auto font-mono text-[10px]">Ctrl+K</kbd>
-        </Button>
-      </div>
-      {portaria && <DocSearch onSearch={(document) => { setActiveId(null); setRequest({ kind: "lookup", document, nonce: Date.now() }); setTab("form"); }} />}
-      <MobileTabs tabs={tabs} tab={tab} setTab={setTab} />
-      <div className={cn("grid gap-3", portaria ? "lg:h-[calc(100vh-18rem)]" : "lg:h-[calc(100vh-13rem)]", portaria ? "lg:grid-cols-[340px_1fr]" : "lg:grid-cols-[280px_minmax(300px,360px)_1fr]")}>
-        {portaria ? (
-          <section className={cn(col("present"), "h-[70vh] lg:h-auto")}><PresentVisitors refreshKey={refreshKey} onOpen={open} onChanged={onSaved} /></section>
-        ) : (
-          <>
-            <section className={cn(col("companies"), "h-[70vh] lg:h-auto")}>
-              <CompanyColumn companies={companies} visitorData={visitorData} selection={selection}
-                onSelect={(s) => { setSelection(s); setTab("people"); }} onNewCompany={() => setCompanyDlg(true)} />
-            </section>
-            <section className={cn(col("people"), "h-[70vh] lg:h-auto")}>
-              <PeopleColumn selection={selection} activeId={activeId} categories={categories} refreshKey={refreshKey} onOpen={open} onNew={newIn} />
-            </section>
-          </>
-        )}
-        <section className={cn(col("form"), "h-[80vh] lg:h-auto")}>
-          <PersonForm request={request} companies={companies} categories={categories} departments={departments}
-            onSaved={onSaved} onCompanyCreated={() => loadCompanies()} />
+    <div data-testid="page-visitor-register">
+      <PageTop title="Cadastro de visitantes" subtitle="Portaria · cadastro, check-in/out e acessos em tempo real" onSearch={openSearch} />
+      <DocSearch />
+      <MobileTabs tabs={[["form", "Cadastro"], ["monitor", "Monitoramento"]]} tab={tab} setTab={setTab} />
+      <div className="grid gap-3 lg:h-[calc(100vh-18rem)] lg:grid-cols-[1fr_420px]">
+        <section className={panel(tab, "form", "h-[85vh] lg:h-auto")}>
+          <PersonForm request={request} allowedTypes={["visitante"]} companies={d.companies} categories={d.categories}
+            departments={d.departments} onSaved={saved} onCompanyCreated={d.reload} />
+        </section>
+        <section className={cn("min-h-0 gap-3 lg:flex lg:flex-col", tab === "monitor" ? "flex flex-col" : "hidden")} data-testid="visitor-register-monitor">
+          <div className="flex h-[55vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[3]"><LiveAccessFeed /></div>
+          <div className="flex h-[40vh] min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card lg:h-auto lg:flex-[2]">
+            <PresentVisitors refreshKey={refreshKey} onOpen={openRecord} onChanged={saved} />
+          </div>
         </section>
       </div>
-      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} onPick={pickSearch} />
-      <QuickCompanyDialog open={companyDlg} onOpenChange={setCompanyDlg} categories={categories} onCreated={() => loadCompanies()} />
+      {searchNode}
     </div>
   );
 }

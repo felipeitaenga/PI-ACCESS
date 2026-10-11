@@ -20,6 +20,8 @@ def _event(person, ap, dest, origin, res, when):
         "access_point_id": ap.get("id"), "controller_id": ap.get("controller_id"),
         "device_id": ap.get("controller_id"), "device_name": ap.get("controller_name", ""),
         "person_id": person.get("id"), "person_name": person.get("name"),
+        "person_type": person.get("person_type", ""),
+        "company_name": person.get("company_name") or person.get("origin_company", ""),
         "person_photo": person.get("photo", ""), "captured_photo": person.get("photo", ""),
         "credential_type": random.choice(CRED), "direction": ap.get("direction", "entrada"),
         "access_result": "granted" if granted else "denied", "reason": res.get("reason", ""),
@@ -56,5 +58,9 @@ async def evaluate(person, ap, when=None, persist=True):
                 await db.areas.update_one({"id": dest["id"]}, {"$inc": {"current_occupancy": 1}})
             if origin and not origin.get("is_exterior") and person.get("current_area_id") == origin.get("id"):
                 await db.areas.update_one({"id": origin["id"]}, {"$inc": {"current_occupancy": -1}})
-            await db.people.update_one({"id": person["id"]}, {"$set": {"current_area_id": dest.get("id")}})
+            if person.get("person_type") == "visitante":
+                await db.visits.update_many({"visitor_id": person["id"], "status": "presente"},
+                                            {"$set": {"current_area_id": dest.get("id")}})
+            else:
+                await db.people.update_one({"id": person["id"]}, {"$set": {"current_area_id": dest.get("id")}})
     return res

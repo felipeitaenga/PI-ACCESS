@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { RealtimeProvider } from "@/context/RealtimeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -9,7 +9,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import LiveMonitoring from "@/pages/LiveMonitoring";
-import Registry from "@/pages/Registry";
+import { FixedBrowse, VisitorsBrowse, FixedRegister, VisitorRegister } from "@/pages/Registry";
 import Alarms from "@/pages/Alarms";
 import Emergency from "@/pages/Emergency";
 import Reports from "@/pages/Reports";
@@ -44,8 +44,10 @@ function AppRoutes() {
       {R("/monitoramento", <LiveMonitoring />)}
       {R("/ocupacao", <Occupancy />)}
       {R("/alarmes", <Alarms />)}
-      {R("/pessoas", <Registry key="people" mode="people" />)}
-      {R("/visitantes", <Registry key="visitors" mode="visitors" />)}
+      {R("/pessoas", <FixedBrowse />)}
+      {R("/visitantes", <VisitorsBrowse />)}
+      {R("/cadastro/fixos", <FixedRegister />)}
+      {R("/cadastro/visitantes", <VisitorRegister />)}
       {R("/veiculos", <Vehicles />)}
       {R("/identificadores", <Identifiers />)}
       {R("/categorias", <Categories />)}
@@ -58,7 +60,7 @@ function AppRoutes() {
       {R("/empresas", <Companies />)}
       {R("/grupos-empresas", <CompanyGroups />)}
       {R("/departamentos", <Departments />)}
-      {R("/portaria", <Registry key="portaria" mode="portaria" />)}
+      <Route path="/portaria" element={<Navigate to="/cadastro/visitantes" replace />} />
       {R("/agendamentos", <Schedules />)}
       {R("/emergencia", <Emergency />)}
       {R("/relatorios", <Reports />)}

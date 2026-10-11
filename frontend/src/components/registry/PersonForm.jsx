@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 const KEEP = ["name", "cpf", "phone", "email", "birth", "photo", "notes"];
 
-export function PersonForm({ request, companies, categories, departments, onSaved, onCompanyCreated }) {
+export function PersonForm({ request, companies, categories, departments, onSaved, onCompanyCreated, allowedTypes }) {
   const { hasRole } = useAuth();
   const [form, setForm] = useState(() => emptyForm(request?.type || "funcionario"));
   const [snap, setSnap] = useState(() => JSON.stringify(form));
@@ -25,7 +25,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
   const [sync, setSync] = useState(null);
   const [companyDlg, setCompanyDlg] = useState({ open: false, name: "" });
   const nameRef = useRef(null);
-  const lastNonce = useRef(request?.nonce);
+  const lastNonce = useRef(request?.kind === "new" && !request.company_id && !request.origin_company ? request.nonce : null);
   const dirty = JSON.stringify(form) !== snap;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -154,7 +154,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
     <div className="flex h-full min-h-0 flex-col" data-testid="person-form">
       <FormHeader form={form} editId={editId} dirty={dirty} set={set} onDelete={hasRole("admin", "operator") ? remove : null} visitAction={visitAction} />
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-        <TypeSelector value={form.person_type} onChange={changeType} disabled={!!editId} />
+        <TypeSelector value={form.person_type} onChange={changeType} disabled={!!editId} allowed={allowedTypes} />
         {form.blacklist && (
           <div className="flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300" data-testid="blacklist-alert">
             <AlertOctagon className="mt-0.5 h-4 w-4 shrink-0" /><div><b>VISITANTE EM LISTA NEGRA.</b> {form.blacklist_reason || "Acesso proibido."} Não é possível agendar visita nem fazer check-in.</div>

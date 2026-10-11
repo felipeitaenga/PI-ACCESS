@@ -36,10 +36,11 @@ export const TYPES = [
   { key: "visitante", label: "VISITANTE" },
 ];
 
-export function TypeSelector({ value, onChange, disabled }) {
+export function TypeSelector({ value, onChange, disabled, allowed }) {
+  const types = TYPES.filter((t) => !allowed || allowed.includes(t.key));
   return (
-    <div className="grid grid-cols-3 gap-2" data-testid="person-type-selector">
-      {TYPES.map((t) => (
+    <div className={cn("grid gap-2", types.length === 2 ? "grid-cols-2" : "grid-cols-3")} data-testid="person-type-selector">
+      {types.map((t) => (
         <button key={t.key} type="button" disabled={disabled && value !== t.key} onClick={() => onChange(t.key)}
           className={cn("rounded-md border px-3 py-3 font-heading text-xs font-bold tracking-widest transition-colors sm:text-sm",
             value === t.key ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:border-sky-500/40 hover:text-foreground",
