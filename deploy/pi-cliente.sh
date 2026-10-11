@@ -12,6 +12,7 @@
 #    pi-cliente.sh backup <cliente>              backup do Mongo + fotos
 #    pi-cliente.sh backup-todos                  backup de todos (usar no cron)
 #    pi-cliente.sh logs <cliente>                acompanha os logs da aplicação
+#    pi-cliente.sh padrao <cliente> ["Local"]    cria áreas, faixas, feriados e categorias padrão
 #    pi-cliente.sh senha-admin <cliente>         redefine a senha do administrador
 #    pi-cliente.sh senha-mqtt <cliente>          gera nova senha MQTT (atualizar no facial!)
 #    pi-cliente.sh excluir <cliente>             backup + remove (dados vão para excluidos/)
@@ -167,6 +168,7 @@ backup-todos)  for D in "$CLIENTES"/*/; do [[ -d "$D" ]] || continue; C=$(basena
 
 logs)          validar; existe; ( cd "$(dir)" && docker compose logs -f --tail 100 app ) ;;
 senha-admin)   validar; existe; docker exec -it "piaccess_$C" python -m app.reset_admin ;;
+padrao)        validar; existe; docker exec "piaccess_$C" python -m app.bootstrap ${3:+"$3"} ;;
 
 senha-mqtt)
   validar; existe; P=$(senha 20)
@@ -190,6 +192,6 @@ excluir)
   ;;
 
 *)
-  sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'
   ;;
 esac
