@@ -168,6 +168,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr]">
           <div className="mx-auto w-[150px] sm:mx-0"><PhotoBlock photo={form.photo} onChange={(v) => set("photo", v)} /></div>
           <CommonFields f={form} set={set} errors={errors} companies={companies} nameRef={nameRef} onDocBlur={onDocBlur}
+            onPick={editId ? null : (r) => run({ kind: r.kind, id: r.id })}
             onCreateCompany={(name) => setCompanyDlg({ open: true, name })} />
         </div>
         <div>

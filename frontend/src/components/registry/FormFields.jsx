@@ -2,26 +2,33 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CategoryMulti, CompanyCombo, Field, HostCombo } from "@/components/registry/FormBits";
+import { CategoryMulti, CompanyCombo, Field, HostCombo, SuggestInput } from "@/components/registry/FormBits";
 import { maskCpf, maskPhone, maskPlate } from "@/lib/br";
 
 const T = (f, set, errors, key, label, opts = {}) => (
   <Field label={label} required={opts.required} error={errors[key]} className={opts.className} hint={opts.hint}>
+    {opts.onPick ? (
+      <SuggestInput id={`f-${key}`} value={f[key] ?? ""} placeholder={opts.placeholder} kind={opts.kind} onPick={opts.onPick}
+        onChange={(e) => set(key, opts.mask ? opts.mask(e.target.value) : e.target.value)} onBlur={opts.onBlur}
+        inputMode={opts.inputMode} inputRef={opts.inputRef} className={errors[key] ? "border-red-500/60" : ""} testid={`f-${key}`} />
+    ) : (
     <Input id={`f-${key}`} type={opts.type || "text"} value={f[key] ?? ""} placeholder={opts.placeholder}
       onChange={(e) => set(key, opts.mask ? opts.mask(e.target.value) : e.target.value)} onBlur={opts.onBlur}
       inputMode={opts.inputMode} ref={opts.inputRef} className={errors[key] ? "border-red-500/60" : ""} data-testid={`f-${key}`} />
+    )}
   </Field>
 );
 
-export function CommonFields({ f, set, errors, companies, onCreateCompany, nameRef, onDocBlur }) {
+export function CommonFields({ f, set, errors, companies, onCreateCompany, nameRef, onDocBlur, onPick }) {
   const visitor = f.person_type === "visitante";
   const allowed = f.person_type === "terceiro" ? ["terceirizada", "transportadora"] : null;
+  const sug = onPick ? { onPick, kind: visitor ? "visitor" : "person" } : {};
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {T(f, set, errors, "name", "Nome completo", { required: true, className: "sm:col-span-2", inputRef: nameRef })}
-      {visitor && T(f, set, errors, "document", "Documento (RG/Passaporte)", { required: true, onBlur: onDocBlur, hint: "Se o visitante já existir, os dados e a foto são reaproveitados" })}
-      {T(f, set, errors, "cpf", "CPF", { required: !visitor, mask: maskCpf, placeholder: "000.000.000-00", inputMode: "numeric" })}
-      {!visitor && T(f, set, errors, "rg", "RG / documento")}
+      {T(f, set, errors, "name", "Nome completo", { required: true, className: "sm:col-span-2", inputRef: nameRef, ...sug, hint: onPick ? "Digite 3 letras para localizar cadastros existentes" : undefined })}
+      {visitor && T(f, set, errors, "document", "Documento (RG/Passaporte)", { required: true, onBlur: onDocBlur, ...sug, hint: "Se o visitante já existir, os dados e a foto são reaproveitados" })}
+      {T(f, set, errors, "cpf", "CPF", { required: !visitor, mask: maskCpf, placeholder: "000.000.000-00", inputMode: "numeric", ...sug })}
+      {!visitor && T(f, set, errors, "rg", "RG / documento", sug)}
       {T(f, set, errors, "birth", "Data de nascimento", { type: "date" })}
       {T(f, set, errors, "phone", "Telefone", { mask: maskPhone, placeholder: "(11) 90000-0000", inputMode: "tel" })}
       {T(f, set, errors, "email", "E-mail", { type: "email" })}

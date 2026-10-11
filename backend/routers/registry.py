@@ -148,7 +148,7 @@ async def global_search(q: str = "", user: dict = Depends(get_current_user)):
            for p, m in found.values()]
     vq = [{"name": rx(q)}, {"document": rx(q)}]
     if len(dig) >= 3:
-        vq.append({"document_digits": {"$regex": dig}})
+        vq += [{"document_digits": {"$regex": dig}}, {"cpf_digits": {"$regex": dig}}]
     for v in await db.visitors.find({**ND, "$or": vq}, {"_id": 0, "photo": 0}).limit(10).to_list(10):
         out.append({"kind": "visitor", "id": v["id"], "name": v["name"], "company_name": v.get("origin_company", ""),
                     "photo": v.get("photo_thumb", ""), "status": "lista negra" if v.get("blacklist") else "visitante",

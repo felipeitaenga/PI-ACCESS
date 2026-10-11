@@ -296,6 +296,7 @@ async def generate_seed():
                            "access_point_id": point["id"], "controller_id": point["controller_id"],
                            "device_id": point["controller_id"], "device_name": point["controller_name"],
                            "person_id": p["id"], "person_name": p["name"], "person_photo": p["photo"],
+                           "person_type": p["person_type"], "company_name": p["company_name"],
                            "captured_photo": p["photo"], "credential_type": random.choice(cred),
                            "direction": point["direction"], "access_result": "granted" if granted else "denied",
                            "reason": "" if granted else random.choice(reasons),

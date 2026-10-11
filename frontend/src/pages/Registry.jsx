@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CompanyColumn } from "@/components/registry/CompanyColumn";
@@ -12,7 +11,7 @@ import { PresentVisitors } from "@/components/registry/PresentVisitors";
 import { LiveAccessFeed } from "@/components/registry/LiveAccessFeed";
 import { QuickCompanyDialog } from "@/components/registry/QuickCompanyDialog";
 import { useOpenRecord, useRegistryData, useSearchHotkey, useUrlRequest } from "@/components/registry/useRegistryData";
-import { IdCard, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 function PageTop({ title, subtitle, onSearch }) {
   return (
@@ -121,22 +120,6 @@ export function FixedRegister() {
   );
 }
 
-function DocSearch() {
-  const nav = useNavigate();
-  const [doc, setDoc] = useState("");
-  const go = () => doc.trim() && nav(`/cadastro/visitantes?doc=${encodeURIComponent(doc.trim())}&t=${Date.now()}`);
-  return (
-    <Card className="mb-3 flex flex-col gap-2 border-sky-500/30 bg-card p-3 sm:flex-row" data-testid="portaria-doc-search">
-      <div className="relative flex-1">
-        <IdCard className="absolute left-4 top-3.5 h-5 w-5 text-sky-400" />
-        <Input autoFocus className="h-12 pl-12 text-lg" placeholder="Buscar por documento (RG, CPF, passaporte)…" value={doc}
-          onChange={(e) => setDoc(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} data-testid="portaria-doc-input" />
-      </div>
-      <Button className="h-12 bg-sky-500 px-6 text-slate-950 hover:bg-sky-400" onClick={go} data-testid="portaria-doc-button"><Search className="mr-2 h-4 w-4" />Buscar</Button>
-    </Card>
-  );
-}
-
 export function VisitorRegister() {
   const d = useRegistryData();
   const request = useUrlRequest("visitante");
@@ -148,9 +131,8 @@ export function VisitorRegister() {
   return (
     <div data-testid="page-visitor-register">
       <PageTop title="Cadastro de visitantes" subtitle="Portaria · cadastro, check-in/out e acessos em tempo real" onSearch={openSearch} />
-      <DocSearch />
       <MobileTabs tabs={[["form", "Cadastro"], ["monitor", "Monitoramento"]]} tab={tab} setTab={setTab} />
-      <div className="grid gap-3 lg:h-[calc(100vh-18rem)] lg:grid-cols-[1fr_420px]">
+      <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[1fr_420px]">
         <section className={panel(tab, "form", "h-[85vh] lg:h-auto")}>
           <PersonForm request={request} allowedTypes={["visitante"]} companies={d.companies} categories={d.categories}
             departments={d.departments} onSaved={saved} onCompanyCreated={d.reload} />

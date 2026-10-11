@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,45 @@ function useOutside(ref, cb) {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [ref, cb]);
+}
+
+export function SuggestInput({ id, value, onChange, onBlur, inputRef, className, placeholder, inputMode, kind, onPick, testid }) {
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const close = useCallback(() => setOpen(false), []);
+  useOutside(ref, close);
+  useEffect(() => {
+    if (!open || (value || "").trim().length < 3) { setItems([]); return undefined; }
+    const t = setTimeout(() => {
+      api.get(`/registry/search?q=${encodeURIComponent(value.trim())}`)
+        .then(({ data }) => setItems(data.filter((r) => r.kind === kind).slice(0, 8))).catch(() => setItems([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [value, open, kind]);
+  return (
+    <div ref={ref} className="relative">
+      <Input id={id} ref={inputRef} value={value} placeholder={placeholder} inputMode={inputMode} className={className} autoComplete="off"
+        onFocus={() => setOpen(true)} onChange={(e) => { onChange(e); setOpen(true); }} onBlur={onBlur}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)} data-testid={testid} />
+      {open && items.length > 0 && (
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl" data-testid={`${testid}-suggestions`}>
+          <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Já cadastrados — clique para abrir</p>
+          {items.map((r) => (
+            <button key={r.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setOpen(false); onPick(r); }}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-secondary" data-testid={`suggest-option-${r.id}`}>
+              {r.photo ? <img src={r.photo} alt="" className="h-8 w-6 rounded object-cover" /> : <div className="h-8 w-6 rounded bg-secondary" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">{r.name}</p>
+                <p className="truncate font-mono text-[11px] text-muted-foreground">{r.document} · {r.company_name}</p>
+              </div>
+              {r.status === "lista negra" && <span className="rounded bg-red-500/20 px-1 text-[10px] font-bold text-red-300">LISTA NEGRA</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CompanyCombo({ id, companies, value, onChange, onCreate, allowedTypes }) {

@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only testing of the 4-screen split for Cadastro (Cadastro de visitantes, Cadastro de fixos, Visitantes, Fixos). All requested flows verified against the public URL with admin credentials. Sidebar group has all 6 items; /portaria redirects to /cadastro/visitantes; big doc search prefills form; LiveAccessFeed appears right of visitor-register with AO VIVO status, filters all/fixo/visitante work, and events arrive in real time with correct FIXO/VISITANTE type badges from the simulator (verified ~33 events in 22s, both types present). Blacklist alert correctly shown for a Delta Engenharia visitor. /cadastro/fixos renders only FUNCIONARIO/TERCEIRO buttons and loads edit when ?person=... /pessoas: company column + wide people grid; person-open navigates to /cadastro/fixos?person=id with 'Edição' header; 'Pessoa nesta empresa' navigates to /cadastro/fixos?company=...&type=terceiro. /visitantes: origin companies column + Visitantes do dia pinned, visitor-card navigates to /cadastro/visitantes?visitor=id; '+ Visitante' from Acme Consultoria builds ?origin=Acme%20Consultoria. Ctrl+K global search opens on all pages. Mobile 390px tabs present on all three screens (form/monitor, companies/people, companies/people/present). Only a minor consistency issue found: seeded historical access_events do NOT include person_type, so the UI badge for those entries defaults to FIXO (fine when person is a funcionario, but incorrect when the historical event belongs to a visitor). Simulator-generated events DO include person_type, so WebSocket + newly-persisted REST entries are correct.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/events", "issue": "Historical seeded access_events documents lack the 'person_type' field (seed.py builds events without it). New simulator/engine events include it. UI falls back to 'fixo' when person_id is set, so visitor historical events are mis-labeled. Suggest backfilling person_type on seed, or deriving it from people/visitors collection on read."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: populate person_type in seed.py access_events (and/or derive it on GET /api/events) so historical events display the correct FIXO/VISITANTE badge in LiveAccessFeed."
+  ],
+  "critical_code_review_comments": [
+    "LiveAccessFeed.typeOf uses person_id as the only visitor-vs-fixo heuristic when person_type is missing. Since seeded historical events include person_id for visitor people, the fallback is unreliable. Prefer: resolve from the person's record (people/visitors) or persist person_type on all events including seed.",
+    "useRegistryData.useUrlRequest skips first effect run; relies on initial state built from params. OK, but if the user navigates between query strings with the same param set, nonce still triggers reload — good. No action.",
+    "Registry.jsx FixedBrowse: initial sel=null results in empty 'Selecione uma empresa' state. This is intentional, but there is no visual hint to filter by status without selecting a company — only cosmetic, not a bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "test_credentials": "felipejferreira@gmail.com / NxAccess@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Only ephemeral navigations; no TEST_* records were created or left behind.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "4-screen split is live and working: /cadastro/visitantes (DocSearch + PersonForm + LiveAccessFeed + PresentVisitors), /cadastro/fixos (PersonForm with allowedTypes funcionario/terceiro), /pessoas (FixedBrowse), /visitantes (VisitorsBrowse). Selectors to prefer: company-card-{id} (not company-row), person-open-{id}, visitor-card-{id}, portaria-doc-input/button, live-feed-status/live-filter-{all|fixo|visitante}, live-event-type-{id}, mobile-tab-{form|monitor|companies|people|present}, global-search-input, blacklist-alert. For /pessoas the people grid is empty until a company is selected (default sel=null). WebSocket warnings appear in console because the ws URL re-connects; they do not block functionality. Only remaining minor: historical seed events lack person_type.",
+  "rca of the issue": "RCA for historical event mis-labeling: seed.py (line 292-302) constructs event dicts for the last 7 days directly without the person_type field, while access_service._event (line 23) populates it from the person doc. GET /api/events returns documents as-is, so pre-seeded entries are returned with person_type undefined. Fix options: (a) add 'person_type': p['person_type'] in the seed events dict builder; (b) on read, left-join by person_id/visitor_id to fill the field; (c) run a one-off migration setting person_type for existing events."
+}
