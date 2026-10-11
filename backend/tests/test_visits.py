@@ -72,4 +72,5 @@ def test_auto_expiration(db):
             await db.visitors.delete_many({"id": vid})
             await db.visit_history.delete_many({"visit_id": visit_id})
             await db.sync_jobs.delete_many({"person_id": vid})
+            await db.mqtt_commands.delete_many({"status": "queued", "payload.info.customId": vid})
     asyncio.run(run())

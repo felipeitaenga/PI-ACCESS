@@ -112,6 +112,13 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] deploy/docker-compose.yml, deploy/.env.example (+ cópia na raiz), deploy/README.md, .github/workflows/docker-publish.yml (ghcr.io/felipeitaenga/pi-access).
 - [x] Testado em simulação de produção sem Docker (/root/prodtest: Caddy + Mosquitto com senha) — iteration_9 100%. Corrigido KeyError de áreas sem description em equipment.py.
 
+## v1.1.0 — Cadastro de visita + Configurações › Visitantes (2026-10-11)
+- [x] Sincronizado com GitHub felipeitaenga/PI-ACCESS main (v1.0.3: Dockerfile yarn.lock opcional, VERSION + workflow por VERSION, bootstrap.py, deploy/pi-cliente.sh, ACK_TIMEOUT_BY_OP, Online-Ack, get_device_info por heartbeat). frontend/yarn.lock e .env.example liberados no .gitignore.
+- [x] Nova tela /cadastro/visitantes (components/visits/*): tipo, início, fim automático (duração do tipo, manual trava), +1h/+4h/fim do dia, empresa visitada + anfitrião ativo, documento com máscara/validação por config, lookup por tipo+número, lista negra (admin libera com justificativa), identificador facial/cartão(hex→dec)/QR(PIV-…), foto, placa Mercosul/antiga, observações, status de sincronização, Encerrar visita, "presentes agora" com tempo restante.
+- [x] Backend: visits_core.py + routers/visits.py (/api/visits, /types, /settings, /lookup, /present, /{id}/end), job 60 s (agendado→presente, expira e DeletePersons, visit_history), migração 0003 (Visita padrão + settings), EditPerson MQTT com tempCardType=1/cardValidBegin/cardValidEnd/RFIDCard, motor reconhece visitante pelo customId.
+- [x] Configurações › Visitantes: CRUD tipos de visita + validação CPF/RG + duração geral. Testes tests/test_visits.py (5) + iteration_10 100%.
+- VERSION = 1.1.0
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).
