@@ -88,6 +88,14 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - Verificado: iteration_6 (100%).
 - Pendente: drivers reais Hikvision (ISAPI), Control iD e CT300-2L (fabricante/protocolo da CT300-2L a confirmar).
 
+## Driver Beward — MQTT real + agente local HTTP (2026-10-11)
+- [x] `mqtt_bus.py`: cliente de saída ao broker (Configurações › Integrações › MQTT; padrão 156.67.82.199:1883 anônimo; senha criptografada), client_id nx-access-server, QoS1, reconexão, assina mqtt/face/#, comandos com messageId + espera de Ack (10 s), fila quando offline (reenvio ao voltar online), log das últimas mensagens.
+- [x] `beward_ingest.py`: HeartBeat/Online/Offline (mqtt/face/heartbeat, mqtt/face/basic), RecPush com foto → Monitoramento + PushAck (também StrSnapPush), validação de sentido (alarme "sentido_divergente"), decisão no servidor (VerifyStatus 22 → Unlock), aviso "sem eventos" configurável por dispositivo (padrão 120 min) só no horário de funcionamento do site, prioridade baixa, sem repetir.
+- [x] Agente local `/app/agent/nx_access_agent.py` (stdlib, porta 5011, /Subscribe/*, fila SQLite, Subscribe com Card/Alarm, comandos POST /action/<Operator> Basic Auth via long-poll HTTPS). Tokens por site com hash, exibidos uma vez, gerar novo/revogar, último uso/IP.
+- [x] UI: página Integrações (MQTT + status + log), painel "Como configurar o facial", token do agente, horário do site, saúde do facial no card.
+- Teste de conectividade: broker 156.67.82.199:1883 OK (anônimo); facial 1457460 ainda não publicou nenhuma mensagem.
+- Verificado: iteration_7 (backend 24/24, frontend 100%).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Build nx-access-agent service skeleton with SQLite queue.
