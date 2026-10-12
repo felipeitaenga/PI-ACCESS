@@ -135,6 +135,12 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Favicon/ícones com o símbolo Pilares (public/favicon.ico, favicon-32.png, icon-192/512.png, apple-touch-icon.png); index.html pt-BR. Rótulo "Código" da categoria → "Nome da categoria".
 
+## v1.2.0 — Perfil Gestor de empresa (2026-10-12)
+- [x] role company_manager + users.company_ids (obrigatório p/ gestor). backend/scope.py: scope_filter/find_scoped (404 fora do escopo), MANAGER_ALLOW + middleware company_manager_gate (403 no resto da API, auditoria "gestor:<MÉTODO>"), ws_visible (WebSocket filtrado no servidor), stamp_event (company_id nos eventos: empresa da pessoa ou empresa visitada da visita ativa).
+- [x] Escopo aplicado em registry (empresas, pessoas, busca, bulk, categorias liberadas, limite de ativos), visitors_reg, visits (tipos liberados, empresa visitada, busca LGPD), dashboard, events, reports, crud categories/all.
+- [x] Empresa › "Acesso ao sistema": categorias/tipos de visita liberados, limite de pessoas ativas, gestores vinculados. Usuários: perfil + empresas; Configurações: "Gestor pode criar gestores da mesma empresa". Menu/rotas do frontend restritos (MANAGER_PATHS + ManagerGuard), KPIs de equipamentos ocultos.
+- [x] Migração 0005 (company_ids=[], company_id nos eventos antigos quando possível). Testes tests/test_company_scope.py (A/B). iteration_14: backend 100%, ajustes de frontend aplicados. VERSION 1.2.0 (GitHub tinha 1.1.2).
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).

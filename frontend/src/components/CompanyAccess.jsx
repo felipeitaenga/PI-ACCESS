@@ -25,9 +25,9 @@ export function CompanyAccess({ form, setForm }) {
         <CategoryMulti categories={types} value={form.allowed_visit_type_ids || []} onChange={set("allowed_visit_type_ids")} /></div>
       <div><p className="mb-1 text-xs font-semibold">Limite de pessoas ativas (vazio = sem limite)</p>
         <Input type="number" min="0" className="w-40" value={form.max_active_people ?? ""} onChange={(e) => set("max_active_people")(e.target.value ? +e.target.value : null)} data-testid="company-max-active" /></div>
-      <div><p className="mb-1 text-xs font-semibold">Gestores vinculados</p>
+      <div data-testid="company-managers-list"><p className="mb-1 text-xs font-semibold">Gestores vinculados</p>
         {managers.length === 0 ? <p className="text-xs text-muted-foreground">Nenhum gestor</p> : (
-          <ul className="space-y-0.5 text-xs" data-testid="company-managers-list">
+          <ul className="space-y-0.5 text-xs">
             {managers.map((m) => <li key={m.id}><Link to="/configuracoes/usuarios" className="text-sky-400 hover:underline">{m.name}</Link> <span className="text-muted-foreground">{m.email}</span></li>)}
           </ul>
         )}</div>
