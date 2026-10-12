@@ -1,7 +1,7 @@
 """Cadastro de visita (portaria), tipos de visita e configurações de visitantes."""
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from database import db
 from security import get_current_user, require_role
@@ -295,4 +295,27 @@ async def finish(visit_id: str, request: Request, user: dict = Depends(require_r
         raise HTTPException(status_code=400, detail=f"Visita já encerrada ({v.get('status')})")
     sync = await end_visit(v, "finalizado", "Check-out antecipado", user.get("email"))
     await log_audit(user, "checkout", "visit", visit_id, v.get("visitor_name", ""), client_ip(request))
+    return {"ok": True, "sync": sync}
+
+
+@router.get("/scheduled")
+async def scheduled(days: int = 30, user: dict = Depends(get_current_user)):
+    """Visitas agendadas (ainda não iniciadas), da mais próxima para a mais distante."""
+    until = (datetime.now(timezone.utc) + timedelta(days=max(1, min(days, 180)))).isoformat()
+    items = await db.visits.find({**ND, **(await scope_filter(user, "visits")), "status": "agendado", "start_at": {"$lte": until}},
+                                 {"_id": 0}).sort("start_at", 1).to_list(1000)
+    thumbs = {v["id"]: v.get("photo_thumb", "") for v in await db.visitors.find(
+        {"id": {"$in": [x["visitor_id"] for x in items]}}, {"_id": 0, "id": 1, "photo_thumb": 1}).to_list(1000)}
+    for x in items:
+        x["photo"] = thumbs.get(x["visitor_id"], "")
+    return items
+
+
+@router.post("/{visit_id}/cancel")
+async def cancel(visit_id: str, request: Request, user: dict = Depends(require_role(*WRITE))):
+    v = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")
+    if v.get("status") != "agendado":
+        raise HTTPException(status_code=400, detail="Só é possível cancelar visitas agendadas (ainda não iniciadas)")
+    sync = await end_visit(v, "cancelado", "Agendamento cancelado", user.get("email"))
+    await log_audit(user, "cancelar", "visit", visit_id, v.get("visitor_name", ""), client_ip(request))
     return {"ok": True, "sync": sync}

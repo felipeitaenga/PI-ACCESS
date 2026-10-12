@@ -22,7 +22,7 @@ const LS = {
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitantes", "/cadastro/fixos", "/visitantes", "/pessoas", "/relatorios", "/logs/acessos", "/autocadastro"]);
+export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitantes", "/cadastro/fixos", "/visitantes", "/pessoas", "/relatorios", "/logs/acessos", "/autocadastro", "/agendamentos"]);
 
 export function Layout({ children }) {
   const { user, logout, hasRole } = useAuth();

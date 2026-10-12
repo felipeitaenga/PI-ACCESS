@@ -277,7 +277,7 @@ function printQr(name, link, qr) {
     body{font-family:Arial,sans-serif;text-align:center;padding:40px;color:#0f172a}h1{font-size:30px;margin:0 0 8px}
     h2{font-size:20px;font-weight:normal;margin:0 0 24px;color:#334155}img{width:340px;height:340px}
     ol{text-align:left;display:inline-block;font-size:17px;line-height:1.7}p.u{font-size:12px;color:#64748b;word-break:break-all}</style></head>
-    <body><h1>Visitante? Faça seu cadastro</h1><h2>${company}</h2><img src="${qr}" alt="QR"/>
+    <body><h1>Visitante? Faça seu cadastro</h1>${company ? `<h2>${company}</h2>` : "<h2>&nbsp;</h2>"}<img src="${qr}" alt="QR"/>
     <ol><li>Aponte a câmera do celular para o QR Code</li><li>Preencha seus dados e tire uma selfie</li><li>Aguarde a aprovação e entre pelo leitor facial</li></ol>
     <p class="u">${url}</p><script>window.onload=function(){window.print()}</script></body></html>`);
   w.document.close();
@@ -315,15 +315,55 @@ function CompanyLink({ c, types, onChange }) {
   );
 }
 
-function PublicLinks({ companies, reload }) {
-  const [types, setTypes] = useState([]);
-  useEffect(() => { api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {}); }, []);
+function SiteLink({ onChange }) {
+  const [d, setD] = useState(null);
+  const [qr, setQr] = useState("");
+  const load = useCallback(() => api.get("/selfreg/site-link").then(({ data }) => setD(data)).catch(() => {}), []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (d?.link && d.enabled) QRCode.toDataURL(d.link, { width: 600, margin: 1 }).then(setQr).catch(() => setQr("")); else setQr(""); }, [d?.link, d?.enabled]);
+  if (!d) return null;
+  const save = async (body) => {
+    try { setD((await api.put("/selfreg/site-link", { enabled: d.enabled, ...body })).data); toast.success("QR único atualizado"); onChange?.(); } catch (e) { err(e); }
+  };
   return (
-    <Card className="border-border bg-card p-4">
-      <h2 className="mb-1 font-heading text-sm font-bold uppercase tracking-widest">Link público por empresa</h2>
-      <p className="mb-3 text-xs text-muted-foreground">Imprima o QR e deixe na recepção. O visitante busca o anfitrião pelo nome (no máximo 3 resultados) e a visita só é liberada após aprovação.</p>
-      <div className="space-y-2">{companies.map((c) => <CompanyLink key={c.id} c={c} types={types} onChange={reload} />)}</div>
+    <Card className="border-sky-500/40 bg-card p-4" data-testid="selfreg-site-link">
+      <div className="flex flex-wrap items-start gap-4">
+        {qr ? <img src={qr} alt="QR" className="h-28 w-28 rounded bg-white p-1" /> : <div className="flex h-28 w-28 items-center justify-center rounded bg-secondary"><QrCode className="h-10 w-10 text-muted-foreground" /></div>}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <h2 className="flex-1 font-heading text-sm font-bold uppercase tracking-widest">QR único do local</h2>
+            <label className="flex items-center gap-2 text-xs"><Switch checked={d.enabled} onCheckedChange={(v) => save({ enabled: v })} />Ativo</label>
+          </div>
+          <p className="text-xs text-muted-foreground">Um só QR na recepção: o visitante escolhe a empresa e depois o anfitrião. Aparecem só as empresas ativas abaixo ({d.companies.length}).</p>
+          {d.enabled && d.link && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => copy(d.link)}><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
+              <Button size="sm" variant="outline" onClick={() => printQr("", d.link, qr)} disabled={!qr}><Printer className="mr-1 h-4 w-4" />Imprimir QR</Button>
+              <Button size="sm" variant="ghost" title="Gerar novo link" onClick={() => window.confirm("Gerar um novo QR único? O atual deixa de funcionar.") && save({ regenerate: true })}><RefreshCw className="h-4 w-4" /></Button>
+            </div>
+          )}
+          {d.enabled && d.companies.length === 0 && <p className="text-xs text-amber-300">Ative ao menos uma empresa abaixo (com tipo de visita).</p>}
+          {d.enabled && d.link && <p className="truncate font-mono text-[11px] text-muted-foreground">{d.link}</p>}
+        </div>
+      </div>
     </Card>
+  );
+}
+
+function PublicLinks({ companies, reload, isAdmin }) {
+  const [types, setTypes] = useState([]);
+  const [tick, setTick] = useState(0);
+  useEffect(() => { api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {}); }, []);
+  const changed = () => { reload(); setTick((t) => t + 1); };
+  return (
+    <div className="space-y-4">
+      {isAdmin && <SiteLink key={tick} />}
+      <Card className="border-border bg-card p-4">
+        <h2 className="mb-1 font-heading text-sm font-bold uppercase tracking-widest">Empresas no autocadastro</h2>
+        <p className="mb-3 text-xs text-muted-foreground">Ative a empresa e escolha o tipo de visita. Ela passa a aparecer no QR único e ganha também um QR próprio (para a recepção dela). O visitante busca o anfitrião pelo nome (no máximo 3 resultados) e a visita só é liberada após aprovação.</p>
+        <div className="space-y-2">{companies.map((c) => <CompanyLink key={c.id} c={c} types={types} onChange={changed} />)}</div>
+      </Card>
+    </div>
   );
 }
 
@@ -366,7 +406,7 @@ export default function SelfRegAdmin() {
       <div><h1 className="font-heading text-2xl font-bold tracking-tight">Autocadastro de visitantes</h1>
         <p className="mt-1 text-sm text-muted-foreground">Solicitações pelo link público e convites individuais. Vale a primeira resposta: anfitrião ou portaria.</p></div>
       <Tabs defaultValue="requests">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="requests">Aguardando liberação</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger>
           {canLinks && <TabsTrigger value="links">Links públicos</TabsTrigger>}
@@ -374,7 +414,7 @@ export default function SelfRegAdmin() {
         </TabsList>
         <TabsContent value="requests"><Requests /></TabsContent>
         <TabsContent value="invites"><Invites companies={companies} /></TabsContent>
-        {canLinks && <TabsContent value="links"><PublicLinks companies={companies} reload={loadCompanies} /></TabsContent>}
+        {canLinks && <TabsContent value="links"><PublicLinks companies={companies} reload={loadCompanies} isAdmin={user?.role === "admin"} /></TabsContent>}
         {user?.role === "admin" && <TabsContent value="settings"><Settings /></TabsContent>}
       </Tabs>
     </div>

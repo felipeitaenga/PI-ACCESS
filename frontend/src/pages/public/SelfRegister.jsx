@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Camera, CheckCircle2, ImagePlus, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
+import { Building2, Camera, CheckCircle2, ImagePlus, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
 import { CameraCapture } from "@/components/CameraCapture";
 import { cropTo34Jpeg, fileToImage } from "@/lib/image";
 import { maskCpf } from "@/lib/br";
@@ -58,6 +58,37 @@ function HostSearch({ ctxKey, value, onPick, error }) {
   );
 }
 
+function CompanyPicker({ companies, value, onPick, error }) {
+  const [q, setQ] = useState("");
+  const list = companies.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
+  if (value) {
+    return (
+      <PField label="Empresa que você vai visitar" required>
+        <div className="flex items-center gap-2 rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2.5">
+          <Building2 className="h-5 w-5 text-sky-400" /><span className="flex-1">{value.name}</span>
+          <button type="button" className="text-sm text-sky-300 underline" onClick={() => onPick(null)}>trocar</button>
+        </div>
+      </PField>
+    );
+  }
+  return (
+    <PField label="Empresa que você vai visitar" required error={error}>
+      {companies.length > 6 && (
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-3 h-5 w-5 text-slate-500" />
+          <input className={`${inputCls} pl-10`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar empresas" />
+        </div>
+      )}
+      <div className="max-h-72 space-y-1.5 overflow-auto">
+        {list.map((c) => (
+          <button key={c.id} type="button" onClick={() => onPick(c)} className="w-full rounded-lg border border-slate-700 px-3 py-2.5 text-left hover:border-sky-500">{c.name}</button>
+        ))}
+        {list.length === 0 && <p className="text-xs text-slate-400">Nenhuma empresa encontrada.</p>}
+      </div>
+    </PField>
+  );
+}
+
 function Selfie({ photo, setPhoto, error }) {
   const [cam, setCam] = useState(false);
   const fileRef = useRef(null);
@@ -102,6 +133,7 @@ export default function SelfRegister({ mode }) {
   const [useSaved, setUseSaved] = useState(false);
   const [f, setF] = useState({ name: "", doc_type: "cpf", doc_number: "", visitor_company: "", phone: "", plate: "", remember: false });
   const [host, setHost] = useState(null);
+  const [company, setCompany] = useState(null);
   const [when, setWhen] = useState("now");
   const [start, setStart] = useState(localNow());
   const [photo, setPhoto] = useState("");
@@ -133,7 +165,7 @@ export default function SelfRegister({ mode }) {
     setStep("form");
   });
   const submit = () => run(async () => {
-    const body = { ...ctxKey, consent, captcha, verify_token: verifyToken, email, use_saved: useSaved, ...f,
+    const body = { ...ctxKey, company_id: company?.id || "", consent, captcha, verify_token: verifyToken, email, use_saved: useSaved, ...f,
       photo: useSaved ? "" : photo, host_person_id: host?.id || "",
       start_at: when === "later" && start ? new Date(start).toISOString() : "" };
     const { data } = await pub.post("/submit", body);
@@ -143,10 +175,13 @@ export default function SelfRegister({ mode }) {
   if (fatal) return <PublicShell title="Cadastro de visitante"><Box><p className="text-slate-200">{fatal}</p></Box></PublicShell>;
   if (!info) return <PublicShell title="Cadastro de visitante"><div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-sky-400" /></div></PublicShell>;
   const isInvite = !!info.invite;
+  const isSite = !!info.companies;
+  const hostKey = { ...ctxKey, company_id: company?.id || "" };
+  const hours = isSite ? company?.duration_hours : info.duration_hours;
   const Err = () => (msg ? <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{msg}</p> : null);
 
   return (
-    <PublicShell title={info.company} subtitle={`Cadastro de visitante · ${info.site}`}>
+    <PublicShell title={info.company || company?.name || info.site} subtitle={`Cadastro de visitante${info.company || company ? ` · ${info.site}` : ""}`}>
       {isInvite && (
         <Box className="mb-4 border-sky-500/40">
           <p className="text-sm text-slate-300">Convite de <b className="text-white">{info.invite.host_name}</b></p>
@@ -209,9 +244,10 @@ export default function SelfRegister({ mode }) {
           )}
 
           <Box className="space-y-4">
-            {!isInvite && <HostSearch ctxKey={ctxKey} value={host} onPick={setHost} error={errors.host_person_id} />}
+            {isSite && <CompanyPicker companies={info.companies} value={company} onPick={(c) => { setCompany(c); setHost(null); }} error={errors.company_id} />}
+            {!isInvite && (!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={hostKey} value={host} onPick={setHost} error={errors.host_person_id} />}
             {!isInvite && (
-              <PField label="Quando" error={errors.start_at} hint={`A visita vale por ${String(info.duration_hours).replace(".", ",")} h a partir do início.`}>
+              <PField label="Quando" error={errors.start_at} hint={hours ? `A visita vale por ${String(hours).replace(".", ",")} h a partir do início.` : ""}>
                 <div className="grid grid-cols-2 gap-2">
                   {[["now", "Agora"], ["later", "Agendar"]].map(([k, l]) => (
                     <button key={k} type="button" onClick={() => setWhen(k)}

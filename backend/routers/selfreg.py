@@ -62,18 +62,37 @@ async def _limit(key, n, window):
 # ======================================================================
 # Contexto (link público da empresa ou convite individual)
 # ======================================================================
-async def _company_ctx(code):
+async def _enabled_company(query):
+    comp = await db.companies.find_one({**ND, **query, "selfreg_enabled": True, "enabled": {"$ne": False}}, {"_id": 0})
+    if not comp:
+        return None, None
+    vt = await db.visit_types.find_one({**ND, "id": comp.get("selfreg_visit_type_id"), "active": True}, {"_id": 0})
+    return (comp, vt) if vt else (None, None)
+
+
+async def site_companies():
+    """Empresas com autocadastro ativo e tipo de visita válido (lista do QR único do local)."""
+    out, vs = [], await visit_settings()
+    async for c in db.companies.find({**ND, "selfreg_enabled": True, "enabled": {"$ne": False}},
+                                     {"_id": 0, "id": 1, "name": 1, "selfreg_visit_type_id": 1}).sort("name", 1):
+        vt = await db.visit_types.find_one({**ND, "id": c.get("selfreg_visit_type_id"), "active": True}, {"_id": 0})
+        if vt:
+            out.append({"id": c["id"], "name": c["name"], "duration_hours": type_hours(vt, vs)})
+    return out
+
+
+async def _company_ctx(code, company_id=""):
     s = await get_settings()
     if not s.get("enabled") or not code or not re.fullmatch(r"[a-z0-9]{4,16}", code):
         return None
-    comp = await db.companies.find_one({**ND, "selfreg_code": code, "selfreg_enabled": True, "enabled": {"$ne": False}},
-                                       {"_id": 0})
+    # QR único do local: o visitante escolhe a empresa durante o cadastro
+    if s.get("site_enabled") and s.get("site_code") and same(code, s["site_code"]):
+        comp, vt = (await _enabled_company({"id": company_id})) if company_id else (None, None)
+        return {"settings": s, "company": comp, "vtype": vt, "invite": None, "site": True}
+    comp, vt = await _enabled_company({"selfreg_code": code})
     if not comp:
         return None
-    vt = await db.visit_types.find_one({**ND, "id": comp.get("selfreg_visit_type_id"), "active": True}, {"_id": 0})
-    if not vt:
-        return None
-    return {"settings": s, "company": comp, "vtype": vt, "invite": None}
+    return {"settings": s, "company": comp, "vtype": vt, "invite": None, "site": False}
 
 
 async def _invite_ctx(token):
@@ -96,14 +115,21 @@ async def _ctx(body_or_q):
     if _s(body_or_q.get("invite")):
         ctx = await _invite_ctx(_s(body_or_q["invite"]))
     elif _s(body_or_q.get("code")):
-        ctx = await _company_ctx(_s(body_or_q["code"]).lower())
+        ctx = await _company_ctx(_s(body_or_q["code"]).lower(), _s(body_or_q.get("company_id")))
     if not ctx:
         raise HTTPException(status_code=404, detail="Link inválido, expirado ou desativado. Procure a recepção.")
     return ctx
 
 
+def _need_company(ctx):
+    if not ctx["company"]:
+        _err({"company_id": "Escolha a empresa que você vai visitar"})
+
+
 def _ctx_key(ctx):
-    return f"inv:{ctx['invite']['id']}" if ctx["invite"] else f"co:{ctx['company']['id']}"
+    if ctx["invite"]:
+        return f"inv:{ctx['invite']['id']}"
+    return "site" if ctx.get("site") else f"co:{ctx['company']['id']}"
 
 
 # ======================================================================
@@ -114,10 +140,16 @@ async def info(request: Request, code: str = "", invite: str = ""):
     await _limit(f"info:{client_ip(request)}", 60, 600)
     ctx = await _ctx({"code": code, "invite": invite})
     s, inv = ctx["settings"], ctx["invite"]
-    out = {"site": cfg.CLIENTE_NOME, "company": ctx["company"]["name"], "visit_type": ctx["vtype"]["name"],
-           "lgpd_text": s["lgpd_text"], "otp": otp_active(s), "captcha_site_key": TURNSTILE_SITE_KEY,
-           "max_days_ahead": s["max_days_ahead"], "duration_hours": type_hours(ctx["vtype"], await visit_settings()),
-           "doc_types": list(SELF_DOCS), "invite": None}
+    out = {"site": cfg.CLIENTE_NOME, "lgpd_text": s["lgpd_text"], "otp": otp_active(s), "captcha_site_key": TURNSTILE_SITE_KEY,
+           "max_days_ahead": s["max_days_ahead"], "doc_types": list(SELF_DOCS), "invite": None, "companies": None,
+           "company": "", "visit_type": "", "duration_hours": 0}
+    if ctx.get("site"):
+        out["companies"] = await site_companies()
+        if not out["companies"]:
+            raise HTTPException(status_code=404, detail="Autocadastro indisponível no momento. Procure a recepção.")
+    else:
+        out.update({"company": ctx["company"]["name"], "visit_type": ctx["vtype"]["name"],
+                    "duration_hours": type_hours(ctx["vtype"], await visit_settings())})
     if inv:
         out["invite"] = {"host_name": inv["host_name"], "start_at": inv["start_at"], "end_at": inv["end_at"],
                          "guest_name": inv.get("guest_name", ""), "guest_email": inv.get("guest_email", "")}
@@ -131,6 +163,7 @@ async def hosts(body: dict, request: Request):
     ctx = await _ctx(body)
     if ctx["invite"]:
         return []
+    _need_company(ctx)
     q = _s(body.get("q"), 60).strip()
     if len(q) < 3:
         return []
@@ -204,6 +237,7 @@ async def submit(body: dict, request: Request):
     photo_in = body.get("photo") if isinstance(body.get("photo"), str) else ""
     body = {k: (v if isinstance(v, bool) else _s(v, 4000)) for k, v in body.items() if k != "photo"}
     ctx = await _ctx(body)
+    _need_company(ctx)
     s, comp, vt, inv = ctx["settings"], ctx["company"], ctx["vtype"], ctx["invite"]
     await _limit(f"submit:{ip}", 10, 3600)
     errs = {}
@@ -649,6 +683,29 @@ async def set_company(cid: str, body: dict, request: Request, user: dict = Depen
                                                   "selfreg_visit_type_id": 1})
     c["link"] = link(f"/v/{c['selfreg_code']}") if c.get("selfreg_code") else ""
     return c
+
+
+# ---------------- QR único do local ----------------
+@router.get("/site-link")
+async def get_site_link(user: dict = Depends(require_role("admin"))):
+    s = await get_settings()
+    return {"enabled": bool(s.get("site_enabled")), "code": s.get("site_code", ""),
+            "link": link(f"/v/{s['site_code']}") if s.get("site_code") else "", "companies": await site_companies()}
+
+
+@router.put("/site-link")
+async def set_site_link(body: dict, request: Request, user: dict = Depends(require_role("admin"))):
+    s = await get_settings()
+    upd = {"site_enabled": bool(body.get("enabled"))}
+    if body.get("regenerate") or not s.get("site_code"):
+        for _ in range(10):
+            code = new_code()
+            if not await db.companies.find_one({"selfreg_code": code}, {"_id": 1}):
+                upd["site_code"] = code
+                break
+    await db.settings.update_one({"id": "selfreg"}, {"$set": upd}, upsert=True)
+    await log_audit(user, "autocadastro:qr-unico", "settings", "selfreg", str(upd), client_ip(request))
+    return await get_site_link(user)
 
 
 # ---------------- configurações ----------------
