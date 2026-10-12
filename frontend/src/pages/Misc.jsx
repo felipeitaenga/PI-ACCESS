@@ -87,7 +87,7 @@ export function LogsSync() {
                 <TableCell className="font-mono text-xs">{new Date(j.started_at).toLocaleString("pt-BR")}</TableCell>
                 <TableCell>{j.device_name}</TableCell>
                 <TableCell className="font-mono text-xs">TZ:{j.totals?.time_zones} Áreas:{j.totals?.areas} Pontos:{j.totals?.portals} Regras:{j.totals?.access_rules} Pessoas:{j.success}/{j.total}</TableCell>
-                <TableCell>{(j.errors || []).length}</TableCell>
+                <TableCell className="text-xs">{(j.errors || []).length === 0 ? "0" : (j.errors || []).slice(0, 3).map((e, i) => <div key={i} className="text-red-400">{e.name || e.person_id}: {e.error || e.name || "falha"}</div>)}</TableCell>
               </TableRow>
             ))}
             {jobs.length === 0 && <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">Nenhuma sincronização ainda.</TableCell></TableRow>}
