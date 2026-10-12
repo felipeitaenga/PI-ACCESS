@@ -123,7 +123,11 @@ async def test_controller(cid: str, user: dict = Depends(get_current_user)):
     status = await driver.get_status()
     info = await driver.get_device_info()
     await db.controllers.update_one({"id": cid}, {"$set": {"online": ok, "firmware": info.get("firmware", ""), "last_heartbeat": now_iso()}})
-    return {"ok": ok, "status": status, "info": info}
+    clock = None
+    if ok and ctrl.get("model_type") == "beward_facial":
+        from beward_ingest import sync_time
+        clock = await sync_time(ctrl, force=True)
+    return {"ok": ok, "status": status, "info": info, "clock": clock}
 
 
 @router.post("/controllers/{cid}/sync")

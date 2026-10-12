@@ -74,7 +74,7 @@ export function Controllers() {
   };
   useEffect(() => { load(); }, []);
 
-  const test = async (id) => { const { data } = await api.post(`/equipment/controllers/${id}/test`); toast[data.ok ? "success" : "error"](data.ok ? "Comunicação OK" : (data.status?.error || "Sem comunicação")); load(); };
+  const test = async (id) => { const { data } = await api.post(`/equipment/controllers/${id}/test`); toast[data.ok ? "success" : "error"](data.ok ? `Comunicação OK${data.clock ? (data.clock.ok ? " · data/hora do facial ajustada" : " · não foi possível ajustar a data/hora") : ""}` : (data.status?.error || "Sem comunicação")); load(); };
   const sync = async (id) => { setSyncing(id); try { const { data } = await api.post(`/equipment/controllers/${id}/sync`); toast.success(`Sincronizado: ${data.success}/${data.total} pessoas`); load(); } finally { setSyncing(null); } };
   const remove = async (id) => { if (!window.confirm("Excluir a controladora?")) return; await api.delete(`/equipment/controllers/${id}`); load(); };
 
