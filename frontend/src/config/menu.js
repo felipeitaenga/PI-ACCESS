@@ -3,7 +3,7 @@ import {
   Activity, Bell, UserPlus, Car, CreditCard, ShieldCheck, MapPin, Clock,
   CalendarDays, DoorOpen, Camera, Building2, Boxes, Briefcase, LogIn,
   CalendarClock, ScrollText, FileClock, RefreshCw, SlidersHorizontal, Plug,
-  Keyboard, FlaskConical, DatabaseBackup, UsersRound, UserCog, IdCard,
+  Keyboard, FlaskConical, DatabaseBackup, UsersRound, UserCog, IdCard, QrCode,
 } from "lucide-react";
 
 // Menu central e extensível. Adicionar um submenu novo = adicionar uma entrada aqui.
@@ -50,6 +50,7 @@ export const MENU = [
   {
     type: "group", label: "Portaria / Recepção", icon: LogIn, items: [
       { label: "Check-in / Check-out", to: "/portaria", icon: LogIn, testid: "nav-reception" },
+      { label: "Autocadastro", to: "/autocadastro", icon: QrCode, badge: "selfreg", testid: "nav-selfreg" },
       { label: "Agendamentos", to: "/agendamentos", icon: CalendarClock, testid: "nav-schedules" },
     ],
   },

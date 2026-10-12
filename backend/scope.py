@@ -17,6 +17,8 @@ MANAGER_ALLOW = [
     ("GET", r"/api/registry/(people/[^/]+|companies|search|visitors|visitors/lookup|visitors/[^/]+|visits/present|visitor-companies)"),
     ("PUT", r"/api/registry/people/[^/]+"),
     ("*", r"/api/visits(/.*)?"),
+    ("*", r"/api/selfreg(/.*)?"),
+    ("*", r"/api/public/.*"),
     ("GET", r"/api/events"),
     ("GET", r"/api/access/categories/all"),
     ("GET", r"/api/org/departments/all"),
