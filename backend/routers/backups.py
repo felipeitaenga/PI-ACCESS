@@ -38,7 +38,7 @@ async def save_settings(body: dict, request: Request, user: dict = Depends(ADMIN
     if not (len(t) == 5 and t[2] == ":" and t[:2].isdigit() and t[3:].isdigit() and int(t[:2]) < 24 and int(t[3:]) < 60):
         raise HTTPException(status_code=422, detail="Horário inválido (HH:MM)")
     try:
-        keep = int(body.get("keep") or 7)
+        keep = int(body["keep"]) if "keep" in body else 7
     except (TypeError, ValueError):
         keep = 0
     if not 1 <= keep <= 90:

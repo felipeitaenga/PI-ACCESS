@@ -1,0 +1,40 @@
+{
+  "summary": "Backup/restauração testados end-to-end — backend (22/23 pytest) + frontend UI (admin). Admin cria backup .json.gz com cabeçalho pi_access_backup=1, baixa, deleta (404 depois), nomes inválidos retornam 400/404, operador recebe 403 em todas as rotas. Upload em partes valida offset (409), rejeita gz não-backup (422) e aceita arquivo válido virando *_enviado.json.gz. Restauração completa testada: fresh backup → cria pessoa TEST_ → POST /restore {confirm:'RESTAURAR'} → safety_backup gerado (*_seguranca.json.gz) → pessoa TEST_ removida (404) → /api/health 200 → login ainda funciona. UI /configuracoes/backup: todos os data-testid presentes e funcionais (page-backup, backup-create-button, backup-upload-button, backup-row-<name>, backup-download/restore/delete-<name>, schedule enabled/time/keep/save, restore dialog com confirm desabilitado até digitar RESTAURAR). Mobile 390px OK. Após testes: deixado 1 backup manual; settings restaurados para enabled=true, time=03:00, keep=7.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/backups/settings", "issue": "keep=0 retorna 200 em vez de 422. Causa: 'int(body.get(\"keep\") or 7)' trata 0 como falsy e silenciosamente usa default 7. Fix sugerido: usar 'body.get(\"keep\") if \"keep\" in body else 7' e então checar 1 <= keep <= 90. Impacto: usuário envia 0 e vê 'salvo' mas o valor virou 7 (confuso).", "priority": "LOW"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Backup › restore dialog", "issues": ["Console warning: 'Missing Description or aria-describedby for DialogContent' (a11y). Adicionar <DialogDescription> ou aria-describedby no DialogContent."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backups.py",
+    "/app/test_reports/pytest/pytest_backups.xml"
+  ],
+  "action_items": [
+    "Backend: corrigir validação de keep=0 em PUT /api/backups/settings (atualmente aceito e coerced para 7; deveria retornar 422).",
+    "Frontend (opcional/a11y): adicionar DialogDescription no RestoreDialog de Backup.jsx para eliminar o warning do Radix."
+  ],
+  "critical_code_review_comments": [
+    "backup_service.NAME_RE restringe nomes a '^piaccess_[a-z0-9_-]+_\\d{8}_\\d{6}_[a-z]+\\.json\\.gz$' — path traversal bem bloqueado (400). FileResponse só é servida se arquivo existir; retorno 404 para inexistentes OK.",
+    "Restore executa safety_backup antes de apagar coleções e já roda create_indexes()+migrations após — bom.",
+    "backup_loop usa comparação de string 'HH:MM >= configured_time' + last_day check — robusto para a janela diária.",
+    "Upload chunk valida upload_id alnum e tamanho máximo 8MB por chunk — ok. Mas não há TTL/limpeza de .part órfãos (upload abandonado deixa lixo em DATA_DIR/backups). Sugestão: cronjob para apagar upload_*.part > 24h."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backups.py"
+  ],
+  "success_rate": {"backend": "22/23 (95.7%) — a única falha é bug real: keep=0 → 200", "frontend": "100% dos data-testids e fluxos (criar/listar/download/restore-dialog/schedule/mobile)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 ; Operador operador@nxaccess.com / Operador@2026 (ambos usados).",
+  "seed_data_creation": "Pessoa TEST_RestoreGuy criada e depois apagada via restore. Backups criados durante testes todos limpos; sobrou 1 backup manual (requisito do spec). Settings restaurados para padrão (enabled=true, time=03:00, keep=7).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Rodar: cd /app/backend && set -a && . ./.env && set +a && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL ../frontend/.env | cut -d= -f2) && python -m pytest -q -o addopts='' tests/test_backups.py. Note: cada backup ~25MB em DATA_DIR/backups/ — cleanup inline no final da suite deixa 1 manual.",
+  "rca of the issue": "PUT /api/backups/settings com keep=0: linha 41 de routers/backups.py faz 'keep = int(body.get(\"keep\") or 7)'. Em Python, 0 é falsy, então '0 or 7' → 7. O cast int() então nunca vê o 0 enviado. Resultado: valor é salvo como 7 e a resposta é 200. A linha 44 'if not 1 <= keep <= 90' só protege contra negativos/>=91, mas nunca vê o 0. Fix: 'raw = body.get(\"keep\", 7); keep = int(raw)' envolvido em try/except (TypeError, ValueError) → 422; o resto do if valida 1..90."
+}

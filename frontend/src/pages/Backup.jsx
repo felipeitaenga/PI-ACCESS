@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtDateTime } from "@/lib/br";
 import { DatabaseBackup, Download, Loader2, RotateCcw, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -50,7 +50,7 @@ function RestoreDialog({ name, onClose, onDone }) {
   return (
     <Dialog open={!!name} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent data-testid="backup-restore-dialog">
-        <DialogHeader><DialogTitle>Restaurar backup</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Restaurar backup</DialogTitle><DialogDescription>Substitui todos os dados atuais pelos do arquivo escolhido.</DialogDescription></DialogHeader>
         <p className="text-sm">Todos os dados atuais serão substituídos pelos de <span className="font-mono text-sky-400">{name}</span>, inclusive usuários e senhas. Antes disso o sistema gera automaticamente um backup de segurança.</p>
         <p className="text-xs text-muted-foreground">Digite <b>RESTAURAR</b> para confirmar.</p>
         <Input value={txt} onChange={(e) => setTxt(e.target.value)} data-testid="backup-restore-confirm-input" />
