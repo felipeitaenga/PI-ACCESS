@@ -141,9 +141,6 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Empresa › "Acesso ao sistema": categorias/tipos de visita liberados, limite de pessoas ativas, gestores vinculados. Usuários: perfil + empresas; Configurações: "Gestor pode criar gestores da mesma empresa". Menu/rotas do frontend restritos (MANAGER_PATHS + ManagerGuard), KPIs de equipamentos ocultos.
 - [x] Migração 0005 (company_ids=[], company_id nos eventos antigos quando possível). Testes tests/test_company_scope.py (A/B). iteration_14: backend 100%, ajustes de frontend aplicados. VERSION 1.2.0 (GitHub tinha 1.1.2).
 
-## Backup pela tela (2026-10-12)
-- [x] Configurações › Backup: gerar agora (todas as coleções, inclui fotos, .json.gz em DATA_DIR/backups + .meta), listar/baixar/excluir, agendamento diário (padrão 03:00, mantém 7 automáticos), upload em partes e restauração com confirmação "RESTAURAR" + backup de segurança antes; tudo auditado; só admin (gestor 403). backend/backup_service.py, routers/backups.py, pages/Backup.jsx. iteration_15: 22/23 → bug keep=0 corrigido.
-
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).

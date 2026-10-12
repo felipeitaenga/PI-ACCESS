@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, Response, HTTPException, Depends, Backgr
 from bson import ObjectId
 
 from database import db
-from models import (RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput,
+from models import (LoginInput, ForgotPasswordInput, ResetPasswordInput,
                     UserCreateInput, UserUpdateInput)
 from security import (hash_password, verify_password, create_access_token,
                       create_refresh_token, set_auth_cookies, get_current_user,
@@ -103,23 +103,8 @@ async def _record_fail(ip: str, email: str):
     })
 
 
-@router.post("/register")
-async def register(payload: RegisterInput, response: Response):
-    email = payload.email.lower()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(status_code=400, detail="E-mail já cadastrado")
-    doc = {
-        "email": email, "password_hash": hash_password(payload.password),
-        "name": payload.name, "role": payload.role, "site_ids": [],
-        "active": True, "token_version": 0,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    res = await db.users.insert_one(doc)
-    uid = str(res.inserted_id)
-    at, rt = create_access_token(uid, email, 0), create_refresh_token(uid, 0)
-    set_auth_cookies(response, at, rt)
-    doc["_id"] = res.inserted_id
-    return {**_public_user(doc), "access_token": at, "refresh_token": rt}
+# Removido: POST /register era público e aceitava qualquer papel (inclusive admin).
+# Usuários são criados somente por administradores em POST /api/auth/users.
 
 
 @router.post("/login")

@@ -37,10 +37,7 @@ async def save_settings(body: dict, request: Request, user: dict = Depends(ADMIN
     t = str(body.get("time") or "03:00")
     if not (len(t) == 5 and t[2] == ":" and t[:2].isdigit() and t[3:].isdigit() and int(t[:2]) < 24 and int(t[3:]) < 60):
         raise HTTPException(status_code=422, detail="Horário inválido (HH:MM)")
-    try:
-        keep = int(body["keep"]) if "keep" in body else 7
-    except (TypeError, ValueError):
-        keep = 0
+    keep = int(body.get("keep") or 7)
     if not 1 <= keep <= 90:
         raise HTTPException(status_code=422, detail="Quantidade de cópias deve ser entre 1 e 90")
     s = {"enabled": bool(body.get("enabled")), "time": t, "keep": keep}
@@ -102,9 +99,13 @@ async def restore(name: str, body: dict, request: Request, user: dict = Depends(
     if not os.path.exists(p):
         raise HTTPException(status_code=404, detail="Backup não encontrado")
     try:
-        bs.validate_file(p)
+        head = bs.validate_file(p)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=422, detail=f"Arquivo inválido: {e}")
+    origem = head.get("cliente")
+    if origem and origem != bs.cfg.CLIENTE:
+        raise HTTPException(status_code=422,
+                            detail=f"Este backup é do cliente '{origem}' e não pode ser restaurado em '{bs.cfg.CLIENTE}'")
     safety = await bs.create_backup("seguranca", user.get("email"))
     counts = await bs.restore_backup(name)
     await create_indexes()

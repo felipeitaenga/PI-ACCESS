@@ -22,10 +22,15 @@ import { Controllers } from "@/pages/Equipment";
 import { Companies, CompanyGroups, Departments, Vehicles, Identifiers } from "@/pages/SimpleCrud";
 import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
-import { Cameras, Schedules, Shortcuts } from "@/pages/Placeholders";
+import { Cameras, Shortcuts } from "@/pages/Placeholders";
+import Schedules from "@/pages/Schedules";
 import Backup from "@/pages/Backup";
 import Integrations from "@/pages/Integrations";
 import VisitorSettings from "@/pages/VisitorSettings";
+import SelfRegAdmin from "@/pages/SelfRegAdmin";
+import SelfRegister from "@/pages/public/SelfRegister";
+import SelfStatus from "@/pages/public/SelfStatus";
+import HostDecision from "@/pages/public/HostDecision";
 
 function ManagerGuard({ children }) {
   const { user } = useAuth();
@@ -54,6 +59,10 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/esqueci-senha" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/v/:code" element={<SelfRegister mode="link" />} />
+      <Route path="/convite/:token" element={<SelfRegister mode="invite" />} />
+      <Route path="/solicitacao/:token" element={<SelfStatus />} />
+      <Route path="/aprovar/:token" element={<HostDecision />} />
       {R("/", <Dashboard />)}
       {R("/monitoramento", <LiveMonitoring />)}
       {R("/ocupacao", <Occupancy />)}
@@ -76,6 +85,7 @@ function AppRoutes() {
       {R("/departamentos", <Departments />)}
       <Route path="/portaria" element={<Navigate to="/cadastro/visitantes" replace />} />
       {R("/agendamentos", <Schedules />)}
+      {R("/autocadastro", <SelfRegAdmin />)}
       {R("/emergencia", <Emergency />)}
       {R("/relatorios", <Reports />)}
       {R("/logs/acessos", <LogsAccess />)}

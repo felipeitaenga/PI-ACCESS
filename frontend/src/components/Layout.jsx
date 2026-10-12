@@ -22,7 +22,7 @@ const LS = {
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitantes", "/cadastro/fixos", "/visitantes", "/pessoas", "/relatorios", "/logs/acessos"]);
+export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitantes", "/cadastro/fixos", "/visitantes", "/pessoas", "/relatorios", "/logs/acessos", "/autocadastro", "/agendamentos"]);
 
 export function Layout({ children }) {
   const { user, logout, hasRole } = useAuth();
@@ -35,6 +35,7 @@ export function Layout({ children }) {
   const [cmd, setCmd] = useState(false);
   const [query, setQuery] = useState("");
   const [alarmCount, setAlarmCount] = useState(0);
+  const [selfregCount, setSelfregCount] = useState(0);
   const info = useAppInfo();
 
   useEffect(() => { save(LS.collapsed, collapsed); }, [collapsed]);
@@ -43,6 +44,13 @@ export function Layout({ children }) {
   useEffect(() => {
     api.get("/alarms?acknowledged=false").then(({ data }) => setAlarmCount(data.length)).catch(() => {});
   }, []);
+  useEffect(() => {
+    if (!["admin", "operator", "reception", "company_manager"].includes(user?.role)) return undefined;
+    const f = () => api.get("/selfreg/summary").then(({ data }) => setSelfregCount(data.pending)).catch(() => {});
+    f();
+    const t = setInterval(f, 60000);
+    return () => clearInterval(t);
+  }, [user?.role]);
   useEffect(() => {
     const pend = alarms.filter((a) => !a.acknowledged).length;
     if (pend) setAlarmCount((c) => c + pend);
@@ -58,7 +66,7 @@ export function Layout({ children }) {
 
   const isMgr = user?.role === "company_manager";
   const allowed = (perm, to) => (isMgr ? (to ? MANAGER_PATHS.has(to) : true) : (!perm || hasRole(perm)));
-  const badgeVal = (b) => (b === "alarms" ? alarmCount : 0);
+  const badgeVal = (b) => (b === "alarms" ? alarmCount : b === "selfreg" ? selfregCount : 0);
 
   const favItems = useMemo(
     () => MENU_FLAT.filter((i) => favs.includes(i.to) && allowed(i.permission, i.to)),

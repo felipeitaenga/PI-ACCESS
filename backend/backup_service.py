@@ -138,7 +138,7 @@ async def backup_loop():
             s = await get_settings()
             now = datetime.now(TZ)
             if s.get("enabled") and now.strftime("%H:%M") >= s.get("time", "03:00") and last_day != now.date():
-                if not any(b["origin"] == "auto" and f"_{now.strftime('%Y%m%d')}_" in b["name"] for b in list_backups()):
+                if not any(b["origin"] == "auto" and b["name"].split("_")[-3] == now.strftime("%Y%m%d") for b in list_backups()):
                     await create_backup("auto", "agendado")
                     await prune(s.get("keep", 7))
                     logger.info("Backup automático gerado")

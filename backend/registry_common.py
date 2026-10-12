@@ -98,7 +98,9 @@ async def sync_to_devices(subject: dict, label: str, remove=False):
             else:
                 r = await asyncio.wait_for(drv.sync_person(subject), 45)
                 if r.get("ok") and subject.get("photo"):
-                    await asyncio.wait_for(drv.sync_face(subject["id"], subject["photo"]), 12)
+                    f = await asyncio.wait_for(drv.sync_face(subject["id"], subject["photo"]), 12) or {}
+                    if not f.get("ok"):
+                        r = {"ok": False, "error": "foto: " + str(f.get("error") or f.get("detail") or "falha")}
             ok = bool(r.get("ok"))
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "ok" if ok else "erro",
                             "error": "" if ok else str(r.get("error") or r.get("detail") or "falha")})

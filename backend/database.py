@@ -47,3 +47,17 @@ async def create_indexes():
     await db.people.create_index("category_ids")
     await db.access_events.create_index("access_point_id")
     await db.beward_dedup.create_index("at", expireAfterSeconds=86400)
+    # Autocadastro
+    await db.rate_hits.create_index("at", expireAfterSeconds=86400)
+    await db.rate_hits.create_index("key")
+    await db.selfreg_otps.create_index("expires_at", expireAfterSeconds=0)
+    await db.selfreg_otps.create_index("id")
+    await db.selfreg_verifications.create_index("expires_at", expireAfterSeconds=0)
+    await db.selfreg_verifications.create_index("token_hash")
+    for f in ("id", "status", "host_company_id", "status_token_hash", "decision_token_hash"):
+        await db.self_registrations.create_index(f)
+    await db.selfreg_invites.create_index("id")
+    await db.selfreg_invites.create_index("token_hash")
+    await db.companies.create_index("selfreg_code")
+    await db.visitors.create_index("email")
+    await db.notifications.create_index([("at", -1)])
