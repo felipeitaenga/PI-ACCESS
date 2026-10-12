@@ -94,9 +94,14 @@ export function Controllers() {
         <Card className="mt-6 border-border bg-card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Últimas sincronizações</h2>
           {jobs.slice(0, 6).map((j) => (
-            <div key={j.id} className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2 text-sm">
-              <span className="font-medium">{j.device_name}</span>
-              <span className="text-muted-foreground font-mono text-xs">TZ:{j.totals?.time_zones ?? "-"} Áreas:{j.totals?.areas ?? "-"} Pontos:{j.totals?.portals ?? "-"} Regras:{j.totals?.access_rules ?? "-"} Pessoas:{j.success}/{j.total}</span>
+            <div key={j.id} className="rounded-md border border-border/50 px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{j.device_name}</span>
+                <span className="text-muted-foreground font-mono text-xs">{new Date(j.started_at).toLocaleString("pt-BR")} · TZ:{j.totals?.time_zones ?? "-"} Áreas:{j.totals?.areas ?? "-"} Pontos:{j.totals?.portals ?? "-"} Regras:{j.totals?.access_rules ?? "-"} Pessoas:{j.success}/{j.total}</span>
+              </div>
+              {(j.errors || []).slice(0, 5).map((e, i) => (
+                <p key={i} className="mt-1 text-xs text-red-400">{e.name || e.person_id}: {e.error || "falha"}</p>
+              ))}
             </div>
           ))}
         </Card>
