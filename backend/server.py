@@ -35,6 +35,7 @@ from routers.beward import router as beward_router
 from routers.registry import router as registry_router
 from routers.visitors_reg import router as visitors_reg_router
 from routers.visits import router as visits_router
+from routers.backups import router as backups_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
 from mqtt_bus import bus as mqtt_bus
@@ -92,6 +93,7 @@ api_router.include_router(cadastros_router)
 api_router.include_router(beward_router)
 api_router.include_router(registry_router)
 api_router.include_router(visits_router)
+api_router.include_router(backups_router)
 api_router.include_router(visitors_reg_router)
 api_router.include_router(integrations_router)
 
@@ -213,6 +215,8 @@ async def on_startup():
         start_simulator()
     asyncio.create_task(expiry_loop())
     asyncio.create_task(visits_loop())
+    from backup_service import backup_loop
+    asyncio.create_task(backup_loop())
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
     logger.info(f"PI-ACCESS {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")

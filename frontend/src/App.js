@@ -22,7 +22,8 @@ import { Controllers } from "@/pages/Equipment";
 import { Companies, CompanyGroups, Departments, Vehicles, Identifiers } from "@/pages/SimpleCrud";
 import { ConfigHub, Simulator } from "@/pages/Config";
 import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
-import { Cameras, Schedules, Shortcuts, Backup } from "@/pages/Placeholders";
+import { Cameras, Schedules, Shortcuts } from "@/pages/Placeholders";
+import Backup from "@/pages/Backup";
 import Integrations from "@/pages/Integrations";
 import VisitorSettings from "@/pages/VisitorSettings";
 

@@ -63,7 +63,7 @@ fazer_backup(){
   docker exec "piaccess_${C}_mongo" mongodump --archive --gzip --quiet \
     -u "$(env_get MONGO_USER)" -p "$(env_get MONGO_PASSWORD)" --authenticationDatabase admin \
     --db "$(env_get DB_NAME)" > "$D/backups/mongo_$T.archive.gz"
-  tar czf "$D/backups/app_$T.tar.gz" -C "$D/dados" app
+  tar czf "$D/backups/app_$T.tar.gz" --exclude=app/backups -C "$D/dados" app   # app/backups = backups do próprio sistema
   ls -t "$D"/backups/mongo_*.archive.gz 2>/dev/null | tail -n +$((BACKUPS_MANTER+1)) | xargs -r rm -f
   ls -t "$D"/backups/app_*.tar.gz       2>/dev/null | tail -n +$((BACKUPS_MANTER+1)) | xargs -r rm -f
   ok "backup $C → $D/backups (mongo_$T / app_$T)"
