@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { PageHeader } from "@/components/common";
+import { CategoryMulti } from "@/components/registry/FormBits";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +20,16 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
-const ROLE_LABEL = { admin: "Administrador", operator: "Operador", reception: "Recepção", viewer: "Somente leitura" };
+const ROLE_LABEL = { admin: "Administrador", operator: "Operador", reception: "Recepção", viewer: "Somente leitura", company_manager: "Gestor de empresa" };
 
 export default function Admin() {
   const [users, setUsers] = useState([]);
   const [audit, setAudit] = useState([]);
   const [settings, setSettings] = useState(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", name: "", role: "operator" });
+  const [form, setForm] = useState({ email: "", password: "", name: "", role: "operator", company_ids: [] });
+  const [companies, setCompanies] = useState([]);
+  useEffect(() => { api.get("/org/companies/all").then(({ data }) => setCompanies(data)).catch(() => {}); }, []);
   const [pwdUser, setPwdUser] = useState(null);
   const [newPwd, setNewPwd] = useState("");
 
@@ -50,7 +53,7 @@ export default function Admin() {
     try {
       await api.post("/auth/users", form);
       toast.success("Usuário criado");
-      setOpen(false); setForm({ email: "", password: "", name: "", role: "operator" }); load();
+      setOpen(false); setForm({ email: "", password: "", name: "", role: "operator", company_ids: [] }); load();
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
@@ -93,6 +96,11 @@ export default function Admin() {
                       <SelectContent>{Object.entries(ROLE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  {form.role === "company_manager" && (
+                    <div data-testid="user-companies-field"><Label className="mb-1.5 block text-xs text-muted-foreground">Empresas que pode gerenciar *</Label>
+                      <CategoryMulti categories={companies.map((c) => ({ id: c.id, code: c.name }))} value={form.company_ids || []} onChange={(v) => setForm({ ...form, company_ids: v })} />
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -109,7 +117,8 @@ export default function Admin() {
                   <TableRow key={u.id} data-testid={`user-row-${u.id}`}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell className="font-mono text-sm">{u.email}</TableCell>
-                    <TableCell><Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">{u.role_label}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/30">{u.role_label}</Badge>
+                      {u.role === "company_manager" && <p className="mt-1 text-[11px] text-muted-foreground" data-testid={`user-companies-${u.id}`}>{(u.company_ids || []).map((id) => companies.find((c) => c.id === id)?.name || "?").join(", ")}</p>}</TableCell>
                     <TableCell>{u.active ? <span className="text-emerald-400 text-sm">Ativo</span> : <span className="text-slate-500 text-sm">Inativo</span>}</TableCell>
                     <TableCell className="text-right"><Button variant="ghost" size="icon" className="text-sky-400" title="Redefinir senha" onClick={() => { setPwdUser(u); setNewPwd(""); }} data-testid={`user-reset-password-${u.id}`}><KeyRound className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-red-400" onClick={() => removeUser(u.id)} data-testid={`user-delete-${u.id}`}><Trash2 className="h-4 w-4" /></Button></TableCell>
                   </TableRow>
@@ -157,6 +166,7 @@ export default function Admin() {
                 <div><Label className="mb-1.5 block text-xs text-muted-foreground">Retenção de eventos (dias)</Label><Input type="number" value={settings.retention_days} onChange={(e) => setSettings({ ...settings, retention_days: +e.target.value })} data-testid="settings-retention-input" /></div>
                 <div><Label className="mb-1.5 block text-xs text-muted-foreground">Retenção de fotos biométricas (dias)</Label><Input type="number" value={settings.photo_retention_days} onChange={(e) => setSettings({ ...settings, photo_retention_days: +e.target.value })} /></div>
                 <div><Label className="mb-1.5 block text-xs text-muted-foreground">Fuso horário</Label><Input value={settings.timezone} disabled /></div>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!settings.manager_can_create_managers} onChange={(e) => setSettings({ ...settings, manager_can_create_managers: e.target.checked })} data-testid="settings-manager-create" />Gestor de empresa pode criar outros gestores da mesma empresa</label>
                 <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={saveSettings} data-testid="settings-save-button">Salvar configurações</Button>
               </div>
             </Card>

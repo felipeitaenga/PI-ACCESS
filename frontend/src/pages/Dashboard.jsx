@@ -83,7 +83,7 @@ export default function Dashboard() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Kpi icon={DoorOpen} label="Portas liberadas" value={stats.doors.liberated} sub={`de ${stats.doors.total} portas`} tone="sky" testid="kpi-doors" />
-        <Kpi icon={Users} label="Pessoas ativas" value={stats.people.active} sub={`${stats.people.total} cadastradas`} tone="emerald" testid="kpi-people" />
+        <Kpi icon={Users} label="Pessoas ativas" value={stats.people.active} sub={`${stats.people.total} cadastradas · ${stats.visits?.present ?? 0} visitantes presentes · ${stats.visits?.today ?? 0} visitas hoje`} tone="emerald" testid="kpi-people" />
         <Kpi icon={Activity} label="Fluxo 24h" value={stats.flow.reduce((a, b) => a + b.liberados + b.negados, 0)} sub="eventos registrados" tone="sky" testid="kpi-flow" />
       </div>
 

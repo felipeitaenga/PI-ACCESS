@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends
 from database import db
 from security import get_current_user
+from scope import scope_filter, is_manager
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 SP_TZ = ZoneInfo("America/Sao_Paulo")
@@ -14,26 +15,32 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     start_utc = start_of_day.astimezone(timezone.utc).isoformat()
 
-    granted = await db.access_events.count_documents({"timestamp": {"$gte": start_utc}, "access_result": "granted"})
-    denied = await db.access_events.count_documents({"timestamp": {"$gte": start_utc}, "access_result": "denied"})
+    ev = await scope_filter(user, "access_events")
+    ps = await scope_filter(user, "people")
+    mgr = is_manager(user)
+    granted = await db.access_events.count_documents({**ev, "timestamp": {"$gte": start_utc}, "access_result": "granted"})
+    denied = await db.access_events.count_documents({**ev, "timestamp": {"$gte": start_utc}, "access_result": "denied"})
 
-    total_devices = await db.controllers.count_documents({"deleted": {"$ne": True}})
-    online = await db.controllers.count_documents({"online": True, "deleted": {"$ne": True}})
+    total_devices = 0 if mgr else await db.controllers.count_documents({"deleted": {"$ne": True}})
+    online = 0 if mgr else await db.controllers.count_documents({"online": True, "deleted": {"$ne": True}})
     offline = total_devices - online
 
-    total_doors = await db.access_points.count_documents({"deleted": {"$ne": True}})
-    doors_liberated = await db.access_points.count_documents({"mode": "liberada", "deleted": {"$ne": True}})
+    total_doors = 0 if mgr else await db.access_points.count_documents({"deleted": {"$ne": True}})
+    doors_liberated = 0 if mgr else await db.access_points.count_documents({"mode": "liberada", "deleted": {"$ne": True}})
 
-    open_alarms = await db.alarms.count_documents({"acknowledged": False})
-    forced = await db.alarms.count_documents({"type": "porta_forcada", "acknowledged": False})
+    open_alarms = 0 if mgr else await db.alarms.count_documents({"acknowledged": False})
+    forced = 0 if mgr else await db.alarms.count_documents({"type": "porta_forcada", "acknowledged": False})
 
-    total_people = await db.people.count_documents({"deleted": {"$ne": True}})
-    active_people = await db.people.count_documents({"status": "ativo", "deleted": {"$ne": True}})
+    total_people = await db.people.count_documents({**ps, "deleted": {"$ne": True}})
+    active_people = await db.people.count_documents({**ps, "status": "ativo", "deleted": {"$ne": True}})
+    vs = {**(await scope_filter(user, "visits")), "deleted": {"$ne": True}}
+    visits_present = await db.visits.count_documents({**vs, "status": "presente"})
+    visits_today = await db.visits.count_documents({**vs, "$or": [{"start_at": {"$gte": start_utc}}, {"expected_start": {"$gte": start_utc}}]})
 
     # Fluxo por hora (últimas 24h) no fuso SP
     flow = []
     events_24 = await db.access_events.find(
-        {"timestamp": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}},
+        {**ev, "timestamp": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}},
         {"_id": 0, "timestamp": 1, "access_result": 1}).to_list(10000)
     buckets = {}
     for e in events_24:
@@ -54,7 +61,7 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
         b = buckets.get(key, {"liberados": 0, "negados": 0})
         flow.append({"hour": key, **b})
 
-    recent = await db.access_events.find({}, {"_id": 0}).sort("timestamp", -1).limit(10).to_list(10)
+    recent = await db.access_events.find(ev, {"_id": 0}).sort("timestamp", -1).limit(10).to_list(10)
 
     return {
         "today": {"granted": granted, "denied": denied, "total": granted + denied},
@@ -62,6 +69,7 @@ async def dashboard_stats(user: dict = Depends(get_current_user)):
         "doors": {"total": total_doors, "liberated": doors_liberated},
         "alarms": {"open": open_alarms, "forced": forced},
         "people": {"total": total_people, "active": active_people},
+        "visits": {"present": visits_present, "today": visits_today},
         "flow": flow,
         "recent_events": recent,
     }
@@ -74,7 +82,7 @@ reports_router = APIRouter(prefix="/reports", tags=["reports"])
 @reports_router.get("/access")
 async def access_report(start: str = None, end: str = None, person_id: str = None,
                         door_id: str = None, result: str = None, user: dict = Depends(get_current_user)):
-    q = {}
+    q = dict(await scope_filter(user, "access_events"))
     if start:
         q.setdefault("timestamp", {})["$gte"] = start
     if end:
@@ -101,7 +109,7 @@ async def occupancy_report(user: dict = Depends(get_current_user)):
 async def presence_report(user: dict = Depends(get_current_user)):
     start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     events = await db.access_events.find(
-        {"timestamp": {"$gte": start}, "access_result": "granted", "person_id": {"$ne": None}},
+        {**(await scope_filter(user, "access_events")), "timestamp": {"$gte": start}, "access_result": "granted", "person_id": {"$ne": None}},
         {"_id": 0}).sort("timestamp", 1).to_list(10000)
     by_person = {}
     for e in events:

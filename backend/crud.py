@@ -23,7 +23,8 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
         return {"items": items, "total": total, "page": page, "limit": limit}
 
     async def _all(user: dict = Depends(get_current_user)):
-        return await db[coll].find({"deleted": {"$ne": True}}, {"_id": 0}).sort(sort, 1).to_list(2000)
+        from scope import scope_filter
+        return await db[coll].find({"deleted": {"$ne": True}, **(await scope_filter(user, coll))}, {"_id": 0}).sort(sort, 1).to_list(2000)
 
     async def _get(item_id: str, user: dict = Depends(get_current_user)):
         doc = await db[coll].find_one({"id": item_id}, {"_id": 0})

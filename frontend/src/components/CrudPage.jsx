@@ -199,7 +199,7 @@ function GenericForm({ fields, form, setForm }) {
     <div className="grid grid-cols-2 gap-4">
       {fields.map((f) => (
         <FormRow key={f.key} label={f.label} className={f.full ? "col-span-2" : ""}>
-          {f.type === "select" ? (
+          {f.type === "custom" ? f.render(form, setForm) : f.type === "select" ? (
             <Select value={form[f.key] ?? ""} onValueChange={(v) => setForm({ ...form, [f.key]: v })}>
               <SelectTrigger data-testid={`field-${f.key}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>{(f.options || []).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>

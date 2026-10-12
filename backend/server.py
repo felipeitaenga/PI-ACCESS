@@ -8,7 +8,9 @@ import os
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, Response, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from scope import is_manager, manager_allowed
+from util import log_audit
 from starlette.middleware.cors import CORSMiddleware
 
 import app_config as cfg
@@ -103,7 +105,7 @@ async def websocket_endpoint(websocket: WebSocket):
     if not user:
         await websocket.close(code=1008)
         return
-    await manager.connect(websocket)
+    await manager.connect(websocket, user)
     try:
         await websocket.send_json({"type": "connected", "data": {"user": user.get("name")}})
         while True:
@@ -126,6 +128,27 @@ app.add_middleware(
 async def permissions_policy(request, call_next):
     resp = await call_next(request)
     resp.headers["Permissions-Policy"] = "camera=(self)"
+    return resp
+
+
+@app.middleware("http")
+async def company_manager_gate(request, call_next):
+    """Gestor de empresa: só rotas liberadas (resto 403) e auditoria de toda ação."""
+    path = request.url.path
+    if not path.startswith("/api/") or request.method == "OPTIONS":
+        return await call_next(request)
+    auth = request.headers.get("authorization") or ""
+    token = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get("access_token")
+    user = await resolve_user_from_token(token) if token else None
+    if not is_manager(user):
+        return await call_next(request)
+    if not manager_allowed(request.method, path):
+        return JSONResponse(status_code=403, content={"detail": "Permissão insuficiente"})
+    resp = await call_next(request)
+    if request.method != "GET":
+        await log_audit(user, f"gestor:{request.method}", "api", path,
+                        f"empresas={','.join(user.get('company_ids') or [])} status={resp.status_code}",
+                        request.client.host if request.client else "")
     return resp
 
 

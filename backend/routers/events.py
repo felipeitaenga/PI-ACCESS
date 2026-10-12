@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Request
 from database import db
+from scope import scope_filter
 from models import new_id, now_iso
 from security import get_current_user, require_role
 from realtime import generate_event, manager
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 @router.get("")
 async def list_events(site_id: str = None, door_id: str = None, result: str = None,
                       page: int = 1, limit: int = 30, user: dict = Depends(get_current_user)):
-    q = {}
+    q = dict(await scope_filter(user, "access_events"))
     if site_id:
         q["site_id"] = site_id
     if door_id:

@@ -44,11 +44,27 @@ async def m0004_people_doc_type():
         await db.people.update_one({"_id": p["_id"]}, {"$set": s})
 
 
+async def m0005_company_scope():
+    await db.users.update_many({"company_ids": {"$exists": False}}, {"$set": {"company_ids": []}})
+    pmap = {}
+    async for p in db.people.find({}, {"_id": 0, "id": 1, "company_id": 1}):
+        if p.get("company_id"):
+            pmap.setdefault(p["company_id"], []).append(p["id"])
+    for cid, ids in pmap.items():
+        await db.access_events.update_many({"company_id": {"$exists": False}, "person_id": {"$in": ids}}, {"$set": {"company_id": cid}})
+    async for v in db.visits.find({"host_company_id": {"$nin": [None, ""]}}, {"_id": 0}):
+        s, e = v.get("start_at") or v.get("expected_start") or v.get("checkin_at"), v.get("end_at") or v.get("checkout_at") or v.get("expected_end")
+        if s and e:
+            await db.access_events.update_many({"company_id": {"$exists": False}, "person_id": v["visitor_id"],
+                                                "timestamp": {"$gte": s, "$lte": e}}, {"$set": {"company_id": v["host_company_id"]}})
+
+
 MIGRATIONS = [
     ("0001_users_defaults", m0001_users_defaults),
     ("0002_settings_mqtt_prefix", m0002_settings_mqtt_prefix),
     ("0003_visitors_defaults", m0003_visitors_defaults),
     ("0004_people_doc_type", m0004_people_doc_type),
+    ("0005_company_scope", m0005_company_scope),
 ]
 
 

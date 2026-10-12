@@ -40,12 +40,14 @@ class UserCreateInput(BaseModel):
     name: str
     role: str = "operator"
     site_ids: List[str] = []
+    company_ids: List[str] = []
 
 
 class UserUpdateInput(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     site_ids: Optional[List[str]] = None
+    company_ids: Optional[List[str]] = None
     active: Optional[bool] = None
     password: Optional[str] = None
 

@@ -17,6 +17,7 @@ ROLE_LABELS = {
     "operator": "Operador",
     "reception": "Recepção",
     "viewer": "Somente leitura",
+    "company_manager": "Gestor de empresa",
 }
 
 def _fernet_key(raw: str) -> bytes:

@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from database import db
+from scope import stamp_event
 from models import new_id, now_iso
 from realtime import manager
 from access_service import evaluate
@@ -120,7 +121,7 @@ async def record(ctrl, r, via):
           "credential_type": m["verify_type"], "direction": dev_dir or (ap or {}).get("direction", "entrada"),
           "access_result": m["access_result"], "reason": m["reason"] + (" (retroativo)" if m["retroactive"] else ""),
           "match_score": r.get("similarity", 0), "direction_mismatch": mismatch, "via": via}
-    await db.access_events.insert_one(dict(ev))
+    await db.access_events.insert_one(dict(await stamp_event(ev)))
     await manager.broadcast({"type": "access_event", "data": ev})
     return {"decided_online": False, "granted": m["access_result"] == "granted"}
 
