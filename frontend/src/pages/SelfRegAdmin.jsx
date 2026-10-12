@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { fmtDateTime, fromLocalInput, nowLocal, toLocalInput } from "@/lib/br";
+import { addHours, endOfDay, typeHours } from "@/components/visits/visitUtils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,7 +128,7 @@ function Requests() {
             {r.photo_thumb ? <img src={r.photo_thumb} alt="" className="h-12 w-9 rounded object-cover" /> : <div className="h-12 w-9 rounded bg-secondary" />}
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{r.name} {r.blacklist && <span className="ml-1 rounded bg-red-500/20 px-1 text-[10px] text-red-300">LISTA NEGRA</span>}</p>
-              <p className="truncate text-xs text-muted-foreground">{r.host_name} · {r.host_company_name} · {fmtDateTime(r.start_at)}</p>
+              <p className="truncate text-xs text-muted-foreground">{r.host_name} · {r.host_company_name} · {fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
             </div>
             <div className="text-right text-[11px] text-muted-foreground"><Pill s={r.status} /><p>{r.source}</p></div>
           </button>
@@ -161,7 +162,7 @@ function HostSelect({ companyId, value, onChange }) {
 
 function InviteDialog({ open, companies, onClose, onSaved }) {
   const [types, setTypes] = useState([]);
-  const E = { host_company_id: "", host_person_id: "", visit_type_id: "", start_at: nowLocal(), guest_name: "", guest_email: "", notes: "", auto_approve: true };
+  const E = { host_company_id: "", host_person_id: "", visit_type_id: "", start_at: nowLocal(), end_at: "", end_manual: false, guest_name: "", guest_email: "", notes: "", auto_approve: true };
   const [f, setF] = useState(E);
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
@@ -171,9 +172,16 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
     api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {});
   }, [open]); // eslint-disable-line
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }));
+  // fim = início + duração do tipo, até a pessoa alterar manualmente
+  useEffect(() => {
+    if (f.end_manual || !f.start_at) return;
+    const t = types.find((x) => x.id === f.visit_type_id);
+    setF((s) => ({ ...s, end_at: addHours(s.start_at, typeHours(t, null)) }));
+  }, [f.start_at, f.visit_type_id, f.end_manual, types]);
+  const manualEnd = (v) => setF((s) => ({ ...s, end_at: v, end_manual: true }));
   const save = async () => {
     try {
-      const { data } = await api.post("/selfreg/invites", { ...f, start_at: fromLocalInput(f.start_at) });
+      const { data } = await api.post("/selfreg/invites", { ...f, start_at: fromLocalInput(f.start_at), end_at: fromLocalInput(f.end_at) });
       setResult(data); onSaved();
     } catch (e) { setErrors(e.response?.data?.detail?.fields || {}); err(e); }
   };
@@ -203,6 +211,16 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
               </select>
             </Field>
             <Field label="Início" required error={errors.start_at}><Input type="datetime-local" value={f.start_at} onChange={(e) => set("start_at")(e.target.value)} /></Field>
+            <Field label="Fim da visita" required error={errors.end_at} className="sm:col-span-2" hint={f.end_manual ? "Alterado manualmente" : "Calculado pela duração do tipo de visita"}>
+              <Input type="datetime-local" value={f.end_at} onChange={(e) => manualEnd(e.target.value)} data-testid="invite-end" />
+              <div className="mt-1 flex flex-wrap gap-1">
+                {[["+1h", 1], ["+4h", 4]].map(([l, h]) => (
+                  <Button key={l} type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => manualEnd(addHours(f.end_at || f.start_at, h))}>{l}</Button>
+                ))}
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => manualEnd(endOfDay(f.start_at))}>Fim do dia</Button>
+                {f.end_manual && <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setF((s) => ({ ...s, end_manual: false }))}>Usar duração do tipo</Button>}
+              </div>
+            </Field>
             <Field label="Nome do visitante" hint="Opcional"><Input value={f.guest_name} onChange={(e) => set("guest_name")(e.target.value)} /></Field>
             <Field label="E-mail do visitante" error={errors.guest_email} hint="Se informado, o convite é enviado por e-mail"><Input type="email" value={f.guest_email} onChange={(e) => set("guest_email")(e.target.value)} /></Field>
             <label className="flex items-start gap-2 text-sm sm:col-span-2"><Switch checked={f.auto_approve} onCheckedChange={set("auto_approve")} />
@@ -237,7 +255,7 @@ function Invites({ companies }) {
           <div key={i.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{i.guest_name || i.guest_email || "Visitante"} → {i.host_name}</p>
-              <p className="truncate text-xs text-muted-foreground">{i.host_company_name} · {fmtDateTime(i.start_at)} · por {i.created_by_name || i.created_by}{i.auto_approve ? " · liberação automática" : ""}</p>
+              <p className="truncate text-xs text-muted-foreground">{i.host_company_name} · {fmtDateTime(i.start_at)} até {fmtDateTime(i.end_at)} · por {i.created_by_name || i.created_by}{i.auto_approve ? " · liberação automática" : ""}</p>
             </div>
             <Pill s={i.status} />
             {i.status === "ativo" && <Button size="icon" variant="ghost" className="text-red-400" onClick={() => revoke(i)}><Trash2 className="h-4 w-4" /></Button>}
