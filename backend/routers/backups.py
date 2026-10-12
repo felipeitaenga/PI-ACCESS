@@ -37,7 +37,10 @@ async def save_settings(body: dict, request: Request, user: dict = Depends(ADMIN
     t = str(body.get("time") or "03:00")
     if not (len(t) == 5 and t[2] == ":" and t[:2].isdigit() and t[3:].isdigit() and int(t[:2]) < 24 and int(t[3:]) < 60):
         raise HTTPException(status_code=422, detail="Horário inválido (HH:MM)")
-    keep = int(body.get("keep") or 7)
+    try:
+        keep = int(body.get("keep") or 7)
+    except (TypeError, ValueError):
+        keep = 0
     if not 1 <= keep <= 90:
         raise HTTPException(status_code=422, detail="Quantidade de cópias deve ser entre 1 e 90")
     s = {"enabled": bool(body.get("enabled")), "time": t, "keep": keep}
