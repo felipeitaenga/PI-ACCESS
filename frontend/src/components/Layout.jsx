@@ -22,6 +22,8 @@ const LS = {
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
+export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitantes", "/cadastro/fixos", "/visitantes", "/pessoas", "/relatorios", "/logs/acessos"]);
+
 export function Layout({ children }) {
   const { user, logout, hasRole } = useAuth();
   const { connected, alarms } = useRealtime();
@@ -54,11 +56,12 @@ export function Layout({ children }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const allowed = (perm) => !perm || hasRole(perm);
+  const isMgr = user?.role === "company_manager";
+  const allowed = (perm, to) => (isMgr ? (to ? MANAGER_PATHS.has(to) : true) : (!perm || hasRole(perm)));
   const badgeVal = (b) => (b === "alarms" ? alarmCount : 0);
 
   const favItems = useMemo(
-    () => MENU_FLAT.filter((i) => favs.includes(i.to) && allowed(i.permission)),
+    () => MENU_FLAT.filter((i) => favs.includes(i.to) && allowed(i.permission, i.to)),
     [favs, user] // eslint-disable-line
   );
   const toggleFav = (to, e) => {
@@ -70,7 +73,7 @@ export function Layout({ children }) {
   const handleLogout = async () => { await logout(); navigate("/login"); };
 
   const searchResults = MENU_FLAT.filter(
-    (i) => allowed(i.permission) && i.label.toLowerCase().includes(query.toLowerCase())
+    (i) => allowed(i.permission, i.to) && i.label.toLowerCase().includes(query.toLowerCase())
   );
 
   const Item = ({ it }) => (
@@ -137,9 +140,9 @@ export function Layout({ children }) {
           )}
 
           {MENU.map((entry) => {
-            if (entry.type === "item") return allowed(entry.permission) ? <Item key={entry.to} it={entry} /> : null;
+            if (entry.type === "item") return allowed(entry.permission, entry.to) ? <Item key={entry.to} it={entry} /> : null;
             if (!allowed(entry.permission)) return null;
-            const items = entry.items.filter((i) => allowed(i.permission));
+            const items = entry.items.filter((i) => allowed(i.permission, i.to));
             if (!items.length) return null;
             const openG = groupState[entry.label] ?? true;
             if (collapsed) return <div key={entry.label} className="space-y-0.5">{items.map((i) => <Item key={i.to} it={i} />)}</div>;

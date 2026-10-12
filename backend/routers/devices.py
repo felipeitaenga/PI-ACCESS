@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from database import db, clean
+from scope import stamp_event
 from models import DeviceInput, DoorActionInput, DoorModeInput, new_id, now_iso
 from security import get_current_user, require_role, encrypt_secret
 from drivers.factory import get_driver, available_brands
@@ -142,7 +143,7 @@ async def open_door(door_id: str, payload: DoorActionInput, request: Request,
         "access_result": "granted", "reason": payload.reason or "Abertura remota pelo operador",
         "match_score": 100.0,
     }
-    await db.access_events.insert_one(dict(event))
+    await db.access_events.insert_one(dict(await stamp_event(event)))
     clean(event)
     await manager.broadcast({"type": "access_event", "data": event})
     await log_audit(user, "abrir_porta", "door", door_id, f"{door.get('name')} ({payload.reason})", client_ip(request))

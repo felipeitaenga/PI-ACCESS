@@ -1,0 +1,40 @@
+{
+  "summary": "Testes do perfil 'Gestor de empresa' (company_manager) — backend + frontend. Suite original (test_company_scope.py 4t + test_visits.py 6t) passou 10/10. Suite estendida nova (test_company_scope_ext.py) com 13 testes passou 12/12 (1 skip, só 1 visit_type no ambiente). WS scope test passou. Admin UI validada: role 'Gestor de empresa', user-companies-field, settings-manager-create, company-access-section/allowed-visit-types/max-active. Gestor UI validada: sidebar restrita (apenas Dashboard, Eventos ao vivo, Cadastros, Visitantes, Fixos, Relatórios, Acessos) — Config/Equipamentos/Estrutura/Empresas/Usuários/Auditoria/Emergência/Alarmes todos ausentes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Gestor navegação direta a rota proibida (/empresas)", "issue": "Ao digitar /empresas na URL o gestor dispara 'Unhandled rejection: Request failed with status code 403' em overlay. Página não trata graciosamente o 403 (overlay dev visível em preview). Idealmente redirecionar/mostrar 'Acesso negado'.", "selector": "overlay 'Unhandled rejection'", "priority": "MEDIUM"},
+      {"component": "Edit Empresa dialog", "issue": "Seção 'Gestores vinculados' é renderizada em texto, mas falta o data-testid company-managers-list no elemento (requisito do spec).", "selector": "section 'Gestores vinculados'", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard do gestor", "issues": ["Tiles 'Alarmes abertos' e '0 portas forçadas' aparecem com valor 0 — gestor não deveria ver estes KPIs globais; considerar ocultar/condicional por role."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_company_scope.py",
+    "/app/backend/tests/test_company_scope_ext.py",
+    "/app/backend/tests/test_ws_scope.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Adicionar data-testid='company-managers-list' no elemento 'Gestores vinculados' do Empresas edit dialog.",
+    "Tratar 403s no cliente HTTP do frontend para rotas proibidas do gestor (redirecionar para '/' ou mostrar toast 'Sem permissão'), evitando unhandled rejection.",
+    "No Dashboard, ocultar KPIs 'Alarmes abertos' e 'Portas forçadas' quando role == company_manager (ou backend não deveria retornar; cheque filtro)."
+  ],
+  "critical_code_review_comments": [
+    "scope.ws_visible: alarmes/emergency corretamente bloqueados — ok.",
+    "manager_can_create_managers só respeita subset do próprio company_ids — testado e ok (sem papéis diferentes, só company_manager)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_company_scope_ext.py",
+    "/app/backend/tests/test_ws_scope.py"
+  ],
+  "success_rate": {"backend": "100% (23/23, 1 skip)", "frontend": "~90% (role/campos/sidebar ok; 2 ajustes pequenos)"},
+  "test_credentials": "Admin: felipejferreira@gmail.com / NxAccess@2026 ; test gestors criados on-the-fly pelos pytest fixtures (TEST_* prefix) e deletados.",
+  "seed_data_creation": "Fixtures criam 2 empresas (TAG prefix TEST_SCOPE_/TEST_EXT_/TEST_WS_), 2 gestores, 2 pessoas, 2 visitas, 2 eventos; teardown remove tudo. Setting manager_can_create_managers restaurado para false. Nenhum dado residual encontrado.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Suite completa de escopo por empresa está em /app/backend/tests/test_company_scope.py (original, 4) + test_company_scope_ext.py (novo, 13) + test_ws_scope.py (1). Rodar: cd /app/backend && set -a && . ./.env && set +a && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL ../frontend/.env | cut -d= -f2) && python -m pytest -q -o addopts='' tests/test_company_scope*.py tests/test_ws_scope.py tests/test_visits.py — total 23 passed. Pontos a melhorar são frontend (testid company-managers-list, handler de 403, KPIs globais no dashboard do gestor).",
+  "rca of the issue": "Overlay de unhandled rejection acontece porque o axios interceptor do frontend não captura 403 silenciosamente em páginas 'protected' quando o gestor navega direto por URL — a Promise de carregamento da listagem rejeita e dispara o window error listener. Mitigação: no src (axios interceptor) devolver Promise.resolve({items:[]}) ou redirecionar quando res.status===403, e/ou usar guards de rota baseadas em MANAGER_PATHS para bloquear navegação."
+}

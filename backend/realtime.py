@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from database import db
 from models import new_id, now_iso
+from scope import ws_visible
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +14,24 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     def __init__(self):
         self.active: list = []
+        self.users: dict = {}
 
-    async def connect(self, websocket):
+    async def connect(self, websocket, user=None):
         await websocket.accept()
         self.active.append(websocket)
+        self.users[id(websocket)] = user or {}
 
     def disconnect(self, websocket):
         if websocket in self.active:
             self.active.remove(websocket)
+        self.users.pop(id(websocket), None)
 
     async def broadcast(self, message: dict):
         dead = []
         data = json.dumps(message, default=str)
         for ws in list(self.active):
+            if not ws_visible(self.users.get(id(ws)), message):
+                continue
             try:
                 await ws.send_text(data)
             except Exception:

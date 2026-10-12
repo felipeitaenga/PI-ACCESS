@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, Response, HTTPException, Depends, Backgr
 from bson import ObjectId
 
 from database import db
-from models import (RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput,
+from models import (LoginInput, ForgotPasswordInput, ResetPasswordInput,
                     UserCreateInput, UserUpdateInput)
 from security import (hash_password, verify_password, create_access_token,
                       create_refresh_token, set_auth_cookies, get_current_user,
@@ -36,6 +36,7 @@ def _public_user(user: dict) -> dict:
         "role": user.get("role", "viewer"),
         "role_label": ROLE_LABELS.get(user.get("role", "viewer"), ""),
         "site_ids": user.get("site_ids", []),
+        "company_ids": user.get("company_ids", []),
         "active": user.get("active", True),
     }
 
@@ -102,23 +103,8 @@ async def _record_fail(ip: str, email: str):
     })
 
 
-@router.post("/register")
-async def register(payload: RegisterInput, response: Response):
-    email = payload.email.lower()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(status_code=400, detail="E-mail já cadastrado")
-    doc = {
-        "email": email, "password_hash": hash_password(payload.password),
-        "name": payload.name, "role": payload.role, "site_ids": [],
-        "active": True, "token_version": 0,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    res = await db.users.insert_one(doc)
-    uid = str(res.inserted_id)
-    at, rt = create_access_token(uid, email, 0), create_refresh_token(uid, 0)
-    set_auth_cookies(response, at, rt)
-    doc["_id"] = res.inserted_id
-    return {**_public_user(doc), "access_token": at, "refresh_token": rt}
+# Removido: POST /register era público e aceitava qualquer papel (inclusive admin).
+# Usuários são criados somente por administradores em POST /api/auth/users.
 
 
 @router.post("/login")
@@ -226,7 +212,22 @@ async def reset_password(payload: ResetPasswordInput):
     return {"ok": True, "message": "Senha redefinida com sucesso"}
 
 
-# ---------- Gestão de usuários (admin) ----------
+# ---------- Gestão de usuários (admin; gestor só cria gestor da mesma empresa se liberado) ----------
+VALID_ROLES = ("admin", "operator", "reception", "viewer", "company_manager")
+
+
+async def _check_role_companies(role, company_ids):
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=422, detail="Perfil inválido")
+    if role == "company_manager":
+        if not company_ids:
+            raise HTTPException(status_code=422, detail="Selecione as empresas que o gestor pode gerenciar")
+        if await db.companies.count_documents({"id": {"$in": company_ids}, "deleted": {"$ne": True}}) != len(set(company_ids)):
+            raise HTTPException(status_code=422, detail="Empresa inválida")
+        return list(dict.fromkeys(company_ids))
+    return []
+
+
 @router.get("/users")
 async def list_users(user: dict = Depends(require_role("admin"))):
     users = await db.users.find({}).to_list(500)
@@ -234,13 +235,20 @@ async def list_users(user: dict = Depends(require_role("admin"))):
 
 
 @router.post("/users")
-async def create_user(payload: UserCreateInput, user: dict = Depends(require_role("admin"))):
+async def create_user(payload: UserCreateInput, user: dict = Depends(require_role("admin", "company_manager"))):
+    if user.get("role") == "company_manager":
+        g = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
+        if not g.get("manager_can_create_managers"):
+            raise HTTPException(status_code=403, detail="Permissão insuficiente")
+        if payload.role != "company_manager" or not payload.company_ids or set(payload.company_ids) - set(user.get("company_ids") or []):
+            raise HTTPException(status_code=403, detail="Gestor só pode criar gestores das suas empresas")
+    company_ids = await _check_role_companies(payload.role, payload.company_ids)
     email = payload.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
     doc = {
         "email": email, "password_hash": hash_password(payload.password),
-        "name": payload.name, "role": payload.role, "site_ids": payload.site_ids,
+        "name": payload.name, "role": payload.role, "site_ids": payload.site_ids, "company_ids": company_ids,
         "active": True, "token_version": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -258,6 +266,10 @@ async def update_user(user_id: str, payload: UserUpdateInput, user: dict = Depen
         updates["role"] = payload.role
     if payload.site_ids is not None:
         updates["site_ids"] = payload.site_ids
+    if payload.role is not None or payload.company_ids is not None:
+        cur = await db.users.find_one({"_id": ObjectId(user_id)}, {"role": 1, "company_ids": 1}) or {}
+        role = payload.role or cur.get("role")
+        updates["company_ids"] = await _check_role_companies(role, payload.company_ids if payload.company_ids is not None else cur.get("company_ids") or [])
     if payload.active is not None:
         updates["active"] = payload.active
     inc = {}

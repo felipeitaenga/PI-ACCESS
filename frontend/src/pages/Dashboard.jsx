@@ -10,6 +10,7 @@ import {
   DoorOpen, ShieldCheck, ShieldX, Cpu, AlertTriangle, Users, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 function Kpi({ icon: Icon, label, value, sub, tone = "sky", testid }) {
   const tones = {
@@ -51,6 +52,8 @@ function CustomTooltip({ active, payload, label }) {
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
+  const { user } = useAuth();
+  const mgr = user?.role === "company_manager";
   const { events: liveEvents } = useRealtime();
 
   const load = async () => {
@@ -77,13 +80,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={ShieldCheck} label="Liberados hoje" value={stats.today.granted} sub={`${stats.today.total} acessos no total`} tone="emerald" testid="kpi-granted" />
         <Kpi icon={ShieldX} label="Negados hoje" value={stats.today.denied} sub="tentativas bloqueadas" tone="red" testid="kpi-denied" />
-        <Kpi icon={Cpu} label="Dispositivos" value={`${stats.devices.online}/${stats.devices.total}`} sub={`${stats.devices.offline} offline`} tone="sky" testid="kpi-devices" />
-        <Kpi icon={AlertTriangle} label="Alarmes abertos" value={stats.alarms.open} sub={`${stats.alarms.forced} portas forçadas`} tone="amber" testid="kpi-alarms" />
+        {!mgr && <Kpi icon={Cpu} label="Dispositivos" value={`${stats.devices.online}/${stats.devices.total}`} sub={`${stats.devices.offline} offline`} tone="sky" testid="kpi-devices" />}
+        {!mgr && <Kpi icon={AlertTriangle} label="Alarmes abertos" value={stats.alarms.open} sub={`${stats.alarms.forced} portas forçadas`} tone="amber" testid="kpi-alarms" />}
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Kpi icon={DoorOpen} label="Portas liberadas" value={stats.doors.liberated} sub={`de ${stats.doors.total} portas`} tone="sky" testid="kpi-doors" />
-        <Kpi icon={Users} label="Pessoas ativas" value={stats.people.active} sub={`${stats.people.total} cadastradas`} tone="emerald" testid="kpi-people" />
+        {!mgr && <Kpi icon={DoorOpen} label="Portas liberadas" value={stats.doors.liberated} sub={`de ${stats.doors.total} portas`} tone="sky" testid="kpi-doors" />}
+        <Kpi icon={Users} label="Pessoas ativas" value={stats.people.active} sub={`${stats.people.total} cadastradas · ${stats.visits?.present ?? 0} visitantes presentes · ${stats.visits?.today ?? 0} visitas hoje`} tone="emerald" testid="kpi-people" />
         <Kpi icon={Activity} label="Fluxo 24h" value={stats.flow.reduce((a, b) => a + b.liberados + b.negados, 0)} sub="eventos registrados" tone="sky" testid="kpi-flow" />
       </div>
 

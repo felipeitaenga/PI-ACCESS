@@ -13,6 +13,7 @@ from drivers.beward_common import map_verify, dedup_key, ALARM_CODES
 from beward_faces import make_face_token, decode_face_token
 from models import new_id, now_iso
 from app_config import PUBLIC_URL
+from scope import stamp_event
 import os
 
 logger = logging.getLogger(__name__)
@@ -110,7 +111,7 @@ async def verify(site: str, request: Request):
               "credential_type": m["verify_type"], "direction": {1: "entrada", 2: "saida"}.get(body.get("Direction"), "entrada"),
               "access_result": m["access_result"], "reason": m["reason"] + (" (retroativo)" if m["retroactive"] else ""),
               "match_score": body.get("Similarity1", 0)}
-        await db.access_events.insert_one(dict(ev)); ev.pop("_id", None)
+        await db.access_events.insert_one(dict(await stamp_event(ev))); ev.pop("_id", None)
         await manager.broadcast({"type": "access_event", "data": ev})
     return OK
 

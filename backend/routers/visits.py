@@ -9,11 +9,12 @@ from models import new_id, now_iso
 from photo_quality import make_thumb
 from registry_common import ND, sync_to_devices
 from util import log_audit, client_ip
+from scope import scope_filter, find_scoped, require_company, is_manager, allowed_ids
 from visits_core import (get_settings, validate_doc, doc_key, compute_end, type_hours, parse_dt, card_decimal,
                          norm_plate, visit_subject, end_visit, DOC_TYPES, ID_TYPES, ACTIVE)
 
 router = APIRouter(prefix="/visits", tags=["visits"])
-WRITE = ("admin", "operator", "reception")
+WRITE = ("admin", "operator", "reception", "company_manager")
 ADMIN = require_role("admin")
 TYPE_FIELDS = ("name", "category_ids", "default_hours", "require_escort", "require_photo", "active")
 
@@ -40,7 +41,7 @@ def _type_body(b):
 
 @router.get("/types")
 async def list_types(active: str = "", user: dict = Depends(get_current_user)):
-    q = {**ND, **({"active": True} if active == "true" else {})}
+    q = {**ND, **(await scope_filter(user, "visit_types")), **({"active": True} if active == "true" else {})}
     return await db.visit_types.find(q, {"_id": 0}).sort("name", 1).to_list(500)
 
 
@@ -93,9 +94,10 @@ async def lookup(doc_type: str, doc_number: str, user: dict = Depends(get_curren
     key = doc_key(doc_type, doc_number)
     if len(key) < 3:
         return {"found": False}
-    v = await db.visitors.find_one({**ND, "doc_type": doc_type, "doc_key": key}, {"_id": 0})
+    vsc = await scope_filter(user, "visitors")
+    v = await db.visitors.find_one({**ND, **vsc, "doc_type": doc_type, "doc_key": key}, {"_id": 0})
     if not v and doc_type == "cpf":
-        v = await db.visitors.find_one({**ND, "$or": [{"cpf_digits": key}, {"document_digits": key}]}, {"_id": 0})
+        v = await db.visitors.find_one({**ND, **vsc, "$or": [{"cpf_digits": key}, {"document_digits": key}]}, {"_id": 0})
     if not v:
         return {"found": False}
     return {"found": True, "visitor": {k: v.get(k) for k in ("id", "name", "origin_company", "photo", "plate",
@@ -112,7 +114,7 @@ async def visitor_search(q: str, user: dict = Depends(get_current_user)):
     dig = re.sub(r"\D", "", q)
     if len(dig) >= 3:
         ors += [{"doc_key": {"$regex": dig}}, {"cpf_digits": {"$regex": dig}}, {"document_digits": {"$regex": dig}}]
-    items = await db.visitors.find({**ND, "$or": ors}, {"_id": 0, "id": 1, "name": 1, "doc_type": 1, "doc_number": 1, "document": 1,
+    items = await db.visitors.find({**ND, **(await scope_filter(user, "visitors")), "$or": ors}, {"_id": 0, "id": 1, "name": 1, "doc_type": 1, "doc_number": 1, "document": 1,
                                                        "cpf": 1, "cpf_digits": 1, "origin_company": 1, "photo_thumb": 1,
                                                        "blacklist": 1}).sort("updated_at", -1).limit(8).to_list(8)
     for v in items:
@@ -125,16 +127,14 @@ async def visitor_search(q: str, user: dict = Depends(get_current_user)):
 
 @router.get("/visitor/{vid}/prefill")
 async def prefill(vid: str, user: dict = Depends(get_current_user)):
-    v = await db.visitors.find_one({**ND, "id": vid}, {"_id": 0})
-    if not v:
-        raise HTTPException(status_code=404, detail="Visitante não encontrado")
+    v = await find_scoped(user, "visitors", vid, msg="Visitante não encontrado")
     doc_type = v.get("doc_type") or ("cpf" if v.get("cpf_digits") else "outro")
     out = {"visitor": {"id": v["id"], "name": v.get("name", ""), "doc_type": doc_type,
                        "doc_number": v.get("doc_number") or (v.get("cpf") if doc_type == "cpf" else v.get("document", "")),
                        "origin_company": v.get("origin_company", ""), "photo": v.get("photo", ""),
                        "plate": v.get("plate", ""), "blacklist": bool(v.get("blacklist")),
                        "blacklist_reason": v.get("blacklist_reason", "")}, "last_visit": None}
-    last = await db.visits.find_one({**ND, "visitor_id": vid}, {"_id": 0}, sort=[("created_at", -1)])
+    last = await db.visits.find_one({**ND, **(await scope_filter(user, "visits")), "visitor_id": vid}, {"_id": 0}, sort=[("created_at", -1)])
     if last:
         vt = await db.visit_types.find_one({**ND, "id": last.get("visit_type_id"), "active": True}, {"_id": 0, "id": 1})
         host = await db.people.find_one({**ND, "id": last.get("host_person_id") or last.get("host_id"), "status": "ativo",
@@ -151,7 +151,7 @@ async def prefill(vid: str, user: dict = Depends(get_current_user)):
 
 @router.get("/visitor-companies")
 async def visitor_companies(q: str = "", user: dict = Depends(get_current_user)):
-    names = await db.visitors.distinct("origin_company", ND)
+    names = await db.visitors.distinct("origin_company", {**ND, **(await scope_filter(user, "visitors"))})
     ql = q.strip().lower()
     return sorted([n for n in names if n and (not ql or ql in n.lower())])[:10]
 
@@ -159,7 +159,7 @@ async def visitor_companies(q: str = "", user: dict = Depends(get_current_user))
 @router.get("/present")
 async def present(user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc).isoformat()
-    items = await db.visits.find({**ND, "status": "presente", "start_at": {"$lte": now}}, {"_id": 0}).sort("end_at", 1).to_list(500)
+    items = await db.visits.find({**ND, **(await scope_filter(user, "visits")), "status": "presente", "start_at": {"$lte": now}}, {"_id": 0}).sort("end_at", 1).to_list(500)
     thumbs = {v["id"]: v.get("photo_thumb", "") for v in await db.visitors.find(
         {"id": {"$in": [x["visitor_id"] for x in items]}}, {"_id": 0, "id": 1, "photo_thumb": 1}).to_list(500)}
     for x in items:
@@ -168,9 +168,9 @@ async def present(user: dict = Depends(get_current_user)):
     return items
 
 
-async def _check(body, settings):
+async def _check(body, settings, user):
     errs = {}
-    vtype = await db.visit_types.find_one({**ND, "id": body.get("visit_type_id"), "active": True}, {"_id": 0})
+    vtype = await db.visit_types.find_one({"$and": [{**ND, "id": body.get("visit_type_id"), "active": True}, await scope_filter(user, "visit_types")]}, {"_id": 0})
     if not vtype:
         errs["visit_type_id"] = "Selecione o tipo da visita"
     try:
@@ -185,7 +185,7 @@ async def _check(body, settings):
             errs["end_at"] = "O fim deve ser depois do início"
     except ValueError:
         errs["end_at"] = "Data/hora do fim inválida"
-    comp = await db.companies.find_one({**ND, "id": body.get("host_company_id")}, {"_id": 0, "id": 1, "name": 1})
+    comp = await db.companies.find_one({"$and": [{**ND, "id": body.get("host_company_id")}, await scope_filter(user, "companies")]}, {"_id": 0, "id": 1, "name": 1})
     if not comp:
         errs["host_company_id"] = "Selecione a empresa visitada"
     host = await db.people.find_one({**ND, "id": body.get("host_person_id"), "status": "ativo", "can_authorize_visits": {"$ne": False}},
@@ -224,7 +224,7 @@ async def _check(body, settings):
 @router.post("")
 async def create_visit(body: dict, request: Request, user: dict = Depends(require_role(*WRITE))):
     settings = await get_settings()
-    errs, c = await _check(body, settings)
+    errs, c = await _check(body, settings, user)
     key = doc_key(body.get("doc_type"), c["doc_number"])
     existing = await db.visitors.find_one({**ND, "doc_type": body.get("doc_type"), "doc_key": key}, {"_id": 0}) if key else None
     photo = body.get("photo") or ""
@@ -285,9 +285,7 @@ async def create_visit(body: dict, request: Request, user: dict = Depends(requir
 
 @router.post("/{visit_id}/end")
 async def finish(visit_id: str, request: Request, user: dict = Depends(require_role(*WRITE))):
-    v = await db.visits.find_one({"id": visit_id}, {"_id": 0})
-    if not v:
-        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    v = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")
     if v.get("status") not in ACTIVE:
         raise HTTPException(status_code=400, detail=f"Visita já encerrada ({v.get('status')})")
     sync = await end_visit(v, "finalizado", "Check-out antecipado", user.get("email"))

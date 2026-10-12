@@ -15,7 +15,7 @@ export default function Reports() {
 
   useEffect(() => {
     api.get("/reports/access").then(({ data }) => setAccess(data.items.slice(0, 100)));
-    api.get("/reports/occupancy").then(({ data }) => setOccupancy(data.areas));
+    api.get("/reports/occupancy").then(({ data }) => setOccupancy(data.areas)).catch(() => setOccupancy([]));
     api.get("/reports/presence").then(({ data }) => setPresence(data.items));
   }, []);
 

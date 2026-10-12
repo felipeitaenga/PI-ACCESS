@@ -8,9 +8,10 @@ from registry_common import (ND, only_digits, valid_cpf, fmt_cpf, today, in_days
                              inside_area_ids, refresh_expired, sync_to_devices)
 from util import log_audit, client_ip
 from visits_core import get_settings, validate_doc, doc_key, DOC_TYPES
+from scope import scope_filter, find_scoped, require_company, is_manager, allowed_ids
 
 router = APIRouter(prefix="/registry", tags=["registry"])
-WRITE = ("admin", "operator", "reception")
+WRITE = ("admin", "operator", "reception", "company_manager")
 LIST_FIELDS = {"_id": 0, "photo": 0}
 PERSON_FIELDS = ["person_type", "name", "cpf", "rg", "document", "birth", "phone", "email", "company_id",
                  "notes", "matricula", "department", "role_title", "manager", "admission_date", "valid_from",
@@ -32,7 +33,7 @@ async def photo_check(body: dict, user: dict = Depends(get_current_user)):
 @router.get("/companies")
 async def companies(q: str = "", type: str = "", user: dict = Depends(get_current_user)):
     await refresh_expired()
-    query = {**ND}
+    query = {**ND, **(await scope_filter(user, "companies"))}
     if q:
         query["$or"] = [{"name": rx(q)}, {"trade_name": rx(q)}, {"cnpj": rx(q)}]
     if type:
@@ -74,15 +75,24 @@ async def companies(q: str = "", type: str = "", user: dict = Depends(get_curren
     return comps
 
 
+@router.get("/companies/{cid}/managers")
+async def company_managers(cid: str, user: dict = Depends(require_role("admin"))):
+    us = await db.users.find({"role": "company_manager", "company_ids": cid}, {"_id": 1, "name": 1, "email": 1}).to_list(200)
+    return [{"id": str(u["_id"]), "name": u.get("name", ""), "email": u["email"]} for u in us]
+
+
 @router.get("/people")
 async def list_people(company_id: str = "", q: str = "", status: str = "", category_id: str = "",
                       department: str = "", present: str = "", authorize: str = "", skip: int = 0, limit: int = 50,
                       user: dict = Depends(get_current_user)):
-    query = {**ND}
+    scope = await scope_filter(user, "people")
+    query = {**ND, **scope}
     if authorize == "true":
         query["can_authorize_visits"] = {"$ne": False}
     if company_id:
         query["company_id"] = company_id
+    if scope:
+        query["$and"] = [scope]
     if q:
         ors = [{"name": rx(q)}, {"cpf": rx(q)}, {"matricula": rx(q)}, {"document": rx(q)}, {"rg": rx(q)}, {"doc_number": rx(q)}]
         if len(only_digits(q)) >= 3:
@@ -118,7 +128,7 @@ async def list_people(company_id: str = "", q: str = "", status: str = "", categ
                  "active": await db.people.count_documents({**base, "status": "ativo"}),
                  "blocked": await db.people.count_documents({**base, "status": {"$in": ["bloqueado", "vencido"]}}),
                  "present": await db.people.count_documents({**base, "status": "ativo", "current_area_id": {"$in": inside}})}
-    depts = await db.people.distinct("department", {**ND, **({"company_id": company_id} if company_id else {})})
+    depts = await db.people.distinct("department", {**ND, **scope, **({"company_id": company_id} if company_id else {})})
     return {"items": items, "total": total, "stats": stats, "departments": sorted([d for d in depts if d])}
 
 
@@ -132,7 +142,8 @@ async def global_search(q: str = "", user: dict = Depends(get_current_user)):
     if len(dig) >= 3:
         ors.append({"cpf_digits": {"$regex": dig}})
     found = {}
-    for p in await db.people.find({**ND, "$or": ors}, LIST_FIELDS).limit(15).to_list(15):
+    pscope = await scope_filter(user, "people")
+    for p in await db.people.find({**ND, **pscope, "$or": ors}, LIST_FIELDS).limit(15).to_list(15):
         found[p["id"]] = (p, "Cadastro")
     idents = await db.identifiers.find({**ND, "type": {"$ne": "facial"}, "$or": [{"value": rx(q)}, {"hex": rx(q)}]},
                                        {"_id": 0}).limit(10).to_list(10)
@@ -143,7 +154,7 @@ async def global_search(q: str = "", user: dict = Depends(get_current_user)):
     extra += [(v["person_id"], f"Placa {v['plate']}") for v in vehs]
     for pid, match in extra:
         if pid and pid not in found:
-            p = await db.people.find_one({**ND, "id": pid}, LIST_FIELDS)
+            p = await db.people.find_one({**ND, **pscope, "id": pid}, LIST_FIELDS)
             if p:
                 found[pid] = (p, match)
     out = [{"kind": "person", "id": p["id"], "name": p["name"], "company_id": p.get("company_id"),
@@ -153,7 +164,7 @@ async def global_search(q: str = "", user: dict = Depends(get_current_user)):
     vq = [{"name": rx(q)}, {"document": rx(q)}]
     if len(dig) >= 3:
         vq += [{"document_digits": {"$regex": dig}}, {"cpf_digits": {"$regex": dig}}]
-    for v in await db.visitors.find({**ND, "$or": vq}, {"_id": 0, "photo": 0}).limit(10).to_list(10):
+    for v in await db.visitors.find({**ND, **(await scope_filter(user, "visitors")), "$or": vq}, {"_id": 0, "photo": 0}).limit(10).to_list(10):
         out.append({"kind": "visitor", "id": v["id"], "name": v["name"], "company_name": v.get("origin_company", ""),
                     "photo": v.get("photo_thumb", ""), "status": "lista negra" if v.get("blacklist") else "visitante",
                     "person_type": "visitante", "match": "Visitante", "document": v.get("document")})
@@ -162,9 +173,7 @@ async def global_search(q: str = "", user: dict = Depends(get_current_user)):
 
 @router.get("/people/{pid}")
 async def get_person(pid: str, user: dict = Depends(get_current_user)):
-    p = await db.people.find_one({"id": pid}, {"_id": 0})
-    if not p:
-        raise HTTPException(status_code=404, detail="Pessoa não encontrada")
+    p = await find_scoped(user, "people", pid, msg="Pessoa não encontrada")
     p["identifiers"] = await db.identifiers.find({**ND, "person_id": pid, "type": {"$ne": "facial"}}, {"_id": 0}).to_list(50)
     p["vehicles"] = await db.vehicles.find({**ND, "person_id": pid}, {"_id": 0}).to_list(20)
     p["documents"] = await db.person_documents.find({**ND, "person_id": pid}, {"_id": 0}).to_list(50)
@@ -239,6 +248,14 @@ async def _save_children(pid, b, valid_until):
 async def _save(b, request, user, pid=None):
     if not b.get("doc_type"):
         b["doc_type"], b["doc_number"] = "cpf", b.get("cpf")
+    if pid:
+        await find_scoped(user, "people", pid, {"_id": 0, "id": 1}, "Pessoa não encontrada")
+    require_company(user, b.get("company_id"))
+    if is_manager(user):
+        ok = set(await allowed_ids(user, "allowed_category_ids"))
+        bad = [c for c in (b.get("category_ids") or []) if c not in ok]
+        if bad:
+            raise HTTPException(status_code=422, detail={"msg": "Categoria não liberada para a empresa", "fields": {"category_ids": "Use somente categorias liberadas para a sua empresa"}})
     errs = _validate(b, await get_settings())
     key = doc_key(b.get("doc_type"), b.get("doc_number"))
     dup = await db.people.find_one({**ND, "doc_type": b.get("doc_type"), "doc_key": key, **({"id": {"$ne": pid}} if pid else {})},
@@ -256,6 +273,11 @@ async def _save(b, request, user, pid=None):
     comp = await db.companies.find_one({"id": b["company_id"]}, {"_id": 0})
     if not comp:
         raise HTTPException(status_code=422, detail={"msg": "Empresa não encontrada", "fields": {"company_id": "Empresa inválida"}})
+    limit = comp.get("max_active_people")
+    if limit and (b.get("status") or "ativo") == "ativo":
+        n = await db.people.count_documents({**ND, "company_id": comp["id"], "status": "ativo", **({"id": {"$ne": pid}} if pid else {})})
+        if n >= int(limit):
+            raise HTTPException(status_code=422, detail={"msg": f"Limite de {limit} pessoas ativas da empresa atingido", "fields": {"company_id": "Limite de pessoas ativas atingido"}})
     doc = {k: b.get(k) for k in PERSON_FIELDS if k in b}
     is_cpf = b["doc_type"] == "cpf"
     doc.update({"doc_type": b["doc_type"], "doc_number": b["doc_number"], "doc_key": key, "document": b["doc_number"],
@@ -312,10 +334,15 @@ async def bulk(body: dict, request: Request, user: dict = Depends(require_role(*
     ids, action = body.get("ids") or [], body.get("action")
     if not ids:
         raise HTTPException(status_code=400, detail="Nenhuma pessoa selecionada")
-    q = {"id": {"$in": ids}}
+    q = {"id": {"$in": ids}, **(await scope_filter(user, "people"))}
+    ids = await db.people.distinct("id", q)
+    if not ids:
+        raise HTTPException(status_code=404, detail="Pessoas não encontradas")
     if action == "set_category":
         if not body.get("category_ids"):
             raise HTTPException(status_code=400, detail="Selecione a categoria")
+        if is_manager(user) and set(body["category_ids"]) - set(await allowed_ids(user, "allowed_category_ids")):
+            raise HTTPException(status_code=422, detail="Categoria não liberada para a empresa")
         await db.people.update_many(q, {"$set": {"category_ids": body["category_ids"]}})
     elif action == "block":
         await db.people.update_many(q, {"$set": {"status": "bloqueado", "status_reason": body.get("reason") or "Bloqueio manual"}})

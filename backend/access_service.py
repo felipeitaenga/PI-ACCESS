@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from database import db
+from scope import stamp_event
 from models import new_id
 from engine import decide
 
@@ -51,7 +52,7 @@ async def evaluate(person, ap, when=None, persist=True):
     event = _event(person, ap, dest, origin, res, when)
     res["event"] = event
     if persist:
-        await db.access_events.insert_one(dict(event))
+        await db.access_events.insert_one(dict(await stamp_event(event)))
         event.pop("_id", None)
         if res["granted"]:
             if dest and not dest.get("is_exterior"):

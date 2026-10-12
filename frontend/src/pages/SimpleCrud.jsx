@@ -1,4 +1,5 @@
 import CrudPage, { enabledBadge } from "@/components/CrudPage";
+import { CompanyAccess } from "@/components/CompanyAccess";
 
 const COMP_TYPES = [
   { value: "propria", label: "Própria" }, { value: "terceirizada", label: "Terceirizada" },
@@ -15,6 +16,7 @@ export function Companies() {
         { key: "cnpj", label: "CNPJ" },
         { key: "type", label: "Tipo", type: "select", options: COMP_TYPES },
         { key: "contract_valid_until", label: "Validade do contrato", type: "date" },
+        { key: "access", label: "", full: true, type: "custom", render: (form, setForm) => <CompanyAccess form={form} setForm={setForm} /> },
       ]}
       columns={[
         { key: "name", label: "Razão social", render: (r) => <span className="font-medium">{r.name}</span> },

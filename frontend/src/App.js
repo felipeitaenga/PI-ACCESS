@@ -1,8 +1,10 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { RealtimeProvider } from "@/context/RealtimeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
+import { MANAGER_PATHS } from "@/components/Layout";
 import { Layout } from "@/components/Layout";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
@@ -24,12 +26,21 @@ import { Cameras, Schedules, Shortcuts, Backup } from "@/pages/Placeholders";
 import Integrations from "@/pages/Integrations";
 import VisitorSettings from "@/pages/VisitorSettings";
 
+function ManagerGuard({ children }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (user?.role === "company_manager" && !MANAGER_PATHS.has(pathname)) return <Navigate to="/" replace />;
+  return children;
+}
+
 function Shell({ children }) {
   return (
     <ProtectedRoute>
-      <RealtimeProvider>
-        <Layout>{children}</Layout>
-      </RealtimeProvider>
+      <ManagerGuard>
+        <RealtimeProvider>
+          <Layout>{children}</Layout>
+        </RealtimeProvider>
+      </ManagerGuard>
     </ProtectedRoute>
   );
 }

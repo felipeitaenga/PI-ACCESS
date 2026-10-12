@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from database import db
+from scope import stamp_event
 from security import get_current_user, require_role, encrypt_secret
 from crud import make_crud
 from drivers.factory import get_driver
@@ -183,7 +184,7 @@ async def open_point(apid: str, body: dict, request: Request,
              "person_photo": "", "captured_photo": "", "credential_type": "remoto",
              "direction": ap.get("direction", "entrada"), "access_result": "granted",
              "reason": body.get("reason") or "Abertura remota pelo operador", "match_score": 100.0}
-    await db.access_events.insert_one(dict(event))
+    await db.access_events.insert_one(dict(await stamp_event(event)))
     event.pop("_id", None)
     await manager.broadcast({"type": "access_event", "data": event})
     await log_audit(user, "abrir_ponto", "access_points", apid, f"{ap.get('description')} ({body.get('reason','')})", client_ip(request))

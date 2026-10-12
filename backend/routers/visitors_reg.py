@@ -7,6 +7,7 @@ from models import new_id, now_iso
 from photo_quality import make_thumb
 from registry_common import ND, only_digits, valid_cpf, fmt_cpf, today, refresh_expired, sync_to_devices
 from util import log_audit, client_ip
+from scope import scope_filter, find_scoped
 
 router = APIRouter(prefix="/registry", tags=["registry-visitors"])
 WRITE = ("admin", "operator", "reception")
@@ -34,16 +35,17 @@ async def _with_last_visit(visitors):
 @router.get("/visitor-companies")
 async def visitor_companies(user: dict = Depends(get_current_user)):
     await refresh_expired()
-    present = {v["visitor_id"] for v in await db.visits.find({**ND, "status": "presente"}, {"_id": 0, "visitor_id": 1}).to_list(5000)}
+    vsc = await scope_filter(user, "visits")
+    present = {v["visitor_id"] for v in await db.visits.find({**ND, **vsc, "status": "presente"}, {"_id": 0, "visitor_id": 1}).to_list(5000)}
     out = {}
-    for v in await db.visitors.find(ND, {"_id": 0, "id": 1, "origin_company": 1, "blacklist": 1}).to_list(20000):
+    for v in await db.visitors.find({**ND, **(await scope_filter(user, "visitors"))}, {"_id": 0, "id": 1, "origin_company": 1, "blacklist": 1}).to_list(20000):
         k = v.get("origin_company") or "Sem empresa"
         s = out.setdefault(k, {"name": k, "total": 0, "present": 0, "blacklist": 0})
         s["total"] += 1
         s["present"] += v["id"] in present
         s["blacklist"] += bool(v.get("blacklist"))
     t = today()
-    today_count = await db.visits.count_documents({**ND, "$or": [{"status": "presente"},
+    today_count = await db.visits.count_documents({**ND, **vsc, "$or": [{"status": "presente"},
                                                                   {"expected_start": {"$regex": f"^{t}"}}]})
     return {"companies": sorted(out.values(), key=lambda x: x["name"]), "today": today_count,
             "present": len(present)}
@@ -52,7 +54,7 @@ async def visitor_companies(user: dict = Depends(get_current_user)):
 @router.get("/visitors")
 async def list_visitors(origin: str = "", today_only: str = "", q: str = "", present: str = "",
                         user: dict = Depends(get_current_user)):
-    query = {**ND}
+    query = {**ND, **(await scope_filter(user, "visitors"))}
     if origin:
         query["origin_company"] = "" if origin == "Sem empresa" else origin
     if q:
@@ -60,8 +62,8 @@ async def list_visitors(origin: str = "", today_only: str = "", q: str = "", pre
     if today_only == "true" or present == "true":
         vq = {**ND, "status": "presente"} if present == "true" else \
             {**ND, "$or": [{"status": "presente"}, {"expected_start": {"$regex": f"^{today()}"}}]}
-        ids = await db.visits.distinct("visitor_id", vq)
-        query["id"] = {"$in": ids}
+        ids = await db.visits.distinct("visitor_id", {**vq, **(await scope_filter(user, "visits"))})
+        query["id"] = {"$in": [i for i in ids if i in set(query.get("id", {}).get("$in", ids))]}
     items = await db.visitors.find(query, {"_id": 0, "photo": 0}).sort("name", 1).to_list(500)
     return {"items": await _with_last_visit(items), "total": len(items)}
 
@@ -72,25 +74,23 @@ async def lookup(document: str, user: dict = Depends(get_current_user)):
     ors = [{"document": document.strip()}]
     if dig:
         ors += [{"document_digits": dig}, {"cpf_digits": dig}]
-    v = await db.visitors.find_one({**ND, "$or": ors}, {"_id": 0})
+    v = await db.visitors.find_one({**ND, **(await scope_filter(user, "visitors")), "$or": ors}, {"_id": 0})
     if not v:
         return {"found": False}
-    v["visits"] = await db.visits.find({**ND, "visitor_id": v["id"]}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+    v["visits"] = await db.visits.find({**ND, **(await scope_filter(user, "visits")), "visitor_id": v["id"]}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
     return {"found": True, "visitor": v}
 
 
 @router.get("/visitors/{vid}")
 async def get_visitor(vid: str, user: dict = Depends(get_current_user)):
-    v = await db.visitors.find_one({"id": vid}, {"_id": 0})
-    if not v:
-        raise HTTPException(status_code=404, detail="Visitante não encontrado")
-    v["visits"] = await db.visits.find({**ND, "visitor_id": vid}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
+    v = await find_scoped(user, "visitors", vid, msg="Visitante não encontrado")
+    v["visits"] = await db.visits.find({**ND, **(await scope_filter(user, "visits")), "visitor_id": vid}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
     return v
 
 
 @router.get("/visits/present")
 async def visits_present(user: dict = Depends(get_current_user)):
-    visits = await db.visits.find({**ND, "status": "presente"}, {"_id": 0}).sort("checkin_at", -1).to_list(500)
+    visits = await db.visits.find({**ND, **(await scope_filter(user, "visits")), "status": "presente"}, {"_id": 0}).sort("checkin_at", -1).to_list(500)
     thumbs = {v["id"]: v.get("photo_thumb", "") for v in await db.visitors.find(
         {"id": {"$in": [x["visitor_id"] for x in visits]}}, {"_id": 0, "id": 1, "photo_thumb": 1}).to_list(500)}
     now = now_iso()
