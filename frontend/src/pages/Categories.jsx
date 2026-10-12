@@ -93,7 +93,7 @@ export default function Categories() {
           <TabsContent value="general">
             <Card className="border-border bg-card p-6 space-y-4 max-w-2xl">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1.5 block text-xs text-muted-foreground">Código</label><Input value={editing.code} onChange={(e) => setEditing({ ...editing, code: e.target.value })} data-testid="cat-code" /></div>
+                <div><label className="mb-1.5 block text-xs text-muted-foreground">Nome da categoria</label><Input value={editing.code} onChange={(e) => setEditing({ ...editing, code: e.target.value })} data-testid="cat-code" /></div>
                 <div><label className="mb-1.5 block text-xs text-muted-foreground">Descrição</label><Input value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} data-testid="cat-desc" /></div>
               </div>
               <label className="flex items-center gap-2 text-sm"><Checkbox checked={editing.enabled !== false} onCheckedChange={(v) => setEditing({ ...editing, enabled: !!v })} /> Habilitada</label>
@@ -190,7 +190,7 @@ export default function Categories() {
       </PageHeader>
       <Card className="border-border bg-card">
         <Table>
-          <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Descrição</TableHead><TableHead>Áreas</TableHead><TableHead>Flags</TableHead><TableHead>Status</TableHead>{canEdit && <TableHead></TableHead>}</TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nome da categoria</TableHead><TableHead>Descrição</TableHead><TableHead>Áreas</TableHead><TableHead>Flags</TableHead><TableHead>Status</TableHead>{canEdit && <TableHead></TableHead>}</TableRow></TableHeader>
           <TableBody>
             {list.map((c) => (
               <TableRow key={c.id} data-testid={`category-row-${c.id}`}>
