@@ -223,6 +223,11 @@ async def _check(body, settings, user):
 
 @router.post("")
 async def create_visit(body: dict, request: Request, user: dict = Depends(require_role(*WRITE))):
+    return await register_visit(body, user, client_ip(request))
+
+
+async def register_visit(body: dict, user: dict, ip: str = "", origin: str = ""):
+    """Cria a visita (portaria ou autocadastro aprovado), grava o visitante e envia ao(s) facial(is)."""
     settings = await get_settings()
     errs, c = await _check(body, settings, user)
     key = doc_key(body.get("doc_type"), c["doc_number"])
@@ -271,12 +276,12 @@ async def create_visit(body: dict, request: Request, user: dict = Depends(requir
              "start_at": start_iso, "end_at": end_iso, "expected_start": start_iso, "expected_end": end_iso,
              "end_at_manual": bool(body.get("end_at_manual")), "status": status,
              **({"checkin_at": now.isoformat()} if status == "presente" else {}),
-             "blacklist_override": override, "created_by": user.get("email"), "enabled": True, "deleted": False,
-             "created_at": now_iso()}
+             "blacklist_override": override, "created_by": user.get("email"), "origin": origin or "portaria",
+             "enabled": True, "deleted": False, "created_at": now_iso()}
     await db.visits.insert_one(dict(visit))
     visit.pop("_id", None)
     detail = f"{visitor['name']} → {c['host']['name']} ({status})" + (f" · LIBERADO LISTA NEGRA: {override}" if override else "")
-    await log_audit(user, "visita", "visit", visit["id"], detail, client_ip(request))
+    await log_audit(user, "visita", "visit", visit["id"], detail, ip)
     sync = await sync_to_devices(visit_subject(visitor, visit), "Visitante")
     await db.visits.update_one({"id": visit["id"]}, {"$set": {"sync": sync}})
     visitor.pop("photo", None)
