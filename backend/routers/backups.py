@@ -99,9 +99,13 @@ async def restore(name: str, body: dict, request: Request, user: dict = Depends(
     if not os.path.exists(p):
         raise HTTPException(status_code=404, detail="Backup não encontrado")
     try:
-        bs.validate_file(p)
+        head = bs.validate_file(p)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=422, detail=f"Arquivo inválido: {e}")
+    origem = head.get("cliente")
+    if origem and origem != bs.cfg.CLIENTE:
+        raise HTTPException(status_code=422,
+                            detail=f"Este backup é do cliente '{origem}' e não pode ser restaurado em '{bs.cfg.CLIENTE}'")
     safety = await bs.create_backup("seguranca", user.get("email"))
     counts = await bs.restore_backup(name)
     await create_indexes()
