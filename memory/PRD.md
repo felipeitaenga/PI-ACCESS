@@ -133,6 +133,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Logo Pilares (frontend/public/brand/pilares-logo.webp, enviado pelo usuário) no menu e no login; imagem do login trocada por catracas/leitor facial gerada (public/brand/login-access.jpg).
 - [x] Campos destacados: fundo `bg-field`, borda visível, foco/hover laranja, rótulos mais fortes (Input, Select, Textarea, seletor de categorias). iteration_13 100%.
 
+- [x] Favicon/ícones com o símbolo Pilares (public/favicon.ico, favicon-32.png, icon-192/512.png, apple-touch-icon.png); index.html pt-BR. Rótulo "Código" da categoria → "Nome da categoria".
+
 ## Next Tasks
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).
