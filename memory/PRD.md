@@ -141,7 +141,14 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Empresa › "Acesso ao sistema": categorias/tipos de visita liberados, limite de pessoas ativas, gestores vinculados. Usuários: perfil + empresas; Configurações: "Gestor pode criar gestores da mesma empresa". Menu/rotas do frontend restritos (MANAGER_PATHS + ManagerGuard), KPIs de equipamentos ocultos.
 - [x] Migração 0005 (company_ids=[], company_id nos eventos antigos quando possível). Testes tests/test_company_scope.py (A/B). iteration_14: backend 100%, ajustes de frontend aplicados. VERSION 1.2.0 (GitHub tinha 1.1.2).
 
+## v1.4.3 — Revisão do autocadastro/agendamentos vindos do GitHub (2026-10-12)
+- [x] Main do GitHub (v1.4.3) trazida para o ambiente (clone público + rsync; .env preservados; VERSION intacto).
+- [x] Correções: sync_to_devices conta falha de sync_face como erro; ator do link do anfitrião/convite com role "anfitriao"/"convite" (nunca admin); convite e verificação de e-mail consumidos de forma atômica antes de criar a solicitação; código de empresa não colide com site_code.
+- [x] iteration_16: testes A–K OK (19/19 backend, telas 390px OK). Teste: backend/tests/test_selfreg_flow.py.
+- [ ] Facial Beward 1457460 (pilares): o sistema nunca envia SetSysTime nem SetDoorCondition (código sem chamada); StrSnapPush (rosto desconhecido) não vira access_event. O facial não publicava no broker durante a verificação.
+
 ## Next Tasks
+0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.
 2. Finalizar e documentar pi-access-agent (agente local).
 3. Credenciais + Visitantes modules (Resend email QR).
