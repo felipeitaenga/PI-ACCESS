@@ -36,11 +36,11 @@ export const Box = ({ className, children }) => (
 );
 
 export const PField = ({ label, error, hint, children, required }) => (
-  <label className="block">
+  <div className="block">
     <span className="mb-1 block text-sm font-medium text-slate-200">{label}{required && <span className="text-sky-400"> *</span>}</span>
     {children}
     {error ? <span className="mt-1 block text-xs text-red-400">{error}</span> : hint ? <span className="mt-1 block text-xs text-slate-400">{hint}</span> : null}
-  </label>
+  </div>
 );
 
 export const inputCls = "h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30";
