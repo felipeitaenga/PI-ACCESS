@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useOpenRecord } from "@/components/registry/useRegistryData";
+import { CaptureActions } from "@/components/registry/CaptureActions";
 import { DoorOpen, Pencil, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -169,6 +170,7 @@ export default function LiveMonitoring() {
                   <Pencil className="mr-2 h-4 w-4" />Editar cadastro {selected.person_type === "visitante" ? "do visitante" : "do fixo"}
                 </Button>
               )}
+              {!selected.person_id && <CaptureActions photo={selected.captured_photo} className="mt-4" testPrefix="inspector-capture" />}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Selecione um evento no feed para inspecionar.</div>
