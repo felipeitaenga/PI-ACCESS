@@ -10,7 +10,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { DoorOpen, Radio } from "lucide-react";
+import { useOpenRecord } from "@/components/registry/useRegistryData";
+import { DoorOpen, Pencil, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export default function LiveMonitoring() {
   const [filterResult, setFilterResult] = useState("all");
   const [unlockDoor, setUnlockDoor] = useState(null);
   const [reason, setReason] = useState("");
+  const openRecord = useOpenRecord();
 
   useEffect(() => {
     api.get("/events?limit=30").then(({ data }) => setSeed(data.items));
@@ -133,7 +135,11 @@ export default function LiveMonitoring() {
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Cadastrada</div>
                   {selected.person_photo ? (
                     <img src={selected.person_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
-                  ) : <div className="aspect-square w-full rounded-lg bg-secondary" />}
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-secondary p-3 text-center text-xs text-muted-foreground" data-testid="inspector-no-registered">
+                      {selected.person_id ? "Sem foto cadastrada" : "Não identificado pelo facial"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Capturada</div>
@@ -145,7 +151,7 @@ export default function LiveMonitoring() {
               <div className="mt-4 rounded-lg border border-border p-3 text-center">
                 <div className="text-xs font-mono uppercase text-muted-foreground">Confiança</div>
                 <div className={cn("text-3xl font-extrabold font-mono", scoreColor(selected.match_score))}>
-                  {selected.match_score != null ? `${selected.match_score}%` : "—"}
+                  {selected.match_score != null && Number(selected.match_score) > 0 ? `${Math.round(Number(selected.match_score) * 10) / 10}%` : "—"}
                 </div>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
@@ -157,6 +163,12 @@ export default function LiveMonitoring() {
                 <Row label="Resultado" value={<ResultBadge result={selected.access_result} />} />
                 {selected.reason && <Row label="Motivo" value={selected.reason} />}
               </dl>
+              {selected.person_id && (
+                <Button variant="outline" className="mt-4 w-full" data-testid="inspector-edit-record"
+                  onClick={() => openRecord(selected.person_type === "visitante" ? "visitor" : "person", selected.person_id)}>
+                  <Pencil className="mr-2 h-4 w-4" />Editar cadastro {selected.person_type === "visitante" ? "do visitante" : "do fixo"}
+                </Button>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Selecione um evento no feed para inspecionar.</div>
