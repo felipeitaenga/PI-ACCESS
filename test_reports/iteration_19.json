@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only validation of new 'Cadastrar visitante/fixo' shortcuts from unknown-face live events. Seeded db.access_events TEST_evt_unknown (person_id=null, stranger=true, captured_photo=real base64 jpeg). Logged in as admin and validated 4 scenarios end-to-end: (1) /cadastro/visitantes LiveAccessFeed shows the TEST row with type badge 'sistema', data-testid live-event-capture-TEST_evt_unknown-to-visitantes and ...-to-fixos both present and clickable. (2) Clicking 'Cadastrar visitante' navigated to /cadastro/visitantes?capture=<ts>, VisitForm cleared and loaded captured photo (data:image/* visible in Foto block, toast 'Foto capturada pelo facial carregada' shown). (3) Clicking 'Cadastrar fixo' navigated to /cadastro/fixos?capture=<ts>, PersonForm opened in kind=new with captured photo visible. (4) /monitoramento inspector for the TEST event shows inspector-no-registered ('Não identificado pelo facial'), inspector-capture-to-visitantes and inspector-capture-to-fixos, and NO inspector-edit-record; clicking inspector-capture-to-visitantes navigates to /cadastro/visitantes?capture=<ts> with photo. (5) Regression: clicking a person event (person_id present) still shows inspector-edit-record and no capture buttons. TEST data cleaned up at end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CaptureActions encapsulates both target buttons with stable testPrefix (live-event-capture-<id> and inspector-capture) and stops click propagation to avoid triggering the row onClick in LiveAccessFeed — correct.",
+    "useUseCapture persists photo in sessionStorage['pi_capture_photo'] before navigating with ?capture=<ts>; VisitForm and PersonForm consume it via readCapture() on captureParam change — correct.",
+    "LiveAccessFeed.EventRow renders CaptureActions only when !canOpen (sistema branch) — matches requirement to show buttons only on unknown events.",
+    "LiveMonitoring inspector renders CaptureActions only when !selected.person_id — matches requirement; events with person_id continue showing inspector-edit-record.",
+    "Minor: VisitForm toast uses toast.info with text 'Foto capturada pelo facial carregada — preencha a visita' and PersonForm uses '…preencha o cadastro'. Requirement expected exact 'Foto capturada pelo facial carregada'; text contains the required prefix so acceptable."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (5/5 cenários)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 (de /app/memory/test_credentials.md).",
+  "seed_data_creation": "Inserido db.access_events TEST_evt_unknown com captured_photo real (randomuser.me women/44); REMOVIDO ao final do teste.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fluxo 'Cadastrar visitante/fixo a partir de evento desconhecido' funcionando em LiveAccessFeed (/cadastro/visitantes) e em LiveMonitoring (/monitoramento). Para reproduzir manualmente sem simulador, insira um access_event com person_id=null e stranger=true via Mongo e abra as duas páginas. Branch 'sistema' em LiveAccessFeed (person_type vazio && !person_id) é a única maneira de ver os botões no feed lateral.",
+  "rca of the issue": "N/A — feature nova verificada."
+}

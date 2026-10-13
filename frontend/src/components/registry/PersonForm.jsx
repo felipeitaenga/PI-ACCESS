@@ -27,7 +27,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
   const [sync, setSync] = useState(null);
   const [companyDlg, setCompanyDlg] = useState({ open: false, name: "" });
   const nameRef = useRef(null);
-  const lastNonce = useRef(request?.kind === "new" && !request.company_id && !request.origin_company ? request.nonce : null);
+  const lastNonce = useRef(request?.kind === "new" && !request.company_id && !request.origin_company && !request.photo ? request.nonce : null);
   const dirty = JSON.stringify(form) !== snap;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -44,7 +44,8 @@ export function PersonForm({ request, companies, categories, departments, onSave
     try {
       if (req.kind === "new") {
         const comp = companies.find((c) => c.id === req.company_id);
-        reset(emptyForm(req.type, { company_id: req.company_id || "", origin_company: req.origin_company || "", category_ids: comp?.default_category_id ? [comp.default_category_id] : [] }));
+        reset(emptyForm(req.type, { company_id: req.company_id || "", origin_company: req.origin_company || "", photo: req.photo || "", category_ids: comp?.default_category_id ? [comp.default_category_id] : [] }));
+        if (req.photo) toast.info("Foto capturada pelo facial carregada — preencha o cadastro");
       } else if (req.kind === "person") {
         const { data } = await api.get(`/registry/people/${req.id}`);
         reset(mapPerson(data), data.id);
