@@ -153,6 +153,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] POST /api/visits/{id}/device-check + botão "Verificar no facial" (PresentNow): SearchPerson, GetPictureSearch e GetPictureSimilarity (captura "Desconhecido" × foto cadastrada). Consultas não entram na fila MQTT (bus.command queue=False).
 - [x] iteration_17: backend 6/6 + regressão OK, frontend OK.
 
+- [x] Monitoramento ao vivo: o feed mostra a foto capturada (captured_photo) e o motivo da negação, como o feed do cadastro (2026-10-13).
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.

@@ -97,16 +97,19 @@ export default function LiveMonitoring() {
                   idx === 0 && live.length > 0 && "animate-row-in"
                 )}
               >
-                {e.person_photo ? (
-                  <img src={e.person_photo} alt="" className="h-9 w-9 rounded-full object-cover" />
+                {e.captured_photo || e.person_photo ? (
+                  <img src={e.captured_photo || e.person_photo} alt="" className="h-9 w-9 rounded-full object-cover" data-testid={`event-row-photo-${idx}`} />
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-xs">?</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{e.person_name}</div>
                   <div className="truncate text-xs text-muted-foreground">
-                    {e.door_name} · {e.area_name} · <span className="uppercase">{e.credential_type}</span>
+                    {[e.door_name, e.area_name, e.credential_type?.toUpperCase()].filter(Boolean).join(" · ")}
                   </div>
+                  {e.access_result === "denied" && e.reason && (
+                    <div className="truncate text-xs text-red-400" data-testid={`event-row-reason-${idx}`}>{e.reason}</div>
+                  )}
                 </div>
                 <div className="text-right">
                   <ResultBadge result={e.access_result} />
@@ -142,7 +145,7 @@ export default function LiveMonitoring() {
               <div className="mt-4 rounded-lg border border-border p-3 text-center">
                 <div className="text-xs font-mono uppercase text-muted-foreground">Confiança</div>
                 <div className={cn("text-3xl font-extrabold font-mono", scoreColor(selected.match_score))}>
-                  {selected.match_score}%
+                  {selected.match_score != null ? `${selected.match_score}%` : "—"}
                 </div>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
