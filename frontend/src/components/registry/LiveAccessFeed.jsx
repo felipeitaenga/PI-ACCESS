@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
 import { ResultBadge } from "@/components/common";
 import { useOpenRecord } from "@/components/registry/useRegistryData";
+import { CaptureActions } from "@/components/registry/CaptureActions";
 import { cn } from "@/lib/utils";
 import { Activity, UserRound } from "lucide-react";
 
@@ -27,6 +28,7 @@ function EventRow({ e, onOpen }) {
         </div>
         <p className="truncate text-[11px] text-muted-foreground">{e.door_name}{e.company_name ? ` · ${e.company_name}` : ""}</p>
         {e.access_result === "denied" && e.reason && <p className="truncate text-[11px] text-red-400">{e.reason}</p>}
+        {!canOpen && <CaptureActions photo={e.captured_photo} className="mt-1" testPrefix={`live-event-capture-${e.id}`} />}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <ResultBadge result={e.access_result} />

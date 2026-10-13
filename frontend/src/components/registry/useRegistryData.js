@@ -34,8 +34,20 @@ export function useOpenRecord() {
   return useCallback((kind, id) => nav(kind === "person" ? `/cadastro/fixos?person=${id}` : `/cadastro/visitantes?visitor=${id}`), [nav]);
 }
 
+const CAPTURE_KEY = "pi_capture_photo";
+export const readCapture = () => sessionStorage.getItem(CAPTURE_KEY) || "";
+
+export function useUseCapture() {
+  const nav = useNavigate();
+  return useCallback((target, photo) => {
+    try { sessionStorage.setItem(CAPTURE_KEY, photo); } catch { return; }
+    nav(`/cadastro/${target}?capture=${Date.now()}`);
+  }, [nav]);
+}
+
 function buildRequest(params, defaultType) {
   const p = Object.fromEntries(params);
+  if (p.capture) return { kind: "new", type: defaultType, photo: readCapture() };
   if (p.person) return { kind: "person", id: p.person };
   if (p.visitor) return { kind: "visitor", id: p.visitor };
   if (p.doc) return { kind: "lookup", document: p.doc };

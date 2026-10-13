@@ -7,6 +7,8 @@ import { PhotoBlock } from "@/components/registry/PhotoBlock";
 import { SyncStatus } from "@/components/registry/SyncStatus";
 import { useAuth } from "@/context/AuthContext";
 import { useVisitForm } from "@/components/visits/useVisitForm";
+import { readCapture } from "@/components/registry/useRegistryData";
+import { toast } from "sonner";
 import { HostFields, IdentifierFields, VisitorFields, WhenFields } from "@/components/visits/VisitFields";
 import { AlertOctagon, Eraser, LogOut, Save, SaveAll } from "lucide-react";
 
@@ -41,10 +43,17 @@ export function VisitForm({ companies, categories, onSaved }) {
   const v = useVisitForm(onSaved);
   const [params] = useSearchParams();
   const visitorParam = params.get("visitor");
-  const { prefill } = v;
+  const captureParam = params.get("capture");
+  const { prefill, clear, set } = v;
   useEffect(() => {
     if (visitorParam) { prefill(visitorParam); }
   }, [visitorParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const photo = captureParam && readCapture();
+    if (!photo) { return; }
+    clear(); set("photo", photo);
+    toast.info("Foto capturada pelo facial carregada — preencha a visita");
+  }, [captureParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const { hasRole } = useAuth();
   const isAdmin = hasRole("admin");
   const blocked = v.f.blacklist && (!isAdmin || v.f.blacklist_justification.trim().length < 5);
