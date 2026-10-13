@@ -155,6 +155,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Monitoramento ao vivo: o feed mostra a foto capturada (captured_photo) e o motivo da negação, como o feed do cadastro (2026-10-13).
 
+- [x] Clicar num evento (Acessos em tempo real / Monitoramento) abre a edição do fixo ou do visitante; Inspeção facial tem "Editar cadastro"; ?visitor= preenche o formulário de visita (2026-10-13, iteration_18 OK).
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.

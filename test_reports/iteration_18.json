@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only testing of clickable live events in LiveAccessFeed (/cadastro/visitantes) and LiveMonitoring (/monitoramento). All 3 primary flows PASS: (1) FIXO event click navigates to /cadastro/fixos?person=<id> and PersonForm opens; (2) VISITANTE event click navigates to /cadastro/visitantes?visitor=<id> and VisitForm prefill works (visitor name 'Ingrid Souza', CPF '917.720.875-72', origin company 'Omega Telecom' auto-populated); (3) /monitoramento event inspector shows data-testid='inspector-edit-record' with correct label 'Editar cadastro do fixo' (or do visitante) for events with person_id, and clicking it navigates to the right edit URL. Code of LiveAccessFeed.EventRow and LiveMonitoring correctly guards the sistema branch (role=undefined, no onClick). Mobile 390px: /monitoramento feed renders correctly; /cadastro/visitantes shows only form (LiveAccessFeed is in lg:col-span sidebar — not shown <lg; acceptable responsive behavior).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/cadastro/visitantes @ 390px", "issues": ["Painel LiveAccessFeed não é exibido em telas <lg (abaixo de 1024px). Comportamento é intencional (grid lg:col-span), mas usuário em mobile não tem acesso ao atalho 'clicar no evento para editar'. Considerar expor via drawer/tab em mobile."]},
+      {"screen": "VisitForm", "issues": ["Campos 'Início' e 'Fim' continuam usando <input type=datetime-local> nativo em vez de date-picker shadcn (regressão de iterações anteriores, não desta tarefa)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Nenhuma ação de bloqueio. Opcional: considerar surfacing do LiveAccessFeed em mobile (<lg) para paridade do novo atalho de edição.",
+    "Seed do preview sempre tem person_id em TODOS os eventos (incl. negados por 'Origem inválida') — ramo 'sistema'/'Não identificado pelo facial' só é testável com evento sintético. Código inspecionado está correto (sistema => role undefined; !person_id => inspector-no-registered 'Não identificado pelo facial')."
+  ],
+  "critical_code_review_comments": [
+    "LiveAccessFeed.EventRow: typeOf retorna 'sistema' quando !person_type && !person_id; canOpen=false; role/tabIndex/onClick ficam undefined — correto.",
+    "LiveMonitoring: botão inspector-edit-record aparece apenas quando selected.person_id truthy — correto.",
+    "LiveMonitoring Row usa capitalize em value, inclusive para o ReactNode <ResultBadge/>; sem efeito prático, mas poderia ser aplicado só a strings.",
+    "useOpenRecord retorna callback estável (useCallback com [nav]); navegação via query param reaproveita VisitForm useEffect([visitorParam]) — OK."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (3/3 fluxos primários testados; ramos sistema/no-person-id validados por inspeção de código, sem seed data para teste runtime)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 (reutilizado do test_credentials.md).",
+  "seed_data_creation": "Nenhum dado criado. Testes feitos sobre seed demo existente (30 eventos retornados por /api/events?limit=30, mix fixo/visitante).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fluxos clicáveis em LiveAccessFeed e inspector-edit-record em LiveMonitoring estão funcionando end-to-end em desktop. Prefill via GET /api/visits/visitor/{id}/prefill foi verificado indiretamente (nome/doc/empresa origem apareceram no VisitForm após navegação). O seed do preview NÃO contém eventos com person_id=null, então o ramo 'Não identificado pelo facial' (data-testid inspector-no-registered) só é testável criando um access_event sintético via API ou simulador customizado.",
+  "rca of the issue": "N/A — não é bug fix, é verificação de feature nova (atalho de edição a partir de eventos ao vivo)."
+}
