@@ -133,7 +133,11 @@ export default function LiveMonitoring() {
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Cadastrada</div>
                   {selected.person_photo ? (
                     <img src={selected.person_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
-                  ) : <div className="aspect-square w-full rounded-lg bg-secondary" />}
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-secondary p-3 text-center text-xs text-muted-foreground" data-testid="inspector-no-registered">
+                      {selected.person_id ? "Sem foto cadastrada" : "Não identificado pelo facial"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Capturada</div>
@@ -145,7 +149,7 @@ export default function LiveMonitoring() {
               <div className="mt-4 rounded-lg border border-border p-3 text-center">
                 <div className="text-xs font-mono uppercase text-muted-foreground">Confiança</div>
                 <div className={cn("text-3xl font-extrabold font-mono", scoreColor(selected.match_score))}>
-                  {selected.match_score != null ? `${selected.match_score}%` : "—"}
+                  {selected.match_score != null && Number(selected.match_score) > 0 ? `${Math.round(Number(selected.match_score) * 10) / 10}%` : "—"}
                 </div>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
