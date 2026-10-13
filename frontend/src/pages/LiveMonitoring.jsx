@@ -10,7 +10,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { DoorOpen, Radio } from "lucide-react";
+import { useOpenRecord } from "@/components/registry/useRegistryData";
+import { DoorOpen, Pencil, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export default function LiveMonitoring() {
   const [filterResult, setFilterResult] = useState("all");
   const [unlockDoor, setUnlockDoor] = useState(null);
   const [reason, setReason] = useState("");
+  const openRecord = useOpenRecord();
 
   useEffect(() => {
     api.get("/events?limit=30").then(({ data }) => setSeed(data.items));
@@ -161,6 +163,12 @@ export default function LiveMonitoring() {
                 <Row label="Resultado" value={<ResultBadge result={selected.access_result} />} />
                 {selected.reason && <Row label="Motivo" value={selected.reason} />}
               </dl>
+              {selected.person_id && (
+                <Button variant="outline" className="mt-4 w-full" data-testid="inspector-edit-record"
+                  onClick={() => openRecord(selected.person_type === "visitante" ? "visitor" : "person", selected.person_id)}>
+                  <Pencil className="mr-2 h-4 w-4" />Editar cadastro {selected.person_type === "visitante" ? "do visitante" : "do fixo"}
+                </Button>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Selecione um evento no feed para inspecionar.</div>
