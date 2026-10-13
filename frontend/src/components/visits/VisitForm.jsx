@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/registry/FormBits";
@@ -37,6 +39,12 @@ function Blacklist({ v, isAdmin }) {
 
 export function VisitForm({ companies, categories, onSaved }) {
   const v = useVisitForm(onSaved);
+  const [params] = useSearchParams();
+  const visitorParam = params.get("visitor");
+  const { prefill } = v;
+  useEffect(() => {
+    if (visitorParam) { prefill(visitorParam); }
+  }, [visitorParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const { hasRole } = useAuth();
   const isAdmin = hasRole("admin");
   const blocked = v.f.blacklist && (!isAdmin || v.f.blacklist_justification.trim().length < 5);

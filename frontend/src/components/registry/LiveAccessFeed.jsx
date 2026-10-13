@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
 import { ResultBadge } from "@/components/common";
+import { useOpenRecord } from "@/components/registry/useRegistryData";
 import { cn } from "@/lib/utils";
 import { Activity, UserRound } from "lucide-react";
 
@@ -10,11 +11,14 @@ const typeOf = (e) => (e.person_type === "visitante" ? "visitante" : e.person_id
 const TYPE_CLS = { fixo: "border-sky-500/40 text-sky-300", visitante: "border-amber-500/40 text-amber-300", sistema: "border-slate-500/40 text-slate-400" };
 const time = (iso) => new Date(iso).toLocaleTimeString("pt-BR");
 
-function EventRow({ e }) {
+function EventRow({ e, onOpen }) {
   const t = typeOf(e);
   const photo = e.captured_photo || e.person_photo;
+  const canOpen = t !== "sistema";
   return (
-    <div className="flex items-center gap-2.5 rounded-md border border-border bg-card/40 px-2.5 py-2 animate-in fade-in slide-in-from-top-1 duration-500" data-testid={`live-event-${e.id}`}>
+    <div role={canOpen ? "button" : undefined} tabIndex={canOpen ? 0 : undefined} title={canOpen ? "Abrir cadastro" : undefined}
+      onClick={canOpen ? () => onOpen(t === "visitante" ? "visitor" : "person", e.person_id) : undefined}
+      className={cn("flex items-center gap-2.5 rounded-md border border-border bg-card/40 px-2.5 py-2 animate-in fade-in slide-in-from-top-1 duration-500", canOpen && "cursor-pointer transition-colors hover:border-sky-500/50 hover:bg-secondary/50")} data-testid={`live-event-${e.id}`}>
       {photo ? <img src={photo} alt="" className="h-11 w-9 shrink-0 rounded object-cover" /> : <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded bg-secondary"><UserRound className="h-4 w-4" /></div>}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -36,6 +40,7 @@ export function LiveAccessFeed() {
   const { events, connected } = useRealtime();
   const [seed, setSeed] = useState([]);
   const [filter, setFilter] = useState("all");
+  const openRecord = useOpenRecord();
   useEffect(() => { api.get("/events?limit=30").then(({ data }) => setSeed(data.items || [])).catch(() => {}); }, []);
   const list = useMemo(() => {
     const seen = new Set();
@@ -60,7 +65,7 @@ export function LiveAccessFeed() {
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3" data-testid="live-feed-list">
         {list.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">Aguardando eventos…</p>}
-        {list.map((e) => <EventRow key={e.id} e={e} />)}
+        {list.map((e) => <EventRow key={e.id} e={e} onOpen={openRecord} />)}
       </div>
     </div>
   );
