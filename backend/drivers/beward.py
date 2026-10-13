@@ -271,6 +271,24 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         return await self._publish("SetDoorCondition", {"OpendoorWay": OPENDOOR_BY_MODE.get(decision_mode, 3),
                                                          "VerifyMode": verify_mode, "VerifyResetTime": reset_time})
 
+    async def _query(self, operator, info):
+        """Consulta de diagnóstico: não entra na fila se o facial estiver offline."""
+        from mqtt_bus import bus
+        if not self._dev():
+            return {"ok": False, "detail": "Informe o ID Equipamento (DeviceID)"}
+        return await bus.command(self._dev(), operator, info, online=self._online(), queue=False)
+
+    async def search_person(self, person_id):
+        return await self._query("SearchPerson", {"customId": str(person_id)[:48], "Picture": 0})
+
+    async def picture_search(self, pic_b64, min_similarity=50):
+        return await self._query("GetPictureSearch", {"MaxSimilarity": min_similarity, "MaxNum": 1,
+                                                      "picinfo": f"data:image/jpeg;base64,{pic_b64}"})
+
+    async def picture_similarity(self, pic1_b64, pic2_b64):
+        return await self._query("GetPictureSimilarity", {"picinfo1": f"data:image/jpeg;base64,{pic1_b64}",
+                                                          "picinfo2": f"data:image/jpeg;base64,{pic2_b64}"})
+
     async def get_events(self, since=None): return []
     async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa o prefixo de tópico definido em Integrações"}
     async def reboot(self): return await self._publish("RebootDevice")

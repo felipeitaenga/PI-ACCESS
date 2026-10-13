@@ -14,6 +14,9 @@ from mqtt_bus import bus, ONLINE_WINDOW
 logger = logging.getLogger("beward_ingest")
 TZ = ZoneInfo("America/Sao_Paulo")
 DEFAULT_HOURS = {"days": [1, 2, 3, 4, 5], "start": "07:00", "end": "19:00"}
+TIME_SYNC_HOURS = 24          # acerta o relógio do facial uma vez por dia
+TIME_SYNC_MIN_GAP = 600      # e ao voltar online, no máx. a cada 10 min
+STRANGER_GAP = 15            # s entre eventos de "rosto desconhecido" do mesmo facial
 NO_EVENT_MSG = "Facial online sem eventos de acesso: verifique 'Evento de Identificação = enviar com imagem' no painel do equipamento."
 
 
@@ -43,6 +46,30 @@ async def raise_alarm(ctrl, atype, message, priority="baixa", ap=None):
     await manager.broadcast({"type": "alarm", "data": alarm})
 
 
+def _age_s(iso):
+    try:
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(iso)).total_seconds()
+    except (TypeError, ValueError):
+        return 1e12
+
+
+async def sync_time(ctrl, force=False):
+    """Acerta data/hora do facial (validade de visitantes depende do relógio do equipamento)."""
+    if not force and _age_s(ctrl.get("time_synced_at")) < TIME_SYNC_MIN_GAP:
+        return {"ok": True, "skipped": True}
+    from drivers.factory import get_driver
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_synced_at": now_iso()}})
+    try:
+        r = await asyncio.wait_for(get_driver(ctrl).set_datetime(), 20)
+    except Exception as e:  # noqa: BLE001
+        r = {"ok": False, "detail": str(e)[:120] or "timeout"}
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_sync_ok": bool(r.get("ok")),
+                                                                 "time_sync_detail": str(r.get("detail") or "")[:200]}})
+    if not r.get("ok"):
+        logger.warning(f"SetSysTime {ctrl.get('name')}: {r}")
+    return r
+
+
 async def heartbeat(dev, online=True, ip=None):
     ctrl = await controller_by_device(dev)
     if not ctrl:
@@ -59,7 +86,36 @@ async def heartbeat(dev, online=True, ip=None):
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})
     if online and not was_online and ctrl.get("brand") == "beward_mqtt":
         asyncio.create_task(bus.flush_queue(dev))
+        asyncio.create_task(sync_time(ctrl))
     return ctrl
+
+
+async def stranger(ctrl, info):
+    """Rosto não reconhecido (StrSnapPush) vira evento negado, com a foto capturada."""
+    if _age_s(ctrl.get("last_stranger_at")) < STRANGER_GAP:
+        return None
+    key = dedup_key(ctrl.get("beward_device_id"), f"snap-{info.get('SnapID') or info.get('time')}", "stranger")
+    if await db.beward_dedup.find_one({"_id": key}):
+        return None
+    await db.beward_dedup.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"last_stranger_at": now_iso(), "last_event_at": now_iso(),
+                                                                 "no_event_alerted": False}})
+    ap = await access_point_of(ctrl)
+    pic = info.get("pic") or ""
+    if pic and not pic.startswith("data:") and not pic.startswith("http"):
+        pic = f"data:image/jpeg;base64,{pic}"
+    dev_dir = norm_direction(info.get("direction"))
+    ev = {"id": new_id(), "timestamp": now_iso(), "site_id": ctrl.get("site_id"), "site_name": ctrl.get("site_name", ""),
+          "area_id": (ap or {}).get("dest_area_id"), "area_name": (ap or {}).get("dest_area_name", ""),
+          "door_id": (ap or {}).get("id"), "door_name": (ap or {}).get("description") or ctrl.get("name"),
+          "controller_id": ctrl["id"], "device_id": ctrl["id"], "person_id": None, "person_name": "Desconhecido",
+          "person_type": "", "company_name": "", "person_photo": "", "captured_photo": pic, "credential_type": "facial",
+          "direction": dev_dir or (ap or {}).get("direction", "entrada"), "access_result": "denied",
+          "reason": "Rosto não reconhecido (não cadastrado no facial ou foto incompatível)",
+          "match_score": 0, "via": "mqtt", "stranger": True, "company_id": None}
+    await db.access_events.insert_one(dict(ev))
+    await manager.broadcast({"type": "access_event", "data": ev})
+    return ev
 
 
 async def _check_direction(ctrl, ap, dev_dir):
@@ -152,7 +208,10 @@ async def on_mqtt(topic, op, data, dev):
                               "info": {"facesluiceId": str(dev), "PushAckType": "2" if op == "RecPush" else "1",
                                        "SnapOrRecordID": str(rid or "")}})
         ctrl = await heartbeat(dev, True)
-        if not ctrl or op != "RecPush":
+        if not ctrl:
+            return
+        if op == "StrSnapPush":
+            await stranger(ctrl, info)
             return
         res = await record(ctrl, _rec_from_mqtt(info), "mqtt")
         if res.get("decided_online"):
@@ -191,6 +250,8 @@ async def watch_once():
         online = bool(hb) and (now - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW
         if c.get("online") != online and hb:
             await db.controllers.update_one({"id": c["id"]}, {"$set": {"online": online}})
+        if online and c.get("brand") == "beward_mqtt" and _age_s(c.get("time_synced_at")) > TIME_SYNC_HOURS * 3600:
+            await sync_time(c)
         hours = (sites.get(c.get("site_id")) or {}).get("business_hours") or DEFAULT_HOURS
         if not online or c.get("no_event_alerted") or not in_business_hours(now, hours):
             continue

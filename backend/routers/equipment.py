@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Request
 from database import db
 from scope import stamp_event
@@ -123,7 +124,11 @@ async def test_controller(cid: str, user: dict = Depends(get_current_user)):
     status = await driver.get_status()
     info = await driver.get_device_info()
     await db.controllers.update_one({"id": cid}, {"$set": {"online": ok, "firmware": info.get("firmware", ""), "last_heartbeat": now_iso()}})
-    return {"ok": ok, "status": status, "info": info}
+    clock = None
+    if ok and ctrl.get("model_type") == "beward_facial":
+        from beward_ingest import sync_time
+        clock = await sync_time(ctrl, force=True)
+    return {"ok": ok, "status": status, "info": info, "clock": clock}
 
 
 @router.post("/controllers/{cid}/sync")
@@ -144,19 +149,35 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
                       "access_rules": len(cats), "people": len(people)},
            "total": len(people), "success": 0, "errors": []}
     await driver.sync_access_rules()
-    for p in people:
-        r = await driver.sync_person(p)
+    # visitantes com visita ativa também vão para o facial (com a validade da visita)
+    from visits_core import visit_subject, ACTIVE
+    subjects = list(people)
+    async for v in db.visits.find({"deleted": {"$ne": True}, "status": {"$in": list(ACTIVE)}}, {"_id": 0}):
+        vis = await db.visitors.find_one({"id": v["visitor_id"], "deleted": {"$ne": True}}, {"_id": 0})
+        if vis:
+            subjects.append(visit_subject(vis, v))
+    job["total"] = job["totals"]["people"] = len(subjects)
+    for p in subjects:
+        try:
+            r = await asyncio.wait_for(driver.sync_person(p), 45)
+            if r.get("ok") and p.get("photo"):
+                f = await asyncio.wait_for(driver.sync_face(p["id"], p["photo"]), 15) or {}
+                if not f.get("ok"):
+                    r = {"ok": False, "detail": "foto: " + str(f.get("detail") or f.get("error") or "falha")}
+        except Exception as e:  # noqa: BLE001
+            r = {"ok": False, "detail": str(e)[:120] or "timeout"}
         if r.get("ok"):
             job["success"] += 1
-            if p.get("photo"):
-                await driver.sync_face(p["id"], p["photo"])
         else:
-            job["errors"].append({"person_id": p["id"], "name": p.get("name"), "error": "falha"})
+            job["errors"].append({"person_id": p["id"], "name": p.get("name"),
+                                  "error": str(r.get("detail") or r.get("error") or "falha")[:200]})
+    if job["errors"]:
+        job["status"] = "erro"
     job["finished_at"] = now_iso()
     await db.sync_jobs.insert_one(dict(job))
     job.pop("_id", None)
     await log_audit(user, "sincronizar", "controllers", cid,
-                    f"TZ:{len(trs)} Áreas:{len(areas)} Pontos:{len(aps)} Regras:{len(cats)} Pessoas:{job['success']}/{len(people)}",
+                    f"TZ:{len(trs)} Áreas:{len(areas)} Pontos:{len(aps)} Regras:{len(cats)} Pessoas:{job['success']}/{job['total']}",
                     client_ip(request))
     return job
 
