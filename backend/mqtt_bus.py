@@ -142,8 +142,10 @@ class MqttBus:
         self.client.publish(f"{self.prefix}/{device_id}", json.dumps(payload), qos=1)
         return True
 
-    async def command(self, device_id, operator, info=None, online=True):
-        """Publica comando com messageId; espera Ack (10 s). Offline => fila."""
+    async def command(self, device_id, operator, info=None, online=True, queue=True):
+        """Publica comando com messageId; espera Ack (10 s). Offline => fila (se queue)."""
+        if not queue and not (self.connected and online):
+            return {"ok": False, "detail": "broker MQTT desconectado" if not self.connected else "facial offline"}
         mid = f"nx-{int(time.time() * 1000)}-{new_id()[:6]}"
         msg = {"operator": operator, "messageId": mid, "info": {"facesluiceId": str(device_id), **(info or {})}}
         rec = {"id": new_id(), "messageId": mid, "device_id": str(device_id), "operator": operator,
@@ -162,8 +164,11 @@ class MqttBus:
             ack = await asyncio.wait_for(fut, ACK_TIMEOUT_BY_OP.get(operator, ACK_TIMEOUT))
         except asyncio.TimeoutError:
             self.pending.pop(mid, None)
-            await db.mqtt_commands.update_one({"messageId": mid}, {"$set": {"status": "queued", "detail": "sem Ack"}})
             t = ACK_TIMEOUT_BY_OP.get(operator, ACK_TIMEOUT)
+            await db.mqtt_commands.update_one({"messageId": mid}, {"$set": {"status": "queued" if queue else "sem_ack",
+                                                                         "detail": "sem Ack"}})
+            if not queue:
+                return {"ok": False, "detail": f"sem Ack do facial em {t} s"}
             return {"ok": False, "queued": True, "detail": f"sem Ack do facial em {t} s — comando na fila"}
         code = str(ack.get("code", "200"))
         ainfo = ack.get("info") or {}

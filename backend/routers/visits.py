@@ -311,6 +311,62 @@ async def scheduled(days: int = 30, user: dict = Depends(get_current_user)):
     return items
 
 
+async def _check_controller(ctrl, visitor, visit, since):
+    from drivers.factory import get_driver
+    drv = get_driver(ctrl)
+    out = {"controller_id": ctrl["id"], "name": ctrl.get("name"), "online": await drv.connect(),
+           "expected": {"begin": visit_subject(visitor, visit)["card_valid_begin"],
+                        "end": visit_subject(visitor, visit)["card_valid_end"]},
+           "time_synced_at": ctrl.get("time_synced_at"), "time_sync_ok": ctrl.get("time_sync_ok")}
+    if not out["online"]:
+        out["error"] = "Facial offline ou broker MQTT desconectado"
+        return out
+    r = await drv.search_person(visitor["id"])
+    info = r.get("info") or {}
+    out["on_device"] = bool(r.get("ok"))
+    out["device_person"] = {k: info.get(k) for k in ("name", "customId", "personId", "tempCardType", "cardValidBegin",
+                                                    "cardValidEnd", "personType") if k in info}
+    out["search_detail"] = "" if r.get("ok") else f"{r.get('code', '')} {r.get('detail', '')}".strip()
+    snap = await db.access_events.find_one({"controller_id": ctrl["id"], "stranger": True, "timestamp": {"$gte": since},
+                                            "captured_photo": {"$nin": ["", None]}}, {"_id": 0, "timestamp": 1, "captured_photo": 1},
+                                           sort=[("timestamp", -1)])
+    if not snap:
+        return out
+    from drivers.beward_common import prepare_photo
+    cap = prepare_photo(snap["captured_photo"], max_bytes=200_000)
+    reg = prepare_photo(visitor.get("photo") or "", max_bytes=200_000)
+    out["stranger_at"] = snap["timestamp"]
+    s = await drv.picture_search(cap)
+    out["library_match"] = {"ok": bool(s.get("ok")), "code": s.get("code", ""), "detail": s.get("detail", ""),
+                            "info": {k: v for k, v in (s.get("info") or {}).items() if k != "facesluiceId"}}
+    if reg:
+        p = await drv.picture_similarity(reg, cap)
+        out["similarity_registered_vs_capture"] = {"ok": bool(p.get("ok")), "code": p.get("code", ""),
+                                                   "detail": p.get("detail", ""),
+                                                   "similarity": (p.get("info") or {}).get("Similarity")}
+    return out
+
+
+@router.post("/{visit_id}/device-check")
+async def device_check(visit_id: str, request: Request, user: dict = Depends(require_role(*WRITE))):
+    """Diagnóstico: a pessoa está no facial? A última captura de desconhecido bate com a foto cadastrada?"""
+    visit = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")
+    visitor = await db.visitors.find_one({"id": visit["visitor_id"]}, {"_id": 0})
+    if not visitor:
+        raise HTTPException(status_code=404, detail="Visitante não encontrado")
+    since = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+    ctrls = await db.controllers.find({**ND, "enabled": {"$ne": False}, "brand": "beward_mqtt"}, {"_id": 0}).to_list(50)
+    results = []
+    for c in ctrls:
+        try:
+            results.append(await _check_controller(c, visitor, visit, since))
+        except Exception as e:  # noqa: BLE001
+            results.append({"controller_id": c["id"], "name": c.get("name"), "error": str(e)[:160] or "falha"})
+    await log_audit(user, "diagnostico-facial", "visit", visit_id, visit.get("visitor_name", ""), client_ip(request))
+    return {"visitor_id": visitor["id"], "visitor_name": visitor.get("name"), "has_photo": bool(visitor.get("photo")),
+            "controllers": results}
+
+
 @router.post("/{visit_id}/cancel")
 async def cancel(visit_id: str, request: Request, user: dict = Depends(require_role(*WRITE))):
     v = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")

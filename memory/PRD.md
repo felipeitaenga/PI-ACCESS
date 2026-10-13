@@ -147,6 +147,12 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] iteration_16: testes A–K OK (19/19 backend, telas 390px OK). Teste: backend/tests/test_selfreg_flow.py.
 - [ ] Facial Beward 1457460 (pilares): o sistema nunca envia SetSysTime nem SetDoorCondition (código sem chamada); StrSnapPush (rosto desconhecido) não vira access_event. O facial não publicava no broker durante a verificação.
 
+## v1.4.6 + visitante "Desconhecido" no facial (2026-10-12)
+- [x] Main 1.4.6 trazida (sync_time, StrSnapPush como evento, sincronização completa com visitantes).
+- [x] visits_core.release_visitor: o fim/check-out/cancelamento de uma visita não apaga do facial se o visitante tiver outra visita ativa; reenvia com a validade da visita ativa (o facial usa o ID do visitante, não o da visita).
+- [x] POST /api/visits/{id}/device-check + botão "Verificar no facial" (PresentNow): SearchPerson, GetPictureSearch e GetPictureSimilarity (captura "Desconhecido" × foto cadastrada). Consultas não entram na fila MQTT (bus.command queue=False).
+- [x] iteration_17: backend 6/6 + regressão OK, frontend OK.
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.

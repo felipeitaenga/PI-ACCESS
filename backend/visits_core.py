@@ -126,14 +126,22 @@ async def visitor_person(ref):
     return {**visit_subject(v, visit), "photo": v.get("photo_thumb", "")}
 
 
+async def release_visitor(visitor_id, name, label):
+    """Remove do facial; se o visitante ainda tiver outra visita ativa, reenvia com a validade dela."""
+    visitor = await db.visitors.find_one({"id": visitor_id}, {"_id": 0}) or {"id": visitor_id, "name": name}
+    other = await db.visits.find_one({**ND, "visitor_id": visitor_id, "status": {"$in": list(ACTIVE)}},
+                                     {"_id": 0}, sort=[("end_at", -1)])
+    if other and visitor.get("photo") and not visitor.get("blacklist"):
+        return await sync_to_devices(visit_subject(visitor, other), f"{label} (mantido: outra visita ativa)")
+    return await sync_to_devices(visitor, label, remove=True)
+
+
 async def end_visit(visit, status, reason, user_label="sistema"):
     """Encerra a visita, remove do facial e registra no histórico."""
     now = now_iso()
     await db.visits.update_one({"id": visit["id"]}, {"$set": {"status": status, "ended_at": now, "end_reason": reason,
                                                               **({"checkout_at": now} if status == "finalizado" else {})}})
-    visitor = await db.visitors.find_one({"id": visit["visitor_id"]}, {"_id": 0, "photo": 0}) or \
-        {"id": visit["visitor_id"], "name": visit.get("visitor_name", "")}
-    sync = await sync_to_devices(visitor, "Fim da visita", remove=True)
+    sync = await release_visitor(visit["visitor_id"], visit.get("visitor_name", ""), "Fim da visita")
     await db.visit_history.insert_one({"id": new_id(), "visit_id": visit["id"], "visitor_id": visit["visitor_id"],
                                        "visitor_name": visit.get("visitor_name"), "action": status, "reason": reason,
                                        "by": user_label, "at": now, "sync": sync})
