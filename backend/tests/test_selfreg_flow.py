@@ -15,9 +15,14 @@ from pathlib import Path
 import pytest
 import requests
 
+_LOOP = asyncio.new_event_loop()
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from database import db  # noqa: E402
+from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
+
+asyncio.set_event_loop(_LOOP)
+db = AsyncIOMotorClient(os.environ["MONGO_URL"], io_loop=_LOOP)[os.environ["DB_NAME"]]
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://nx-access-demo.preview.emergentagent.com").rstrip("/")
 API = f"{BASE}/api"
@@ -50,7 +55,7 @@ async def _mongo_clear_rate():
 
 
 def clear_rate():
-    asyncio.get_event_loop().run_until_complete(_mongo_clear_rate())
+    _LOOP.run_until_complete(_mongo_clear_rate())
 
 
 def valid_cpf(seed=12345678):
@@ -100,7 +105,7 @@ def host_person(admin, companies):
     # pick a person from first company
     cid = companies[0]["id"]
     # Query people directly via Mongo (API is paginated/global)
-    loop = asyncio.get_event_loop()
+    loop = _LOOP
     async def find():
         return await db.people.find({"company_id": cid, "status": "ativo",
                                      "can_authorize_visits": {"$ne": False},
@@ -250,11 +255,11 @@ class TestC_Approval:
             "photo": face_dataurl()})
         assert r.status_code == 200, r.text
         # find request id
-        asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.3))
+        _LOOP.run_until_complete(asyncio.sleep(0.3))
         async def find():
             return await db.self_registrations.find_one({"status_token_hash": _sha(r.json()["status_token"])},
                                                         {"_id": 0, "id": 1})
-        reg = asyncio.get_event_loop().run_until_complete(find())
+        reg = _LOOP.run_until_complete(find())
         assert reg
         return reg["id"], cpf
 
@@ -273,7 +278,7 @@ class TestC_Approval:
         rid, cpf = self._create_pending(admin, 20020002, "C2")
         # inject a known decision_token
         tok = "TESTtokenC2_" + os.urandom(6).hex()
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         loop.run_until_complete(db.self_registrations.update_one(
             {"id": rid}, {"$set": {"decision_token_hash": _sha(tok)}}))
         # GET view
@@ -292,7 +297,7 @@ class TestC_Approval:
     def test_host_link_does_not_change_end_at(self, admin):
         rid, cpf = self._create_pending(admin, 20030003, "C3")
         tok = "TESTtokenC3_" + os.urandom(6).hex()
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         loop.run_until_complete(db.self_registrations.update_one(
             {"id": rid}, {"$set": {"decision_token_hash": _sha(tok)}}))
         original = loop.run_until_complete(db.self_registrations.find_one({"id": rid}, {"_id": 0, "end_at": 1}))
@@ -315,7 +320,7 @@ class TestC_Approval:
         t1.start(); t2.start(); t1.join(); t2.join()
         codes = sorted([v[0] for v in results.values()])
         assert codes == [200, 409], f"expected [200,409], got {codes} {results}"
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         async def count():
             visitor = await db.visitors.find_one({"doc_key": re.sub(r"\D", "", cpf)}, {"_id": 0, "id": 1})
             if not visitor:
@@ -398,7 +403,7 @@ class TestE_Reject:
             "doc_type": "cpf", "doc_number": cpf, "host_person_id": host["id"],
             "photo": face_dataurl()})
         assert r.status_code == 200
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         reg = loop.run_until_complete(db.self_registrations.find_one(
             {"status_token_hash": _sha(r.json()["status_token"])}, {"_id": 0, "id": 1}))
         rid = reg["id"]
@@ -420,7 +425,7 @@ class TestF_Blacklist:
         clear_rate()
         cpf = valid_cpf(60060006)
         # 1) Create blacklisted visitor manually
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         from models import new_id
         vid = new_id()
         loop.run_until_complete(db.visitors.insert_one({
@@ -476,7 +481,7 @@ class TestG_ManagerScope:
         # Create second company for scope test
         import uuid
         cidB = str(uuid.uuid4())
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         loop.run_until_complete(db.companies.insert_one({
             "id": cidB, "name": "TEST_EmpresaB", "enabled": True, "selfreg_enabled": False,
             "deleted": False, "created_at": datetime.now(timezone.utc).isoformat()}))
@@ -539,7 +544,7 @@ class TestH_Scheduled:
             "doc_type": "cpf", "doc_number": valid_cpf(80080008),
             "host_person_id": host["id"], "start_at": start, "photo": face_dataurl()})
         assert r.status_code == 200
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         reg = loop.run_until_complete(db.self_registrations.find_one(
             {"status_token_hash": _sha(r.json()["status_token"])}, {"_id": 0, "id": 1}))
         ap = recep.post(f"{API}/selfreg/requests/{reg['id']}/approve", json={})
@@ -567,7 +572,7 @@ class TestI_NoSMTP:
         info = requests.get(f"{API}/public/selfreg/info", params={"code": pytest.selfreg_code}).json()
         assert info["otp"] is False
         # notifications table should have error entries from prior sends
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         n = loop.run_until_complete(db.notifications.count_documents(
             {"error": {"$regex": "SMTP não configurado"}}))
         assert n >= 1, "expected 'SMTP não configurado' notifications but found 0"
@@ -578,7 +583,7 @@ class TestJ_Retention:
     def test_retention_tick(self, admin):
         from models import new_id
         from selfreg_core import retention_tick
-        loop = asyncio.get_event_loop()
+        loop = _LOOP
         now = datetime.now(timezone.utc)
         # (a) comum com visita finalizada há 40 dias
         vid1 = new_id()
@@ -654,7 +659,7 @@ class TestJ_Retention:
 # ============ Cleanup ============
 def test_zzz_cleanup(admin):
     s, _ = admin
-    loop = asyncio.get_event_loop()
+    loop = _LOOP
 
     async def do():
         # restore company A to disabled selfreg (original) — admin test req says restore

@@ -217,7 +217,7 @@ async def checkout(visit_id: str, request: Request, user: dict = Depends(require
     if v["status"] != "presente":
         raise HTTPException(status_code=400, detail="Visitante não está presente")
     await db.visits.update_one({"id": visit_id}, {"$set": {"status": "finalizado", "checkout_at": now_iso()}})
-    visitor = await db.visitors.find_one({"id": v["visitor_id"]}, {"_id": 0}) or {"id": v["visitor_id"], "name": v["visitor_name"]}
-    await sync_to_devices(visitor, "Check-out", remove=True)
+    from visits_core import release_visitor
+    await release_visitor(v["visitor_id"], v["visitor_name"], "Check-out")
     await log_audit(user, "checkout", "visit", visit_id, v["visitor_name"], client_ip(request))
     return {"ok": True}
