@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { LgpdEraseButton } from "@/components/registry/LgpdEraseButton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PhotoBlock } from "@/components/registry/PhotoBlock";
@@ -155,7 +156,8 @@ export function PersonForm({ request, companies, categories, departments, onSave
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="person-form">
-      <FormHeader form={form} editId={editId} dirty={dirty} set={set} onDelete={hasRole("admin", "operator") ? remove : null} visitAction={visitAction} />
+      <FormHeader form={form} editId={editId} dirty={dirty} set={set} onDelete={hasRole("admin", "operator") ? remove : null} visitAction={visitAction}
+        lgpd={hasRole("admin") && editId ? <LgpdEraseButton kind={form.person_type === "visitante" ? "visitor" : "person"} id={form.person_type === "visitante" ? (form.visitor_id || editId) : editId} name={form.name} onDone={() => { reset(emptyForm(form.person_type)); onSaved(); }} /> : null} />
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         <TypeSelector value={form.person_type} onChange={changeType} disabled={!!editId} allowed={allowedTypes} />
         {form.blacklist && (
@@ -210,7 +212,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
   );
 }
 
-function FormHeader({ form, editId, dirty, set, onDelete, visitAction }) {
+function FormHeader({ form, editId, dirty, set, onDelete, visitAction, lgpd }) {
   const visitor = form.person_type === "visitante";
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
@@ -232,6 +234,7 @@ function FormHeader({ form, editId, dirty, set, onDelete, visitAction }) {
         </Select>
       )}
       {!visitor && editId && onDelete && <Button size="icon" variant="ghost" className="text-red-400" onClick={onDelete} data-testid="form-delete-button"><Trash2 className="h-4 w-4" /></Button>}
+      {lgpd}
     </div>
   );
 }

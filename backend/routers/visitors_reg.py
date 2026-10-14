@@ -8,7 +8,7 @@ from models import new_id, now_iso
 from photo_quality import make_thumb
 from registry_common import ND, only_digits, valid_cpf, fmt_cpf, today, refresh_expired, sync_to_devices
 from util import log_audit, client_ip
-from scope import scope_filter, find_scoped
+from scope import scope_filter, find_scoped, own_company_or_404
 
 router = APIRouter(prefix="/registry", tags=["registry-visitors"])
 WRITE = ("admin", "operator", "reception")
@@ -77,9 +77,10 @@ async def list_visitors(origin: str = "", host_company: str = "", today_only: st
     if origin:
         query["origin_company"] = "" if origin == "Sem empresa" else origin
     if host_company:
+        own_company_or_404(user, host_company)
         want = "" if host_company == "none" else host_company
         visits = await _visits_by_host(await scope_filter(user, "visits"))
-        query["id"] = {"$in": list({v["visitor_id"] for v in visits if v["_cid"] == want})}
+        query["$and"] = query.get("$and", []) + [{"id": {"$in": list({v["visitor_id"] for v in visits if v["_cid"] == want})}}]
     if q:
         query["$or"] = [{"name": {"$regex": re.escape(q), "$options": "i"}}, {"document": {"$regex": re.escape(q), "$options": "i"}},
                         {"doc_number": {"$regex": re.escape(q), "$options": "i"}}]

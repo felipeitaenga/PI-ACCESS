@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { LgpdEraseButton } from "@/components/registry/LgpdEraseButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/registry/FormBits";
@@ -42,6 +43,7 @@ function Blacklist({ v, isAdmin }) {
 export function VisitForm({ companies, categories, onSaved }) {
   const v = useVisitForm(onSaved);
   const [params] = useSearchParams();
+  const nav = useNavigate();
   const visitorParam = params.get("visitor");
   const captureParam = params.get("capture");
   const { prefill, clear, set } = v;
@@ -80,6 +82,7 @@ export function VisitForm({ companies, categories, onSaved }) {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={v.clear} data-testid="visit-clear-button"><Eraser className="mr-2 h-4 w-4" />Limpar</Button>
           <Button variant="outline" disabled={!active} onClick={v.endVisit} className="text-amber-300" data-testid="visit-end-button"><LogOut className="mr-2 h-4 w-4" />Encerrar visita</Button>
+          {isAdmin && visitorParam && v.f.name && <LgpdEraseButton kind="visitor" id={visitorParam} name={v.f.name} onDone={() => { v.clear(); nav("/cadastro/visitantes"); onSaved?.(); }} />}
           <div className="flex-1" />
           <Button variant="outline" disabled={v.busy || blocked} onClick={() => v.save(true)} data-testid="visit-save-new-button"><SaveAll className="mr-2 h-4 w-4" />Salvar e novo</Button>
           <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={v.busy || blocked} onClick={() => v.save(false)} data-testid="visit-save-button"><Save className="mr-2 h-4 w-4" />Salvar</Button>
