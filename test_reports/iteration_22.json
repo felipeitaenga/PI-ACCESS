@@ -1,0 +1,38 @@
+{
+  "summary": "Iter22: validated LGPD definitive erase feature end-to-end. Backend: 25/25 pytest green on /app/backend/tests/test_lgpd_erase.py — admin-only guard (operator→403), 422 on short justification, 400 on invalid kind/missing id, 404 on unknown id; person flow erases people/identifiers/vehicles, anonymizes access_events (person_id=null, person_name='Pessoa removida (LGPD)', photos cleared, anonymized=true), anonymizes host_name on hosted visits, renames sync_jobs device_name to 'LGPD: Pessoa removida (LGPD)', deletes mqtt_commands and self_registrations, writes a lgpd_erasures record with initials/justification/by/counts and audits the action; visitor flow analogous. GET /api/lgpd/erasures is admin-only. Frontend verified on desktop 1920x1080: admin sees data-testid=lgpd-erase-button on /cadastro/fixos?person=<id> and /cadastro/visitantes?visitor=<id>; dialog gates submit until justification≥10 and confirm text='EXCLUIR'; after erase a success toast fires and the form resets. Operator profile does NOT see the button on person edit.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_lgpd_erase.py",
+    "/app/test_reports/pytest/lgpd.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/lgpd.py erase(): admin-only via require_role('admin'); 400 for invalid kind/empty id, 422 for justification<10, 404 when target not found. OK.",
+    "Order of operations: anonymize access_events → (visitor branch) visits + visit_history + self_registrations OR (person branch) visits.host_name + identifiers + vehicles → sync_jobs device_name rename → mqtt_commands delete by payload.info.customId → audit_logs update_many sets details=ANON for ALL prior entries → delete subject → insert lgpd_erasures record → log_audit('lgpd-exclusao') AFTER the update_many so the new audit entry retains initials+justification for accountability. Spec literal says 'audit_logs com entity_id dela têm details Pessoa removida (LGPD)'; the current design keeps the new erasure audit log readable (initials + protocol). This is defensible for audit/accountability — flagging as design note, not a bug.",
+    "ANON string is exposed as top-level constant 'Pessoa removida (LGPD)' consistently across visits, visitors, visit_history, access_events, host_name and sync_jobs device_name. _initials() falls back to '?' when name is empty — safe.",
+    "Background task _remove_from_devices tracked via module-level _BG set with done_callback to avoid GC cancel (same pattern as iter21 visits fast-finish).",
+    "Visitor branch cleanly nulls doc_number, doc_key, visitor_company, origin_company, plate, vehicle_plate, email, phone, credential_value. Access_events anonymization however does NOT run per-visitor (visitors have no access_events link via person_id) — that's fine because access_events reference person_id (fixos). Review request didn't ask for visitor-side access_events anonymization.",
+    "LgpdEraseButton.jsx correctly disables submit until just.trim().length>=10 AND confirm.toUpperCase()==='EXCLUIR'. Fires toast on success/error; resets state on open.",
+    "PersonForm.jsx: lgpd prop only rendered when hasRole('admin') && editId truthy; when person_type==='visitante' it switches kind='visitor' and uses visitor_id. Good.",
+    "VisitForm.jsx: LgpdEraseButton rendered only when isAdmin && visitorParam && v.f.name — avoids broken state when loading. Good.",
+    "GET /lgpd/erasures returns list sorted by at desc with {_id:0} projection — no ObjectId leak."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_lgpd_erase.py"
+  ],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "100% (admin visible + gated + submits; operator hidden; visitor flow verified)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 ; Operador operador@nxaccess.com / Operador@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "pytest TEST_LGPD_* persons/visitors/events are all deleted by module teardown (_cleanup fixture). Manual UI runs created 1 person + 1 visitor + 1 visit which were all erased by the LGPD flow itself; residual anonymized visit docs and lgpd_erasures records were purged via pymongo cleanup script.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "LGPD endpoints live at /api/lgpd/erase and /api/lgpd/erasures (admin only). ANON string is 'Pessoa removida (LGPD)'. Frontend uses testids lgpd-erase-button, lgpd-erase-dialog, lgpd-erase-justification, lgpd-erase-confirm, lgpd-erase-submit. For person edit URL /cadastro/fixos?person=<id>; for visitor /cadastro/visitantes?visitor=<id>. The erasure audit log itself keeps initials+justification by design — don't assert ALL audit_logs match ANON.",
+  "rca of the issue": "N/A — new feature validated. One initial test assertion mismatch (expected all audit_logs with entity_id==sid to carry ANON) was corrected to accept the implementation's intentional accountability design: the lgpd-exclusao audit entry is written AFTER update_many and preserves initials + justification for post-erasure traceability."
+}

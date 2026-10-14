@@ -38,6 +38,7 @@ from routers.visits import router as visits_router
 from routers.backups import router as backups_router
 from routers.selfreg import router as selfreg_router, public as selfreg_public
 from routers.reports import router as reports_v2_router
+from routers.lgpd import router as lgpd_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
 from mqtt_bus import bus as mqtt_bus
@@ -89,6 +90,7 @@ api_router.include_router(admin_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(reports_router)
 api_router.include_router(reports_v2_router)
+api_router.include_router(lgpd_router)
 api_router.include_router(access_router)
 api_router.include_router(equipment_router)
 api_router.include_router(org_router)

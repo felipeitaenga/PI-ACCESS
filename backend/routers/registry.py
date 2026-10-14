@@ -8,7 +8,7 @@ from registry_common import (ND, only_digits, valid_cpf, fmt_cpf, today, in_days
                              inside_area_ids, refresh_expired, sync_to_devices)
 from util import log_audit, client_ip
 from visits_core import get_settings, validate_doc, doc_key, DOC_TYPES
-from scope import scope_filter, find_scoped, require_company, is_manager, allowed_ids
+from scope import scope_filter, find_scoped, require_company, is_manager, allowed_ids, own_company_or_404
 
 router = APIRouter(prefix="/registry", tags=["registry"])
 WRITE = ("admin", "operator", "reception", "company_manager")
@@ -90,6 +90,7 @@ async def list_people(company_id: str = "", q: str = "", status: str = "", categ
     if authorize == "true":
         query["can_authorize_visits"] = {"$ne": False}
     if company_id:
+        own_company_or_404(user, company_id)
         query["company_id"] = company_id
     if scope:
         query["$and"] = [scope]
