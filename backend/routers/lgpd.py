@@ -43,6 +43,10 @@ async def erase(body: dict, request: Request, user: dict = Depends(require_role(
         {"person_id": sid}, {"$set": {"person_id": None, "person_name": ANON, "person_photo": "", "captured_photo": "",
                                       "document": "", "person_document": "", "anonymized": True}})).modified_count
     if kind == "visitor":
+        # visitas em andamento são encerradas antes de anonimizar (o facial é limpo em segundo plano)
+        n["visitas_encerradas"] = (await db.visits.update_many(
+            {"visitor_id": sid, "status": {"$in": ["agendado", "presente"]}},
+            {"$set": {"status": "cancelado", "ended_at": now_iso(), "end_reason": "Exclusão LGPD"}})).modified_count
         n["visitas"] = (await db.visits.update_many(
             {"visitor_id": sid}, {"$set": {"visitor_id": None, "visitor_name": ANON, "visitor_document": "", "doc_number": "",
                                            "doc_key": "", "visitor_company": "", "origin_company": "", "plate": "",
