@@ -11,9 +11,14 @@ export function PresentNow({ refreshKey, onChanged }) {
   const [checking, setChecking] = useState(null);
   const load = useCallback(() => api.get("/visits/present").then(({ data }) => setItems(data)).catch(() => {}), []);
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load, refreshKey]);
+  const [leaving, setLeaving] = useState(null);
   const checkout = async (v) => {
-    try { await api.post(`/visits/${v.id}/end`); toast.success(`Check-out de ${v.visitor_name}`); load(); onChanged?.(); }
+    if (leaving) { return; }
+    setLeaving(v.id);
+    setItems((list) => list.filter((x) => x.id !== v.id));
+    try { await api.post(`/visits/${v.id}/end`); toast.success(`Check-out de ${v.visitor_name}`); onChanged?.(); }
     catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    finally { setLeaving(null); load(); }
   };
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="present-now">

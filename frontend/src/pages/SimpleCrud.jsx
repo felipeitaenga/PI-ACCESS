@@ -2,13 +2,13 @@ import CrudPage, { enabledBadge } from "@/components/CrudPage";
 import { CompanyAccess } from "@/components/CompanyAccess";
 
 const COMP_TYPES = [
-  { value: "propria", label: "Própria" }, { value: "terceirizada", label: "Terceirizada" },
+  { value: "propria", label: "Fixos" }, { value: "terceirizada", label: "Terceirizada" },
   { value: "transportadora", label: "Transportadora" }, { value: "cliente", label: "Cliente" },
 ];
 
 export function Companies() {
   return (
-    <CrudPage title="Empresas" subtitle="Próprias, terceirizadas, transportadoras e clientes" endpoint="/org/companies"
+    <CrudPage title="Empresas" subtitle="Fixos, terceirizadas, transportadoras e clientes" endpoint="/org/companies"
       defaultForm={{ name: "", cnpj: "", trade_name: "", type: "terceirizada", contract_valid_until: "", enabled: true }}
       formFields={[
         { key: "name", label: "Razão social", full: true },
@@ -63,11 +63,11 @@ export function Vehicles() {
 
 export function Identifiers() {
   return (
-    <CrudPage title="Identificadores" subtitle="Cartões de acesso" endpoint="/cadastros/identifiers"
+    <CrudPage title="Identificadores" subtitle="Cartões de acesso e placas" endpoint="/cadastros/identifiers"
       defaultForm={{ type: "cartao", value: "", format: "Wiegand 26", active: true, enabled: true }}
       formFields={[
-        { key: "type", label: "Tipo", type: "select", options: [{ value: "cartao", label: "Cartão" }] },
-        { key: "value", label: "Número do cartão (decimal)" },
+        { key: "type", label: "Tipo", type: "select", options: [{ value: "cartao", label: "Cartão" }, { value: "placa", label: "Placa" }] },
+        { key: "value", label: "Número do cartão (decimal) ou placa" },
         { key: "hex", label: "Hexadecimal" },
         { key: "format", label: "Formato", type: "select", options: [
           { value: "Wiegand 26", label: "Wiegand 26" }, { value: "Wiegand 34", label: "Wiegand 34" }, { value: "MIFARE", label: "MIFARE" }] },

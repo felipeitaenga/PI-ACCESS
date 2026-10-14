@@ -87,15 +87,15 @@ export function VisitorsBrowse() {
   const [openSearch, searchNode] = useSearch();
   return (
     <div data-testid="page-visitors-browse">
-      <PageTop title="Visitantes" subtitle="Visitantes por empresa de origem — clique para abrir o cadastro" onSearch={openSearch} />
-      <MobileTabs tabs={[["companies", "Origem"], ["people", "Visitantes"], ["present", "Presentes"]]} tab={tab} setTab={setTab} />
+      <PageTop title="Visitantes" subtitle="Visitantes por empresa visitada — clique para abrir o cadastro" onSearch={openSearch} />
+      <MobileTabs tabs={[["companies", "Empresas"], ["people", "Visitantes"], ["present", "Presentes"]]} tab={tab} setTab={setTab} />
       <div className="grid gap-3 lg:h-[calc(100vh-13rem)] lg:grid-cols-[280px_1fr_340px]">
         <section className={panel(tab, "companies", "h-[70vh] lg:h-auto")}>
           <CompanyColumn variant="visitors" companies={d.companies} visitorData={d.visitorData} selection={sel} onSelect={(s) => { setSel(s); setTab("people"); }} />
         </section>
         <section className={panel(tab, "people", "h-[75vh] lg:h-auto")}>
           <PeopleColumn selection={sel} categories={d.categories} refreshKey={refreshKey} onOpen={openRecord}
-            onNew={(s) => nav(`/cadastro/visitantes${s.kind === "visitor_origin" ? `?origin=${encodeURIComponent(s.name)}` : ""}`)} />
+            onNew={() => nav("/cadastro/visitantes")} />
         </section>
         <section className={panel(tab, "present", "h-[70vh] lg:h-auto")}>
           <PresentVisitors refreshKey={refreshKey} onOpen={openRecord} onChanged={() => { setRefreshKey((k) => k + 1); d.reload(); }} />

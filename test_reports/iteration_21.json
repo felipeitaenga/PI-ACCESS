@@ -1,0 +1,38 @@
+{
+  "summary": "Iter21: validated fast background-synced check-out, concurrency guard, cancel, visitor_companies grouped by HOST (empresa visitada), and UI rename Propria→Fixos. Backend: 9/9 pytest green on /app/backend/tests/test_iter21_checkout_and_host_companies.py. Frontend verified on 1920x1080 desktop and 390x844 mobile.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/empresas (SimpleCrud Empresas)", "issues": ["Subtitle still reads 'Próprias, terceirizadas, transportadoras e clientes' at /app/frontend/src/pages/SimpleCrud.jsx:11 — should likely use 'Fixos' to match the new type label (type option itself is correctly rendered as 'Fixos')."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter21_checkout_and_host_companies.py",
+    "/app/test_reports/pytest/iter21.xml"
+  ],
+  "action_items": [
+    "Optional cosmetic: rename 'Próprias' → 'Fixos' in the subtitle at frontend/src/pages/SimpleCrud.jsx (CrudPage 'Empresas')."
+  ],
+  "critical_code_review_comments": [
+    "visits_core.end_visit: uses atomic db.visits.update_one with filter status in ACTIVE/from_status → modified_count==0 branch returns None, which the router converts to 400. Correctly handles concurrent double-end (verified by parallel request test: one 200 + one 400).",
+    "visits_core.end_visit with wait=False dispatches _release_and_log via asyncio.create_task and keeps a strong reference in _BG set; add_done_callback(_BG.discard) prevents the GC-cancel issue. Fast path measured <2s end-to-end from the public URL.",
+    "routers/visits.py finish() has two guard rails: (1) pre-check status in ACTIVE → 400 'Visita já encerrada (status)', and (2) sync==None from end_visit → 400 'Visita já encerrada'. Works for sequential and concurrent cases.",
+    "routers/visits.py cancel(): guards status=='agendado'; from_status=['agendado'] passed into end_visit so a mid-flight transition to 'presente' won't race. Verified 400 when visit is already 'presente'.",
+    "visitors_reg.visitor_companies: new grouping by HOST uses _visits_by_host which fills _cid from host_company_id OR falls back to people.company_id of host_id (legacy visits). cid '' → id 'none' name 'Sem empresa'. Shape returned: {companies:[{id,name,total,present,blacklist}], today, present}. OK.",
+    "visitors_reg.list_visitors: host_company='<id|none>' resolves via same _visits_by_host; host_company='none' matches cid=='' bucket. Scope filter applied via scope_filter(user,'visits'). OK.",
+    "Frontend CompanyColumn: when fixed=false (visitors variant) renders 'Empresas visitadas' heading and OriginCard with testid 'host-company-card-<id>'. When fixed=true, chip 'propria' now reads 'Fixos' (CHIPS array), pinned reads 'Funcionários fixos', and uppercase badge label becomes 'FIXOS' (COMPANY_TYPES.propria='Fixos' + CSS uppercase). All verified on live preview.",
+    "PresentNow.jsx: checkout(v) optimistically removes v from the list via setItems() before the POST, hitting toast.success('Check-out de ...') afterwards; disables double-click via leaving-state guard. Matches request."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter21_checkout_and_host_companies.py"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all required testids + labels validated)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Via pytest TEST_iter21_* visits created and all finalized/cancelled at test end (test_zzz_cleanup). No orphan visitors remain active.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fast check-out and host-company grouping validated end-to-end. Routes: /pessoas (FixedBrowse, title 'Fixos'), /visitantes (VisitorsBrowse, column 'Empresas visitadas', pinned 'Visitantes do dia'), /empresas (SimpleCrud with type labels Fixos/Terceirizada/Transportadora). For concurrency testing use two separate requests.Session logins; a single Session serializes cookie-locked POSTs. visit_history endpoint existence not required by review but test_end_history_eventually_logged tolerates its absence.",
+  "rca of the issue": "User-reported slow check-out resolved by end_visit(wait=False): atomic status flip returns to the client immediately; facial device sync + visit_history insert happen in a background asyncio task referenced by _BG set. Second click sees status!='presente' → 400 'Visita já encerrada (finalizado)' as expected."
+}

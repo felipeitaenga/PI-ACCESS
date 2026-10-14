@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { COMPANY_TYPES } from "@/components/registry/QuickCompanyDialog";
 import { AlertTriangle, Building2, CalendarCheck, ChevronDown, Plus, Search, UserCheck } from "lucide-react";
 
-const CHIPS = [["all", "Todas"], ["propria", "Própria"], ["terceirizada", "Terceirizada"], ["transportadora", "Transportadora"], ["visitantes", "Visitantes"]];
+const CHIPS = [["all", "Todas"], ["propria", "Fixos"], ["terceirizada", "Terceirizada"], ["transportadora", "Transportadora"], ["visitantes", "Visitantes"]];
 export const TYPE_CLS = {
   propria: "border-sky-500/40 bg-sky-500/10 text-sky-300",
   terceirizada: "border-amber-500/40 bg-amber-500/10 text-amber-300",
@@ -34,7 +34,7 @@ function CompanyCard({ c, active, onClick }) {
 
 function OriginCard({ o, active, onClick }) {
   return (
-    <button type="button" onClick={onClick} data-testid={`origin-card-${o.name}`}
+    <button type="button" onClick={onClick} data-testid={`host-company-card-${o.id}`}
       className={cn("w-full rounded-md border px-3 py-2.5 text-left transition-colors", active ? "border-sky-500 bg-sky-500/10" : "border-border bg-card/40 hover:border-sky-500/40")}>
       <p className="truncate text-sm font-medium">{o.name}</p>
       <p className="mt-1 text-[11px] text-muted-foreground"><span className="font-mono">{o.total} visitantes</span> · <span className="font-mono text-emerald-400">{o.present} presentes</span>{o.blacklist > 0 && <span className="text-red-400"> · {o.blacklist} lista negra</span>}</p>
@@ -75,12 +75,12 @@ export function CompanyColumn({ companies, visitorData, selection, onSelect, onN
     <div className="flex h-full min-h-0 flex-col" data-testid="company-column">
       <div className="space-y-2 border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <h2 className="flex-1 font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground">{fixed ? "Empresas" : "Empresas de origem"}</h2>
+          <h2 className="flex-1 font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground">{fixed ? "Empresas" : "Empresas visitadas"}</h2>
           {fixed && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onNewCompany} data-testid="company-add-button"><Plus className="mr-1 h-3.5 w-3.5" />Empresa</Button>}
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-8" placeholder={fixed ? "Buscar empresa…" : "Buscar empresa de origem…"} value={q} onChange={(e) => setQ(e.target.value)} data-testid="company-search-input" />
+          <Input className="h-9 pl-8" placeholder={fixed ? "Buscar empresa…" : "Buscar empresa visitada…"} value={q} onChange={(e) => setQ(e.target.value)} data-testid="company-search-input" />
         </div>
         <div className="flex flex-wrap gap-1">
           {fixed && CHIPS.filter(([k]) => k !== "visitantes").map(([k, l]) => (
@@ -93,13 +93,14 @@ export function CompanyColumn({ companies, visitorData, selection, onSelect, onN
         )}
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {fixed && own && <Pinned icon={Building2} label="Funcionários próprios" value={own.stats?.active ?? 0} active={isSel("company", own.id)} onClick={() => onSelect({ kind: "company", id: own.id, company: own })} testid="pinned-own" />}
+        {fixed && own && <Pinned icon={Building2} label="Funcionários fixos" value={own.stats?.active ?? 0} active={isSel("company", own.id)} onClick={() => onSelect({ kind: "company", id: own.id, company: own })} testid="pinned-own" />}
         {!fixed && <Pinned icon={CalendarCheck} label="Visitantes do dia" value={visitorData?.today ?? 0} active={selection?.kind === "visitors_today"} onClick={() => onSelect({ kind: "visitors_today", name: "Visitantes do dia" })} testid="pinned-visitors-today" />}
         <div className="h-1" />
         {chip === "visitantes" ? (
           <>
-            <p className="flex items-center gap-1.5 px-1 text-[11px] uppercase tracking-wider text-muted-foreground"><UserCheck className="h-3 w-3" />Empresas de origem</p>
-            {origins.map((o) => <OriginCard key={o.name} o={o} active={isSel("visitor_origin", o.name)} onClick={() => onSelect({ kind: "visitor_origin", name: o.name })} />)}
+            <p className="flex items-center gap-1.5 px-1 text-[11px] uppercase tracking-wider text-muted-foreground"><UserCheck className="h-3 w-3" />Empresas visitadas</p>
+            {origins.map((o) => <OriginCard key={o.id} o={o} active={isSel("visitor_host", o.id)} onClick={() => onSelect({ kind: "visitor_host", id: o.id, name: o.name })} />)}
+            {origins.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">Nenhuma visita registrada</p>}
           </>
         ) : grouped ? groups.map(([g, items]) => (
           <div key={g} data-testid={`company-group-${g}`}>

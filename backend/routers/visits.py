@@ -293,7 +293,9 @@ async def finish(visit_id: str, request: Request, user: dict = Depends(require_r
     v = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")
     if v.get("status") not in ACTIVE:
         raise HTTPException(status_code=400, detail=f"Visita já encerrada ({v.get('status')})")
-    sync = await end_visit(v, "finalizado", "Check-out antecipado", user.get("email"))
+    sync = await end_visit(v, "finalizado", "Check-out antecipado", user.get("email"), wait=False)
+    if sync is None:
+        raise HTTPException(status_code=400, detail="Visita já encerrada")
     await log_audit(user, "checkout", "visit", visit_id, v.get("visitor_name", ""), client_ip(request))
     return {"ok": True, "sync": sync}
 
@@ -372,6 +374,8 @@ async def cancel(visit_id: str, request: Request, user: dict = Depends(require_r
     v = await find_scoped(user, "visits", visit_id, msg="Visita não encontrada")
     if v.get("status") != "agendado":
         raise HTTPException(status_code=400, detail="Só é possível cancelar visitas agendadas (ainda não iniciadas)")
-    sync = await end_visit(v, "cancelado", "Agendamento cancelado", user.get("email"))
+    sync = await end_visit(v, "cancelado", "Agendamento cancelado", user.get("email"), wait=False, from_status=["agendado"])
+    if sync is None:
+        raise HTTPException(status_code=400, detail="Visita já iniciada ou encerrada")
     await log_audit(user, "cancelar", "visit", visit_id, v.get("visitor_name", ""), client_ip(request))
     return {"ok": True, "sync": sync}

@@ -73,6 +73,7 @@ export function validate(f, docSettings) {
   }
   f.identifiers.forEach((c, i) => {
     if (c.type === "cartao" && !onlyDigits(c.value)) e[`identifiers.${i}`] = "Informe o número do cartão";
+    if (c.type === "placa" && !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(c.value || "")) e[`identifiers.${i}`] = "Placa inválida (ex.: ABC1234 ou ABC1D23)";
     if (c.type === "pin" && !/^\d{4,8}$/.test(c.value)) e[`identifiers.${i}`] = "PIN deve ter de 4 a 8 dígitos";
     if (c.type === "qrcode" && !c.value.trim()) e[`identifiers.${i}`] = "Informe ou gere o código";
   });
