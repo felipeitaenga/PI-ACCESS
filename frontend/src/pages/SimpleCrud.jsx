@@ -63,13 +63,11 @@ export function Vehicles() {
 
 export function Identifiers() {
   return (
-    <CrudPage title="Identificadores" subtitle="Faces, cartões, QR, PIN e placas" endpoint="/cadastros/identifiers"
+    <CrudPage title="Identificadores" subtitle="Cartões de acesso" endpoint="/cadastros/identifiers"
       defaultForm={{ type: "cartao", value: "", format: "Wiegand 26", active: true, enabled: true }}
       formFields={[
-        { key: "type", label: "Tipo", type: "select", options: [
-          { value: "facial", label: "Facial" }, { value: "cartao", label: "Cartão" },
-          { value: "qrcode", label: "QR Code" }, { value: "pin", label: "PIN" }, { value: "placa", label: "Placa" }] },
-        { key: "value", label: "Valor (decimal)" },
+        { key: "type", label: "Tipo", type: "select", options: [{ value: "cartao", label: "Cartão" }] },
+        { key: "value", label: "Número do cartão (decimal)" },
         { key: "hex", label: "Hexadecimal" },
         { key: "format", label: "Formato", type: "select", options: [
           { value: "Wiegand 26", label: "Wiegand 26" }, { value: "Wiegand 34", label: "Wiegand 34" }, { value: "MIFARE", label: "MIFARE" }] },

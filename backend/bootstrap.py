@@ -8,9 +8,11 @@ Cria somente o que ainda não existe (compara por nome/código/data):
   - Feriados nacionais .... datas fixas (recorrentes) + Sexta-feira Santa do ano atual e do próximo
   - Áreas ................. EXTERIOR, Externa/Interna Pedestre, Veículos, Caminhões, Interna Portaria
   - Categorias ............ ACESSO FULL, PEDESTRE, VEÍCULO, CAMINHÃO, VISITANTE, BLOQUEADO (impeditiva)
-Rodar de novo não duplica nada.
+  - Departamentos ......... os mais comuns (Administrativo, Financeiro, RH...)
+Rodar de novo não duplica nada. Em sistema novo (banco sem áreas e sem categorias) roda sozinho ao iniciar.
 """
 import asyncio
+import logging
 import os
 import sys
 from datetime import date, timedelta
@@ -50,6 +52,10 @@ AREAS = [
 ]
 
 
+DEPARTAMENTOS = ["Administrativo", "Financeiro", "Recursos Humanos", "Comercial", "Compras", "TI", "Produção",
+                 "Logística", "Manutenção", "Qualidade", "Segurança", "Portaria", "Diretoria", "Jurídico"]
+
+
 def _doc(extra):
     return {"id": new_id(), "enabled": True, "deleted": False, "created_at": now_iso(), **extra}
 
@@ -73,7 +79,7 @@ async def _ativo(col, filtro):
 
 
 async def main(args):
-    criados = {"local": 0, "faixas": 0, "feriados": 0, "areas": 0, "categorias": 0}
+    criados = {"local": 0, "faixas": 0, "feriados": 0, "areas": 0, "categorias": 0, "departamentos": 0}
     nome_local = (args[0] if args else os.environ.get("CLIENTE_NOME") or os.environ.get("CLIENTE") or "Sede").strip()
 
     # ---- Local ----
@@ -155,6 +161,26 @@ async def main(args):
                                                       "access_areas": access_areas, **base, **flags})))
             criados["categorias"] += 1
 
+    # ---- Departamentos ----
+    for nome in DEPARTAMENTOS:
+        if not await _ativo("departments", {"name": nome}):
+            await db.departments.insert_one(dict(_doc({"name": nome, "company_id": None})))
+            criados["departamentos"] += 1
+    return criados, sname
+
+
+async def auto():
+    """Sistema novo: cria a estrutura padrão uma única vez."""
+    if await db.settings.find_one({"id": "bootstrap"}):
+        return
+    if not await db.areas.count_documents({}) and not await db.categories.count_documents({}):
+        criados, _ = await main([])
+        logging.getLogger("bootstrap").info(f"Estrutura padrão criada: {criados}")
+    await db.settings.update_one({"id": "bootstrap"}, {"$set": {"id": "bootstrap", "done": True}}, upsert=True)
+
+
+async def cli(args):
+    criados, sname = await main(args)
     print(f"Estrutura padrão — local: {sname}")
     for k, v in criados.items():
         print(f"  {k:<11} {v} criado(s)")
@@ -163,4 +189,4 @@ async def main(args):
 
 
 if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1:]))
+    asyncio.run(cli(sys.argv[1:]))

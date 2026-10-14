@@ -1,0 +1,37 @@
+{
+  "summary": "Backend + Frontend validation of iter20 features: new Reports API (/api/reports/data/{kind}), PUT /api/selfreg/requests/{id} edit, CameraCapture 3:4 portrait, Credenciais cartão-only, Identifiers cartão-only, /relatorios UI, /autocadastro quick action buttons. 22/22 pytest tests passed. Frontend validated on 1920x1080 desktop and 390x844 mobile.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reports_and_selfreg_edit.py",
+    "/app/test_reports/pytest/iter20.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "reports.py: scope_filter applied correctly to events, visits, people, visitors, present; manager scope test confirms admin sees TEST_RepPersonB while manager does NOT. OK.",
+    "reports.py: fmt is attribute shadowing fastapi.openapi? Harmless — only locally shadowed via alias fmt_. OK.",
+    "reports.py: XLSX header row 4 confirmed via openpyxl load — matches spec. PDF content-type and %PDF magic bytes confirmed. CSV returns 400 correctly, unknown kind returns 404.",
+    "selfreg.edit_request: validates CPF (returns 422 with per-field errors), rejects invalid visit_type_id, flips blacklist to true when new doc matches a blacklisted visitor, keeps blacklist from going false (verified by read-after-write). 409 when not pending. Manager out-of-scope returns 404.",
+    "selfreg.edit_request + approve pipeline: edited name is propagated to the created visit (visitor_name == edited name). OK.",
+    "CameraCapture: data-testid camera-stage computed box ratio = 0.750 on both desktop (522x696) and mobile 390px (348x465) — exactly 3:4 portrait as required. camera-oval present with h-[74%] w-[70%] — larger than previous iteration.",
+    "SelfRegAdmin Requests: selfreg-quick-approve/reject/edit-<id> all present on pending list in /autocadastro tab 'Aguardando liberação'. Edit opens dialog with 8 editable fields (selfreg-edit-name, -doctype, -docnumber, -company, -plate, -phone, -email, -type), 'Salvar' (selfreg-save-edit) and 'Aprovar e liberar' (selfreg-approve) buttons present. Reject opens same dialog with selfreg-reject button.",
+    "Reports.jsx: all requested testids present (report-kind-{access|visits|present|people|denied}, report-filter-*, report-run, report-pdf, report-xlsx, report-total). PDF/XLSX file downloads trigger with proper filenames 'relatorio-<kind>-<ts>.<ext>'. Total shows '52 registro(s)' for people. Mobile 390px: report-run button visible.",
+    "SimpleCrud.Identifiers: form 'type' select only lists {value:'cartao', label:'Cartão'} — QR/PIN removed as spec'd.",
+    "registry/Sections.CredRow: new credentials default to type=cartao and select is disabled when type==cartao; QR/PIN options only render for pre-existing records whose type is qrcode/pin — matches spec (QR/PIN continue working but not offered for new).",
+    "Code review: reports.py 275 LOC — compact and well-structured; no mongo _id leakage (explicit {_id:0}); CPF format inconsistency between stored (formatted '055.500.002-88') and raw digits in doc_key — tests normalize this. Not a bug."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reports_and_selfreg_edit.py"
+  ],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% (all testids + flows validated)"},
+  "test_credentials": "Admin felipejferreira@gmail.com / NxAccess@2026 (de /app/memory/test_credentials.md)",
+  "seed_data_creation": "/tmp/face.jpg (randomuser.me women/44). Via pytest: TEST visitors/visits/self_registrations/companies/people inserted and all cleaned up at test end (test_zzz_cleanup). Also 1 pre-existing pending seen on /autocadastro from previous iterations (not touched).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reports endpoint GET /api/reports/data/{kind} fully validated with filters, JSON/PDF/XLSX export, scope manager isolation. SelfReg edit_request fully validated incl. blacklist flip + approve-after-edit propagation. CameraCapture 3:4 aspect confirmed numerically. SelfRegAdmin quick action buttons present. For future tests needing a real face photo use /tmp/face.jpg (3539 bytes, passes photo_quality.check_photo ok=True). To create pending via API, see test_selfreg_flow.py pattern or /app/backend/tests/test_reports_and_selfreg_edit.py.",
+  "rca of the issue": "N/A — all features validated green."
+}
