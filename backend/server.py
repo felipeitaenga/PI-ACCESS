@@ -37,6 +37,7 @@ from routers.visitors_reg import router as visitors_reg_router
 from routers.visits import router as visits_router
 from routers.backups import router as backups_router
 from routers.selfreg import router as selfreg_router, public as selfreg_public
+from routers.reports import router as reports_v2_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
 from mqtt_bus import bus as mqtt_bus
@@ -87,6 +88,7 @@ api_router.include_router(emergency_router)
 api_router.include_router(admin_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(reports_router)
+api_router.include_router(reports_v2_router)
 api_router.include_router(access_router)
 api_router.include_router(equipment_router)
 api_router.include_router(org_router)
@@ -216,6 +218,9 @@ async def on_startup():
         result = await generate_seed()
         logger.info(f"Seed demo: {result}")
         start_simulator()
+    else:
+        import bootstrap
+        await bootstrap.auto()
     asyncio.create_task(expiry_loop())
     asyncio.create_task(visits_loop())
     from backup_service import backup_loop

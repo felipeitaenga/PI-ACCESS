@@ -546,6 +546,58 @@ async def get_request(rid: str, user: dict = Depends(require_role(*WRITE))):
     return await _scoped_reg(user, rid)
 
 
+@router.put("/requests/{rid}")
+async def edit_request(rid: str, body: dict, request: Request, user: dict = Depends(require_role(*WRITE))):
+    """Portaria corrige os dados antes de liberar (só pendentes). Lista negra nunca é removida aqui."""
+    r = await _scoped_reg(user, rid)
+    if r["status"] != "pendente":
+        raise HTTPException(status_code=409, detail="Esta solicitação já foi respondida.")
+    upd, errs = {}, {}
+    for k, n in (("name", 120), ("visitor_company", 120), ("plate", 10), ("phone", 30), ("email", 160)):
+        if k in body:
+            upd[k] = _s(body.get(k), n).strip()
+    if "name" in upd and len(upd["name"].split()) < 2:
+        errs["name"] = "Informe nome e sobrenome"
+    if upd.get("email"):
+        upd["email"] = upd["email"].lower()
+        if not valid_email(upd["email"]):
+            errs["email"] = "E-mail inválido"
+    if "plate" in upd:
+        upd["plate"] = re.sub(r"[^A-Z0-9]", "", upd["plate"].upper())[:8]
+    if "doc_type" in body or "doc_number" in body:
+        dt = _s(body.get("doc_type") or r["doc_type"], 20)
+        num, e = validate_doc(dt, _s(body.get("doc_number") or r["doc_number"], 40), await visit_settings())
+        if dt not in SELF_DOCS or e:
+            errs["doc_number"] = e or "Tipo de documento inválido"
+        else:
+            bl = await db.visitors.find_one({**ND, "doc_type": dt, "doc_key": doc_key(dt, num), "blacklist": True}, {"_id": 1})
+            upd.update(doc_type=dt, doc_number=num, blacklist=bool(r.get("blacklist") or bl))
+    if _s(body.get("visit_type_id")) and body.get("visit_type_id") != r.get("visit_type_id"):
+        vt = await db.visit_types.find_one({"$and": [{**ND, "id": _s(body.get("visit_type_id")), "active": True},
+                                                     await scope_filter(user, "visit_types")]}, {"_id": 0, "id": 1, "name": 1})
+        if not vt:
+            errs["visit_type_id"] = "Tipo de visita inválido"
+        else:
+            upd.update(visit_type_id=vt["id"], visit_type_name=vt["name"])
+    if _s(body.get("end_at"), 40):
+        try:
+            end = parse_dt(_s(body.get("end_at"), 40))
+            if end <= parse_dt(r["start_at"]):
+                errs["end_at"] = "O fim deve ser depois do início"
+            else:
+                upd["end_at"] = end.astimezone(timezone.utc).isoformat()
+        except ValueError:
+            errs["end_at"] = "Data/hora inválida"
+    if errs:
+        raise HTTPException(status_code=422, detail={"message": "Verifique os campos", "errors": errs})
+    if upd:
+        res = await db.self_registrations.update_one({"id": rid, "status": "pendente"}, {"$set": upd})
+        if not res.matched_count:
+            raise HTTPException(status_code=409, detail="Esta solicitação já foi respondida.")
+        await log_audit(user, "autocadastro:editar", "self_registration", rid, ", ".join(sorted(upd)), client_ip(request))
+    return await _scoped_reg(user, rid)
+
+
 @router.post("/requests/{rid}/approve")
 async def approve(rid: str, body: dict, request: Request, user: dict = Depends(require_role(*WRITE))):
     r = await _scoped_reg(user, rid)

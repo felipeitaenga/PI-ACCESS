@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/registry/FormBits";
-import { AlertTriangle, Check, Copy, Link2, Mail, Plus, Printer, QrCode, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, Link2, Mail, Pencil, Plus, Printer, QrCode, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 const sel = "h-9 w-full rounded-md border border-input bg-field px-3 text-sm focus:border-sky-500 focus:outline-none";
@@ -28,23 +28,52 @@ const Pill = ({ s }) => <span className={`rounded-full border px-2 text-[11px] $
 const VIA = { anfitriao: "anfitrião", portaria: "portaria", convite: "convite" };
 
 // ---------------- Aguardando liberação ----------------
-function RequestDialog({ id, onClose, onDone }) {
+function EditFields({ e, setE }) {
+  const [types, setTypes] = useState([]);
+  useEffect(() => { api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {}); }, []);
+  const s = (k) => (ev) => setE({ ...e, [k]: ev.target.value });
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="selfreg-edit-fields">
+      <Field label="Nome completo" className="sm:col-span-2"><Input value={e.name} onChange={s("name")} data-testid="selfreg-edit-name" /></Field>
+      <Field label="Documento"><select className={sel} value={e.doc_type} onChange={s("doc_type")} data-testid="selfreg-edit-doctype"><option value="cpf">CPF</option><option value="rg">RG</option><option value="passaporte">Passaporte</option></select></Field>
+      <Field label="Número"><Input value={e.doc_number} onChange={s("doc_number")} data-testid="selfreg-edit-docnumber" /></Field>
+      <Field label="Empresa do visitante"><Input value={e.visitor_company} onChange={s("visitor_company")} data-testid="selfreg-edit-company" /></Field>
+      <Field label="Placa"><Input value={e.plate} onChange={s("plate")} data-testid="selfreg-edit-plate" /></Field>
+      <Field label="Telefone"><Input value={e.phone} onChange={s("phone")} data-testid="selfreg-edit-phone" /></Field>
+      <Field label="E-mail"><Input value={e.email} onChange={s("email")} data-testid="selfreg-edit-email" /></Field>
+      <Field label="Tipo da visita" className="sm:col-span-2"><select className={sel} value={e.visit_type_id} onChange={s("visit_type_id")} data-testid="selfreg-edit-type">{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
+    </div>
+  );
+}
+
+const toEdit = (r) => ({ name: r.name || "", doc_type: r.doc_type || "cpf", doc_number: r.doc_number || "", visitor_company: r.visitor_company || "",
+  plate: r.plate || "", phone: r.phone || "", email: r.email || "", visit_type_id: r.visit_type_id || "" });
+
+function RequestDialog({ id, mode, onClose, onDone }) {
   const { user } = useAuth();
   const [r, setR] = useState(null);
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
   const [just, setJust] = useState("");
   const [busy, setBusy] = useState(false);
+  const [edit, setEdit] = useState(null);
   useEffect(() => {
     if (!id) return;
-    setR(null); setReason(""); setJust("");
-    api.get(`/selfreg/requests/${id}`).then(({ data }) => { setR(data); setEnd(toLocalInput(data.end_at)); }).catch((e) => { err(e); onClose(); });
+    setR(null); setReason(""); setJust(""); setEdit(null);
+    api.get(`/selfreg/requests/${id}`).then(({ data }) => { setR(data); setEnd(toLocalInput(data.end_at)); if (mode === "edit") setEdit(toEdit(data)); }).catch((e) => { err(e); onClose(); });
   }, [id]); // eslint-disable-line
+  const saveEdit = async () => {
+    const { data } = await api.put(`/selfreg/requests/${id}`, { ...edit, end_at: end !== toLocalInput(r.end_at) ? fromLocalInput(end) : "" });
+    setR(data); setEnd(toLocalInput(data.end_at)); setEdit(toEdit(data));
+    return data;
+  };
   const act = async (kind) => {
     setBusy(true);
     try {
+      if (kind === "save") { await saveEdit(); toast.success("Dados atualizados"); return; }
       if (kind === "approve") {
-        const { data } = await api.post(`/selfreg/requests/${id}/approve`, { end_at: end !== toLocalInput(r.end_at) ? fromLocalInput(end) : "", blacklist_justification: just });
+        if (edit) await saveEdit();
+        const { data } = await api.post(`/selfreg/requests/${id}/approve`, { end_at: !edit && end !== toLocalInput(r.end_at) ? fromLocalInput(end) : "", blacklist_justification: just });
         const ok = data.sync.filter((s) => s.status === "ok").length;
         toast.success(`Visita liberada${data.sync.length ? ` · facial ${ok}/${data.sync.length}` : ""}`);
       } else {
@@ -56,7 +85,7 @@ function RequestDialog({ id, onClose, onDone }) {
   const pending = r?.status === "pendente";
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg" data-testid="selfreg-request-dialog">
+      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto" data-testid="selfreg-request-dialog">
         <DialogHeader><DialogTitle>Solicitação de visita</DialogTitle></DialogHeader>
         {!r ? <p className="text-sm text-muted-foreground">Carregando…</p> : (
           <div className="space-y-3 text-sm">
@@ -84,6 +113,7 @@ function RequestDialog({ id, onClose, onDone }) {
                 ) : <p className="text-xs">Somente o Administrador pode liberar.</p>}
               </div>
             )}
+            {pending && edit && <EditFields e={edit} setE={setEdit} />}
             {pending ? (
               <>
                 <Field label="Fim da visita" hint="Ajuste se necessário"><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
@@ -97,6 +127,8 @@ function RequestDialog({ id, onClose, onDone }) {
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fechar</Button>
           {pending && <>
+            {edit ? <Button variant="outline" disabled={busy} onClick={() => act("save")} data-testid="selfreg-save-edit"><Save className="mr-1 h-4 w-4" />Salvar</Button>
+              : <Button variant="outline" disabled={busy} onClick={() => setEdit(toEdit(r))} data-testid="selfreg-edit"><Pencil className="mr-1 h-4 w-4" />Editar</Button>}
             <Button variant="outline" className="text-red-400" disabled={busy} onClick={() => act("reject")} data-testid="selfreg-reject"><X className="mr-1 h-4 w-4" />Recusar</Button>
             <Button className={primary} disabled={busy} onClick={() => act("approve")} data-testid="selfreg-approve"><Check className="mr-1 h-4 w-4" />Aprovar e liberar</Button>
           </>}
@@ -110,8 +142,19 @@ function Requests() {
   const [status, setStatus] = useState("pendente");
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(null);
+  const [busyId, setBusyId] = useState("");
   const load = useCallback(() => api.get(`/selfreg/requests?status=${status}`).then(({ data }) => setItems(data)).catch(() => {}), [status]);
   useEffect(() => { load(); const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
+  const quickApprove = async (r) => {
+    if (r.blacklist) { setOpen({ id: r.id, mode: "view" }); return; }
+    setBusyId(r.id);
+    try {
+      const { data } = await api.post(`/selfreg/requests/${r.id}/approve`, {});
+      const ok = data.sync.filter((s) => s.status === "ok").length;
+      toast.success(`${r.name} liberado(a)${data.sync.length ? ` · facial ${ok}/${data.sync.length}` : ""}`);
+      load();
+    } catch (e) { err(e); load(); } finally { setBusyId(""); }
+  };
   return (
     <Card className="border-border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -124,17 +167,26 @@ function Requests() {
       {items.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma solicitação.</p>}
       <div className="space-y-1.5">
         {items.map((r) => (
-          <button key={r.id} type="button" onClick={() => setOpen(r.id)} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-2 text-left hover:border-sky-500/50" data-testid={`selfreg-row-${r.id}`}>
-            {r.photo_thumb ? <img src={r.photo_thumb} alt="" className="h-12 w-9 rounded object-cover" /> : <div className="h-12 w-9 rounded bg-secondary" />}
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{r.name} {r.blacklist && <span className="ml-1 rounded bg-red-500/20 px-1 text-[10px] text-red-300">LISTA NEGRA</span>}</p>
-              <p className="truncate text-xs text-muted-foreground">{r.host_name} · {r.host_company_name} · {fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
-            </div>
-            <div className="text-right text-[11px] text-muted-foreground"><Pill s={r.status} /><p>{r.source}</p></div>
-          </button>
+          <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border px-3 py-2 hover:border-sky-500/50" data-testid={`selfreg-row-${r.id}`}>
+            <button type="button" onClick={() => setOpen({ id: r.id, mode: "view" })} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-testid={`selfreg-open-${r.id}`}>
+              {r.photo_thumb ? <img src={r.photo_thumb} alt="" className="h-12 w-9 rounded object-cover" /> : <div className="h-12 w-9 rounded bg-secondary" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{r.name} {r.blacklist && <span className="ml-1 rounded bg-red-500/20 px-1 text-[10px] text-red-300">LISTA NEGRA</span>}</p>
+                <p className="truncate text-xs text-muted-foreground">{r.host_name} · {r.host_company_name} · {fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
+              </div>
+              <div className="text-right text-[11px] text-muted-foreground"><Pill s={r.status} /><p>{r.source}</p></div>
+            </button>
+            {r.status === "pendente" && (
+              <div className="flex w-full gap-1.5 sm:w-auto">
+                <Button size="sm" className={`${primary} flex-1 sm:flex-none`} disabled={busyId === r.id} onClick={() => quickApprove(r)} data-testid={`selfreg-quick-approve-${r.id}`}><Check className="mr-1 h-4 w-4" />Liberar</Button>
+                <Button size="sm" variant="outline" className="flex-1 text-red-400 sm:flex-none" disabled={busyId === r.id} onClick={() => setOpen({ id: r.id, mode: "view" })} data-testid={`selfreg-quick-reject-${r.id}`}><X className="mr-1 h-4 w-4" />Recusar</Button>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" disabled={busyId === r.id} onClick={() => setOpen({ id: r.id, mode: "edit" })} data-testid={`selfreg-quick-edit-${r.id}`}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
-      <RequestDialog id={open} onClose={() => setOpen(null)} onDone={() => { setOpen(null); load(); }} />
+      <RequestDialog id={open?.id} mode={open?.mode} onClose={() => setOpen(null)} onDone={() => { setOpen(null); load(); }} />
     </Card>
   );
 }
