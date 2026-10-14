@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from database import db
 from registry_common import ND
-from scope import scope_filter
+from scope import scope_filter, is_manager, cids
 from security import get_current_user
 from visits_core import TZ
 
@@ -188,6 +188,9 @@ async def _people(user, f):
 
 
 async def build(kind, user, f):
+    # gestor só filtra pelas próprias empresas (o filtro substituiria a restrição de escopo)
+    if is_manager(user) and f.get("company_id") and f["company_id"] not in cids(user):
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
     if kind in ("access", "denied"):
         return await _events(user, f, kind == "denied")
     if kind == "visits":
