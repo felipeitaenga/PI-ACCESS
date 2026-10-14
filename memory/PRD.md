@@ -165,6 +165,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Exclusão definitiva LGPD (POST /api/lgpd/erase, admin + justificativa; apaga cadastro/foto/face/cartões/placas, remove do facial, anonimiza eventos/visitas/auditoria, apaga comandos MQTT com foto; registro em lgpd_erasures). Botão no cadastro de fixo e de visitante (2026-10-14, iteration_22 OK).
 
+- [x] Regra fixa: filtros por empresa validados com scope.own_company_or_404 (registry/people company_id, registry/visitors host_company, reports company_id); merge de origin/main 1.5.1 feito (2026-10-14). Ver /app/memory/RULES.md.
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.

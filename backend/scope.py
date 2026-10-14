@@ -82,6 +82,12 @@ async def find_scoped(user, coll, doc_id, projection=None, msg="Registro não en
     return doc
 
 
+def own_company_or_404(user, company_id):
+    """Filtro por empresa: gestor só pode usar as próprias; fora delas responde 404."""
+    if company_id and is_manager(user) and company_id not in cids(user):
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+
 def require_company(user, company_id):
     if is_manager(user) and company_id not in cids(user):
         raise HTTPException(status_code=422, detail={"msg": "Empresa não permitida", "fields": {"company_id": "Escolha uma das suas empresas"}})
