@@ -109,10 +109,10 @@ export function CameraCapture({ open, onClose, onCapture }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="max-w-2xl" data-testid="camera-modal">
+      <DialogContent className="max-h-[100dvh] max-w-xl overflow-y-auto p-4 sm:p-6" data-testid="camera-modal">
         <DialogHeader>
-          <DialogTitle>Capturar foto pela webcam</DialogTitle>
-          <DialogDescription>Posicione o rosto dentro da guia oval, olhe para a câmera e mantenha boa iluminação.</DialogDescription>
+          <DialogTitle>Tirar foto</DialogTitle>
+          <DialogDescription>Encaixe o rosto inteiro dentro do oval, de frente, sem boné ou óculos escuros, em local iluminado.</DialogDescription>
         </DialogHeader>
         {devices.length > 1 && status !== "captured" && (
           <Select value={deviceId} onValueChange={changeDevice}>
@@ -142,15 +142,15 @@ export function CameraCapture({ open, onClose, onCapture }) {
 
 function CameraStage({ videoRef, status, error, shot }) {
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black" data-testid="camera-stage">
+    <div className="relative mx-auto aspect-[3/4] w-full max-w-[calc(68dvh*0.75)] overflow-hidden rounded-lg bg-black" data-testid="camera-stage">
       <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover -scale-x-100 ${status === "captured" ? "invisible" : ""}`} data-testid="camera-video" />
       {status === "live" && (
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 aspect-[3/4] h-full -translate-x-1/2 shadow-[0_0_0_9999px_rgba(2,6,23,0.55)]">
-          <div className="absolute left-1/2 top-[45%] h-[68%] w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-dashed border-sky-400/90" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-[46%] h-[74%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] border-dashed border-sky-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.35)]" data-testid="camera-oval" />
         </div>
       )}
       {status === "captured" && shot && (
-        <img src={shot} alt="Foto capturada" className="absolute inset-y-0 left-1/2 h-full -translate-x-1/2 object-contain" data-testid="camera-preview" />
+        <img src={shot} alt="Foto capturada" className="absolute inset-0 h-full w-full object-contain" data-testid="camera-preview" />
       )}
       {status === "starting" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-slate-300">

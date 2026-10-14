@@ -12,7 +12,7 @@ MANAGER_ALLOW = [
     ("*", r"/api/auth/(me|logout|refresh|login)"),
     ("POST", r"/api/auth/users"),
     ("GET", r"/api/dashboard/stats"),
-    ("GET", r"/api/reports/(access|presence)"),
+    ("GET", r"/api/reports/(access|presence|data/[a-z]+)"),
     ("*", r"/api/registry/(people|people/bulk|photo/check)"),
     ("GET", r"/api/registry/(people/[^/]+|companies|search|visitors|visitors/lookup|visitors/[^/]+|visits/present|visitor-companies)"),
     ("PUT", r"/api/registry/people/[^/]+"),
