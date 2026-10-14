@@ -2,7 +2,7 @@ import CrudPage, { enabledBadge } from "@/components/CrudPage";
 import { CompanyAccess } from "@/components/CompanyAccess";
 
 const COMP_TYPES = [
-  { value: "propria", label: "Própria" }, { value: "terceirizada", label: "Terceirizada" },
+  { value: "propria", label: "Fixos" }, { value: "terceirizada", label: "Terceirizada" },
   { value: "transportadora", label: "Transportadora" }, { value: "cliente", label: "Cliente" },
 ];
 

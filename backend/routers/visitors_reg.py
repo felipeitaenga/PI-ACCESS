@@ -1,3 +1,4 @@
+import re
 import secrets
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -32,36 +33,59 @@ async def _with_last_visit(visitors):
     return visitors
 
 
+async def _visits_by_host(vsc):
+    """Visitas com a empresa visitada resolvida (visitas antigas: empresa do anfitrião host_id)."""
+    visits = await db.visits.find({**ND, **vsc}, {"_id": 0, "visitor_id": 1, "status": 1, "host_company_id": 1,
+                                                "host_company_name": 1, "host_id": 1, "host_person_id": 1}).to_list(50000)
+    legacy = {v.get("host_id") or v.get("host_person_id") for v in visits if not v.get("host_company_id")} - {None, ""}
+    host_cid = {p["id"]: p.get("company_id") or "" for p in await db.people.find(
+        {"id": {"$in": list(legacy)}}, {"_id": 0, "id": 1, "company_id": 1}).to_list(5000)}
+    for v in visits:
+        v["_cid"] = v.get("host_company_id") or host_cid.get(v.get("host_id") or v.get("host_person_id"), "")
+    return visits
+
+
 @router.get("/visitor-companies")
 async def visitor_companies(user: dict = Depends(get_current_user)):
+    """Visitantes agrupados pela empresa VISITADA (empresa do anfitrião nas visitas)."""
     await refresh_expired()
     vsc = await scope_filter(user, "visits")
-    present = {v["visitor_id"] for v in await db.visits.find({**ND, **vsc, "status": "presente"}, {"_id": 0, "visitor_id": 1}).to_list(5000)}
-    out = {}
-    for v in await db.visitors.find({**ND, **(await scope_filter(user, "visitors"))}, {"_id": 0, "id": 1, "origin_company": 1, "blacklist": 1}).to_list(20000):
-        k = v.get("origin_company") or "Sem empresa"
-        s = out.setdefault(k, {"name": k, "total": 0, "present": 0, "blacklist": 0})
-        s["total"] += 1
-        s["present"] += v["id"] in present
-        s["blacklist"] += bool(v.get("blacklist"))
+    visits = await _visits_by_host(vsc)
+    black = {v["id"] for v in await db.visitors.find({**ND, "blacklist": True}, {"_id": 0, "id": 1}).to_list(5000)}
+    names = {c["id"]: c["name"] for c in await db.companies.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(5000)}
+    groups, present = {}, set()
+    for v in visits:
+        cid = v["_cid"]
+        g = groups.setdefault(cid, {"id": cid or "none", "name": names.get(cid) or v.get("host_company_name") or "Sem empresa",
+                                    "ids": set(), "present_ids": set()})
+        g["ids"].add(v["visitor_id"])
+        if v.get("status") == "presente":
+            g["present_ids"].add(v["visitor_id"])
+            present.add(v["visitor_id"])
+    out = [{"id": g["id"], "name": g["name"], "total": len(g["ids"]), "present": len(g["present_ids"]),
+            "blacklist": len(g["ids"] & black)} for g in groups.values()]
     t = today()
-    today_count = await db.visits.count_documents({**ND, **vsc, "$or": [{"status": "presente"},
-                                                                  {"expected_start": {"$regex": f"^{t}"}}]})
-    return {"companies": sorted(out.values(), key=lambda x: x["name"]), "today": today_count,
-            "present": len(present)}
+    today_count = await db.visits.count_documents({**ND, **vsc, "$or": [{"status": "presente"}, {"expected_start": {"$regex": f"^{t}"}},
+                                                                  {"start_at": {"$regex": f"^{t}"}}]})
+    return {"companies": sorted(out, key=lambda x: x["name"].lower()), "today": today_count, "present": len(present)}
 
 
 @router.get("/visitors")
-async def list_visitors(origin: str = "", today_only: str = "", q: str = "", present: str = "",
+async def list_visitors(origin: str = "", host_company: str = "", today_only: str = "", q: str = "", present: str = "",
                         user: dict = Depends(get_current_user)):
     query = {**ND, **(await scope_filter(user, "visitors"))}
     if origin:
         query["origin_company"] = "" if origin == "Sem empresa" else origin
+    if host_company:
+        want = "" if host_company == "none" else host_company
+        visits = await _visits_by_host(await scope_filter(user, "visits"))
+        query["id"] = {"$in": list({v["visitor_id"] for v in visits if v["_cid"] == want})}
     if q:
-        query["$or"] = [{"name": {"$regex": q, "$options": "i"}}, {"document": {"$regex": q, "$options": "i"}}]
+        query["$or"] = [{"name": {"$regex": re.escape(q), "$options": "i"}}, {"document": {"$regex": re.escape(q), "$options": "i"}},
+                        {"doc_number": {"$regex": re.escape(q), "$options": "i"}}]
     if today_only == "true" or present == "true":
         vq = {**ND, "status": "presente"} if present == "true" else \
-            {**ND, "$or": [{"status": "presente"}, {"expected_start": {"$regex": f"^{today()}"}}]}
+            {**ND, "$or": [{"status": "presente"}, {"expected_start": {"$regex": f"^{today()}"}}, {"start_at": {"$regex": f"^{today()}"}}]}
         ids = await db.visits.distinct("visitor_id", {**vq, **(await scope_filter(user, "visits"))})
         query["id"] = {"$in": [i for i in ids if i in set(query.get("id", {}).get("$in", ids))]}
     items = await db.visitors.find(query, {"_id": 0, "photo": 0}).sort("name", 1).to_list(500)

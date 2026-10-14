@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Field } from "@/components/registry/FormBits";
 import { toast } from "sonner";
 
-export const COMPANY_TYPES = { propria: "Própria", terceirizada: "Terceirizada", transportadora: "Transportadora" };
+export const COMPANY_TYPES = { propria: "Fixos", terceirizada: "Terceirizada", transportadora: "Transportadora" };
 const EMPTY = { cnpj: "", name: "", trade_name: "", type: "terceirizada", contract_valid_until: "", default_category_id: "" };
 
 export function QuickCompanyDialog({ open, onOpenChange, categories, initialName = "", onCreated }) {
