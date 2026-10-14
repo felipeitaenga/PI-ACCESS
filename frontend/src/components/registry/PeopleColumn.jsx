@@ -45,7 +45,7 @@ export function PeopleColumn({ selection, activeId, categories, refreshKey, onOp
         const { data: d } = await api.get(`/registry/people?${p}`);
         setData((old) => ({ ...d, items: skip ? [...old.items, ...d.items] : d.items }));
       } else {
-        const p = new URLSearchParams({ q, ...(selection.kind === "visitors_today" ? { today_only: "true" } : { origin: selection.name }) });
+        const p = new URLSearchParams({ q, ...(selection.kind === "visitors_today" ? { today_only: "true" } : { host_company: selection.id }) });
         const { data: d } = await api.get(`/registry/visitors?${p}`);
         setData({ ...d, stats: null, departments: [] });
       }

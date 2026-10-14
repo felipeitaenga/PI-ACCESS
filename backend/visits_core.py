@@ -1,5 +1,6 @@
 """Visitas (portaria): configurações, validação de documento, cálculo de fim e expiração."""
 import re
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -136,16 +137,35 @@ async def release_visitor(visitor_id, name, label):
     return await sync_to_devices(visitor, label, remove=True)
 
 
-async def end_visit(visit, status, reason, user_label="sistema"):
-    """Encerra a visita, remove do facial e registra no histórico."""
-    now = now_iso()
-    await db.visits.update_one({"id": visit["id"]}, {"$set": {"status": status, "ended_at": now, "end_reason": reason,
-                                                              **({"checkout_at": now} if status == "finalizado" else {})}})
-    sync = await release_visitor(visit["visitor_id"], visit.get("visitor_name", ""), "Fim da visita")
+async def _release_and_log(visit, status, reason, user_label, now):
+    try:
+        sync = await release_visitor(visit["visitor_id"], visit.get("visitor_name", ""), "Fim da visita")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"remover do facial (visita {visit['id']}): {e}")
+        sync = [{"status": "erro", "error": str(e)[:160]}]
     await db.visit_history.insert_one({"id": new_id(), "visit_id": visit["id"], "visitor_id": visit["visitor_id"],
                                        "visitor_name": visit.get("visitor_name"), "action": status, "reason": reason,
                                        "by": user_label, "at": now, "sync": sync})
     return sync
+
+
+async def end_visit(visit, status, reason, user_label="sistema", wait=True, from_status=None):
+    """Encerra a visita (atômico), remove do facial e registra no histórico. wait=False: facial em segundo plano.
+    Retorna None se a visita já tinha sido encerrada por outra requisição."""
+    now = now_iso()
+    res = await db.visits.update_one({"id": visit["id"], "status": {"$in": list(from_status or ACTIVE)}},
+                                     {"$set": {"status": status, "ended_at": now, "end_reason": reason,
+                                               **({"checkout_at": now} if status == "finalizado" else {})}})
+    if not res.modified_count:
+        return None
+    if not wait:
+        _BG.add(t := asyncio.create_task(_release_and_log(visit, status, reason, user_label, now)))
+        t.add_done_callback(_BG.discard)
+        return []
+    return await _release_and_log(visit, status, reason, user_label, now)
+
+
+_BG = set()
 
 
 async def visits_tick(now=None):

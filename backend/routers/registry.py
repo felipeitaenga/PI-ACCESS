@@ -214,6 +214,9 @@ def _validate(b, settings):
             f[f"identifiers.{i}"] = "Número do cartão inválido"
         if idt.get("type") == "pin" and not re.fullmatch(r"\d{4,8}", idt.get("value") or ""):
             f[f"identifiers.{i}"] = "PIN deve ter de 4 a 8 dígitos"
+        if idt.get("type") == "placa" and not re.fullmatch(r"[A-Z]{3}[0-9][A-Z0-9][0-9]{2}",
+                                                             re.sub(r"[^A-Z0-9]", "", str(idt.get("value") or "").upper())):
+            f[f"identifiers.{i}"] = "Placa inválida (ex.: ABC1234 ou ABC1D23)"
     return f
 
 
@@ -229,6 +232,8 @@ async def _save_children(pid, b, valid_until):
         if i["type"] == "cartao":
             doc["value"] = only_digits(i["value"])
             doc["hex"] = format(int(doc["value"]), "X")
+        elif i["type"] == "placa":
+            doc["value"] = re.sub(r"[^A-Z0-9]", "", doc["value"].upper())
         await db.identifiers.insert_one(doc)
     await db.vehicles.delete_many({"person_id": pid})
     for v in b.get("vehicles") or []:
