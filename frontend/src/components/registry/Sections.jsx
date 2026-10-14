@@ -24,14 +24,14 @@ function CredRow({ c, i, list, onChange, error }) {
   return (
     <div className="grid grid-cols-12 items-start gap-2" data-testid={`cred-row-${i}`}>
       <div className="col-span-4 sm:col-span-3">
-        <Select value={c.type} onValueChange={(v) => set({ type: v, value: "" })} disabled={c.type === "cartao"}>
+        <Select value={c.type} onValueChange={(v) => set({ type: v, value: "" })}>
           <SelectTrigger data-testid={`cred-type-${i}`}><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="cartao">Cartão</SelectItem>{c.type === "qrcode" && <SelectItem value="qrcode">QR Code</SelectItem>}{c.type === "pin" && <SelectItem value="pin">PIN</SelectItem>}</SelectContent>
+          <SelectContent><SelectItem value="cartao">Cartão</SelectItem><SelectItem value="placa">Placa</SelectItem>{c.type === "qrcode" && <SelectItem value="qrcode">QR Code</SelectItem>}{c.type === "pin" && <SelectItem value="pin">PIN</SelectItem>}</SelectContent>
         </Select>
       </div>
       <div className="col-span-8 sm:col-span-4">
-        <Input id={`f-identifiers.${i}`} value={c.value} inputMode={c.type === "qrcode" ? "text" : "numeric"} placeholder={c.type === "cartao" ? "Número do cartão" : c.type === "pin" ? "4 a 8 dígitos" : "Código"}
-          onChange={(e) => set({ value: c.type === "qrcode" ? e.target.value : onlyDigits(e.target.value) })} className={error ? "border-red-500/60" : ""} data-testid={`cred-value-${i}`} />
+        <Input id={`f-identifiers.${i}`} value={c.value} inputMode={c.type === "qrcode" || c.type === "placa" ? "text" : "numeric"} placeholder={c.type === "cartao" ? "Número do cartão" : c.type === "placa" ? "ABC1D23" : c.type === "pin" ? "4 a 8 dígitos" : "Código"}
+          onChange={(e) => set({ value: c.type === "qrcode" ? e.target.value : c.type === "placa" ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7) : onlyDigits(e.target.value) })} className={`${c.type === "placa" ? "font-mono uppercase" : ""} ${error ? "border-red-500/60" : ""}`} data-testid={`cred-value-${i}`} />
         {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
       </div>
       {c.type === "cartao" ? (

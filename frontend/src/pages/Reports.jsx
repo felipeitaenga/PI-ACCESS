@@ -13,7 +13,7 @@ const KINDS = [
 ];
 const USES = {
   access: ["period", "company", "person", "ptype", "door", "result", "category"],
-  denied: ["period", "company", "person", "ptype", "door", "category"],
+  denied: ["period", "dkind", "company", "person", "ptype", "door", "category"],
   visits: ["period", "company", "person", "category", "vstatus"],
   present: ["company", "person", "ptype", "category"],
   people: ["company", "person", "ptype", "category"],
@@ -21,7 +21,7 @@ const USES = {
 const sel = "h-9 w-full rounded-md border border-input bg-field px-2 text-sm focus:border-sky-500 focus:outline-none";
 const today = () => new Date().toLocaleDateString("en-CA");
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toLocaleDateString("en-CA");
-const EMPTY = { start: daysAgo(7), end: today(), company_id: "", person: "", person_type: "", door_id: "", result: "", category_id: "", status: "" };
+const EMPTY = { start: daysAgo(7), end: today(), company_id: "", person: "", person_type: "", door_id: "", result: "", category_id: "", status: "", denied_kind: "" };
 const list = (d) => (Array.isArray(d) ? d : d?.items || []);
 
 function useOptions() {
@@ -43,6 +43,7 @@ function Filters({ kind, f, set, opts }) {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="report-filters">
       {u.includes("period") && <F label="De"><Input type="date" value={f.start} onChange={s("start")} data-testid="report-filter-start" /></F>}
       {u.includes("period") && <F label="Até"><Input type="date" value={f.end} onChange={s("end")} data-testid="report-filter-end" /></F>}
+      {u.includes("dkind") && <F label="Mostrar"><select className={sel} value={f.denied_kind} onChange={s("denied_kind")} data-testid="report-filter-dkind"><option value="">Negados e desconhecidos</option><option value="negado">Só negados (pessoa identificada)</option><option value="desconhecido">Só desconhecidos</option></select></F>}
       {u.includes("company") && <F label="Empresa"><select className={sel} value={f.company_id} onChange={s("company_id")} data-testid="report-filter-company"><option value="">Todas</option>{opts.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></F>}
       {u.includes("person") && <F label="Pessoa"><Input value={f.person} onChange={s("person")} placeholder="Nome" data-testid="report-filter-person" /></F>}
       {u.includes("ptype") && <F label="Tipo"><select className={sel} value={f.person_type} onChange={s("person_type")} data-testid="report-filter-ptype"><option value="">{kind === "people" ? "Fixos" : "Todos"}</option><option value="fixo">Fixo</option><option value="visitante">Visitante</option></select></F>}
@@ -80,7 +81,7 @@ export default function Reports() {
   const params = useCallback((format) => {
     const p = new URLSearchParams({ format });
     USES[kind].forEach((k) => {
-      const keys = { period: ["start", "end"], company: ["company_id"], person: ["person"], ptype: ["person_type"], door: ["door_id"], result: ["result"], category: ["category_id"], vstatus: ["status"] }[k];
+      const keys = { period: ["start", "end"], company: ["company_id"], person: ["person"], ptype: ["person_type"], door: ["door_id"], result: ["result"], category: ["category_id"], vstatus: ["status"], dkind: ["denied_kind"] }[k];
       keys.forEach((x) => { if (f[x]) p.set(x, f[x]); });
     });
     return p.toString();

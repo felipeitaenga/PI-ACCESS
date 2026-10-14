@@ -86,6 +86,11 @@ async def _events(user, f, denied):
         q["door_id"] = f["door_id"]
     if denied:
         q["access_result"] = "denied"
+        if f.get("denied_kind") == "desconhecido":
+            q["$or"] = [{"stranger": True}, {"person_id": {"$in": [None, ""]}}]
+        elif f.get("denied_kind") == "negado":
+            q["stranger"] = {"$ne": True}
+            q["person_id"] = {"$nin": [None, ""]}
     elif f.get("result") in RESULT:
         q["access_result"] = f["result"]
     if f.get("category_id"):
@@ -251,12 +256,13 @@ def to_pdf(kind, rows, subtitle):
 @router.get("/data/{kind}")
 async def report(kind: str, format: str = "json", start: str = "", end: str = "", company_id: str = "", person: str = "",
                  person_type: str = "", door_id: str = "", result: str = "", category_id: str = "", status: str = "",
+                 denied_kind: str = "",
                  user: dict = Depends(get_current_user)):
     fmt_ = format
     if kind not in COLS:
         raise HTTPException(status_code=404, detail="Relatório não encontrado")
     f = {"start": start, "end": end, "company_id": company_id, "person": person, "person_type": person_type,
-         "door_id": door_id, "result": result, "category_id": category_id, "status": status}
+         "door_id": door_id, "result": result, "category_id": category_id, "status": status, "denied_kind": denied_kind}
     rows = await build(kind, user, f)
     if fmt_ == "json":
         return {"title": TITLES[kind], "columns": [{"key": k, "label": label} for k, label in COLS[kind]],
