@@ -159,6 +159,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Evento "Desconhecido": botões "Cadastrar visitante" / "Cadastrar fixo" (Acessos em tempo real e Inspeção facial) abrem o cadastro novo com a foto capturada (sessionStorage + ?capture=) (2026-10-13, iteration_19 OK).
 
+- [x] Câmera 3:4 com oval maior; fila do autocadastro com Liberar/Recusar/Editar (PUT /api/selfreg/requests/{id}); identificadores só Cartão; bootstrap automático em sistema novo (faixas, feriados, áreas, categorias, 14 departamentos); relatórios /api/reports/data/{access|visits|present|people|denied} com filtros e PDF/Excel (openpyxl, reportlab) (2026-10-14, iteration_20 OK).
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.
