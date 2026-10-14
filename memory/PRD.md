@@ -163,6 +163,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Check-out imediato (end_visit atômico, facial em segundo plano); Visitantes agrupados por empresa visitada; "Própria" → "Fixos"/"Funcionários fixos"; identificador tipo Placa; filtro "Mostrar" (negados/desconhecidos) no relatório (2026-10-14, iteration_21 OK).
 
+- [x] Exclusão definitiva LGPD (POST /api/lgpd/erase, admin + justificativa; apaga cadastro/foto/face/cartões/placas, remove do facial, anonimiza eventos/visitas/auditoria, apaga comandos MQTT com foto; registro em lgpd_erasures). Botão no cadastro de fixo e de visitante (2026-10-14, iteration_22 OK).
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.
