@@ -1,4 +1,4 @@
-"""Autocadastro: só CPF, busca pelo CPF sem expor dados e motivo da visita."""
+"""Autocadastro: só CPF, sem busca pública por CPF, conferência de foto e motivo da visita."""
 import asyncio
 import base64
 import os
@@ -66,13 +66,11 @@ def test_info_only_cpf(ctx):
     assert requests.get(f"{API}/public/selfreg/info?code={code}", timeout=10).json()["doc_types"] == ["cpf"]
 
 
-def test_lookup_reveals_only_masked_first_name(ctx):
+def test_public_lookup_removed(ctx):
     _, code, _ = ctx
-    d = requests.post(f"{API}/public/selfreg/lookup", json={"code": code, "doc_number": KNOWN}, timeout=10).json()
-    assert d == {"found": True, "greeting": f"{TAG[:3]}" + "*" * (len(TAG) - 3)}
-    assert requests.post(f"{API}/public/selfreg/lookup", json={"code": code, "doc_number": cpf(733000009)}, timeout=10).json() == {"found": False}
-    assert requests.post(f"{API}/public/selfreg/lookup", json={"code": code, "doc_number": "12345678900"}, timeout=10).status_code == 422
-    assert requests.post(f"{API}/public/selfreg/lookup", json={"code": code, "doc_number": {"$ne": ""}}, timeout=10).status_code == 422
+    r = requests.post(f"{API}/public/selfreg/lookup", json={"code": code, "doc_number": KNOWN}, timeout=10)
+    assert r.status_code in (404, 405)
+    assert "Mariana" not in r.text
 
 
 def test_submit_rg_rejected(ctx):
@@ -82,21 +80,24 @@ def test_submit_rg_rejected(ctx):
     assert r.status_code == 422 and "doc_type" in r.json()["detail"]["fields"]
 
 
-def test_known_cpf_fills_hidden_data_and_reason(ctx):
-    s, code, host = ctx
+def test_name_required(ctx):
+    _, code, host = ctx
     run(db.rate_hits.delete_many({}))
     r = requests.post(f"{API}/public/selfreg/submit", json={"code": code, "consent": True, "name": "", "doc_type": "cpf",
+                                                            "doc_number": KNOWN, "photo": FACE, "host_person_id": host["id"]}, timeout=30)
+    assert r.status_code == 422 and "name" in r.json()["detail"]["fields"]
+
+
+def test_known_cpf_flags_identity_check_and_keeps_reason(ctx):
+    s, code, host = ctx
+    run(db.rate_hits.delete_many({}))
+    r = requests.post(f"{API}/public/selfreg/submit", json={"code": code, "consent": True, "name": "Outra Pessoa", "doc_type": "cpf",
                                                             "doc_number": KNOWN, "photo": FACE, "host_person_id": host["id"],
                                                             "visit_reason": "Reunião comercial"}, timeout=30)
     assert r.status_code == 200, r.text
-    stat = requests.get(f"{API}/public/selfreg/status/{r.json()['status_token']}", timeout=10).json()
-    assert stat["name"].endswith("**") and "Mariana" not in stat["name"]
+    assert "Mariana" not in r.text
     reg = run(db.self_registrations.find_one({"doc_key": KNOWN, "status": "pendente"}, {"_id": 0}))
-    assert reg["name"] == f"{TAG} Mariana Souza" and reg["visitor_company"] == "TEST Origem"
-    assert reg["visit_reason"] == "Reunião comercial"
-    ok = s.post(f"{API}/selfreg/requests/{reg['id']}/approve", json={})
-    assert reg["name_from_record"] is True
-    assert ok.status_code == 200, ok.text
-    v = run(db.visits.find_one({"id": ok.json()["visit_id"]}, {"_id": 0, "visit_reason": 1, "visitor_id": 1}))
-    assert v["visit_reason"] == "Reunião comercial"
-    run(db.visits.delete_many({"visitor_id": v["visitor_id"]}))
+    assert reg["name"] == "Outra Pessoa" and reg["visit_reason"] == "Reunião comercial"
+    assert reg["doc_known"] is True and reg["owner_verified"] is False
+    det = s.get(f"{API}/selfreg/requests/{reg['id']}").json()
+    assert det["existing_name"] == f"{TAG} Mariana Souza" and "existing_photo" in det
