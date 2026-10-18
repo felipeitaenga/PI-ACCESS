@@ -34,7 +34,7 @@ export function PresentNow({ refreshKey, onChanged }) {
             {v.photo ? <img src={v.photo} alt="" className="h-12 w-9 rounded object-cover" /> : <div className="flex h-12 w-9 items-center justify-center rounded bg-secondary"><UserRound className="h-4 w-4" /></div>}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{v.visitor_name}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{v.visit_type_name} · {v.host_name}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{v.visit_type_name} · {v.host_name}{v.visit_reason ? ` · ${v.visit_reason}` : ""}</p>
               <p className={`font-mono text-[11px] ${v.remaining_min < 30 ? "text-amber-400" : "text-muted-foreground"}`} data-testid={`present-now-remaining-${v.id}`}>restam {fmtRemaining(v.remaining_min)}</p>
             </div>
             <Button size="sm" variant="ghost" className="h-7 px-2" title="Verificar no facial" onClick={() => setChecking(v)} data-testid={`present-now-devcheck-${v.id}`}><ScanFace className="h-4 w-4" /></Button>

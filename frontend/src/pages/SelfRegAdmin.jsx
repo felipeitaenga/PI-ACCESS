@@ -33,10 +33,10 @@ function EditFields({ e, setE }) {
   useEffect(() => { api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {}); }, []);
   const s = (k) => (ev) => setE({ ...e, [k]: ev.target.value });
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="selfreg-edit-fields">
+    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 [&_input]:min-w-0" data-testid="selfreg-edit-fields">
       <Field label="Nome completo" className="sm:col-span-2"><Input value={e.name} onChange={s("name")} data-testid="selfreg-edit-name" /></Field>
-      <Field label="Documento"><select className={sel} value={e.doc_type} onChange={s("doc_type")} data-testid="selfreg-edit-doctype"><option value="cpf">CPF</option><option value="rg">RG</option><option value="passaporte">Passaporte</option></select></Field>
-      <Field label="Número"><Input value={e.doc_number} onChange={s("doc_number")} data-testid="selfreg-edit-docnumber" /></Field>
+      <Field label="CPF"><Input value={e.doc_number} onChange={s("doc_number")} data-testid="selfreg-edit-docnumber" /></Field>
+      <Field label="Motivo da visita"><Input value={e.visit_reason} onChange={s("visit_reason")} data-testid="selfreg-edit-reason" /></Field>
       <Field label="Empresa do visitante"><Input value={e.visitor_company} onChange={s("visitor_company")} data-testid="selfreg-edit-company" /></Field>
       <Field label="Placa"><Input value={e.plate} onChange={s("plate")} data-testid="selfreg-edit-plate" /></Field>
       <Field label="Telefone"><Input value={e.phone} onChange={s("phone")} data-testid="selfreg-edit-phone" /></Field>
@@ -46,7 +46,7 @@ function EditFields({ e, setE }) {
   );
 }
 
-const toEdit = (r) => ({ name: r.name || "", doc_type: r.doc_type || "cpf", doc_number: r.doc_number || "", visitor_company: r.visitor_company || "",
+const toEdit = (r) => ({ name: r.name || "", doc_type: "cpf", doc_number: r.doc_number || "", visitor_company: r.visitor_company || "", visit_reason: r.visit_reason || "",
   plate: r.plate || "", phone: r.phone || "", email: r.email || "", visit_type_id: r.visit_type_id || "" });
 
 function RequestDialog({ id, mode, onClose, onDone }) {
@@ -94,6 +94,7 @@ function RequestDialog({ id, mode, onClose, onDone }) {
               <div className="min-w-0 space-y-0.5">
                 <p className="text-base font-semibold">{r.name}</p>
                 {r.visitor_company && <p>{r.visitor_company}</p>}
+                {r.visit_reason && <p data-testid="selfreg-request-reason">Motivo: {r.visit_reason}</p>}
                 <p className="font-mono text-xs text-muted-foreground">{r.doc_type?.toUpperCase()} {r.doc_number}</p>
                 {r.email && <p className="text-xs text-muted-foreground">{r.email}{r.email_verified ? " ✓" : ""}</p>}
                 {r.phone && <p className="text-xs text-muted-foreground">{r.phone}</p>}

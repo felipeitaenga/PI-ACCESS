@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Field, CompanyCombo } from "@/components/registry/FormBits";
 import { cn } from "@/lib/utils";
-import { addHours, endOfDay, DOC_TYPES, ID_TYPES, maskDoc, maskPlate } from "@/components/visits/visitUtils";
+import { addHours, endOfDay, ID_TYPES, maskPlate } from "@/components/visits/visitUtils";
+import { maskCpf, onlyDigits, validCpf } from "@/lib/br";
 import { VisitorSuggest } from "@/components/visits/VisitorSuggest";
 
 const sel = "h-9 w-full rounded-md border border-input bg-field px-3 text-sm hover:border-sky-500/50 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30";
@@ -87,7 +88,7 @@ export function HostFields({ v, companies }) {
 }
 
 export function VisitorFields({ v }) {
-  const { f, set, settings, errors, prefill } = v;
+  const { f, set, errors, prefill } = v;
   const [sug, setSug] = useState([]);
   useEffect(() => {
     const t = setTimeout(() => api.get(`/visits/visitor-companies?q=${encodeURIComponent(f.visitor_company)}`).then(({ data }) => setSug(data)).catch(() => {}), 300);
@@ -95,20 +96,19 @@ export function VisitorFields({ v }) {
   }, [f.visitor_company]);
   return (
     <div className="grid gap-3 sm:grid-cols-6">
+      <Field className="sm:col-span-6" label="CPF do visitante" required error={errors.doc_number || (onlyDigits(f.doc_number).length === 11 && !validCpf(f.doc_number) ? "CPF inválido" : "")}
+        hint="Digite o CPF: se o visitante já tiver cadastro, os dados são preenchidos automaticamente">
+        <VisitorSuggest value={f.doc_number} onChange={(x) => set("doc_number", maskCpf(x))} onPick={prefill} className="font-mono" testid="visit-doc-number-input" field="doc" inputMode="numeric" />
+      </Field>
       <Field className="sm:col-span-6" label="Nome completo do visitante" required error={errors.name}>
         <VisitorSuggest value={f.name} onChange={(x) => set("name", x)} onPick={prefill} testid="visit-name-input" field="name" />
       </Field>
-      <Field className="sm:col-span-2" label="Tipo de documento" required error={errors.doc_type}>
-        <select className={sel} value={f.doc_type} onChange={(e) => { set("doc_type", e.target.value); set("doc_number", ""); }} data-testid="visit-doc-type-select">
-          {DOC_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-      </Field>
-      <Field className="sm:col-span-4" label="Número do documento" required error={errors.doc_number}>
-        <VisitorSuggest value={f.doc_number} onChange={(x) => set("doc_number", maskDoc(f.doc_type, x, settings))} onPick={prefill} className="font-mono" testid="visit-doc-number-input" field="doc" />
-      </Field>
-      <Field className="sm:col-span-6" label="Empresa do visitante">
+      <Field className="sm:col-span-3" label="Empresa do visitante">
         <Input list="visitor-company-suggestions" value={f.visitor_company} onChange={(e) => set("visitor_company", e.target.value)} data-testid="visit-visitor-company-input" />
         <datalist id="visitor-company-suggestions">{sug.map((s) => <option key={s} value={s} />)}</datalist>
+      </Field>
+      <Field className="sm:col-span-3" label="Motivo da visita" hint="Opcional">
+        <Input value={f.visit_reason} maxLength={200} onChange={(e) => set("visit_reason", e.target.value)} placeholder="Ex.: reunião, entrega, manutenção" data-testid="visit-reason-input" />
       </Field>
     </div>
   );
