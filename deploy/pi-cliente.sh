@@ -161,7 +161,8 @@ atualizar)
   ANT=$(env_get VERSAO)
   fazer_backup
   sed -i "s/^VERSAO=.*/VERSAO=$V/" "$(dir)/.env"
-  ( cd "$(dir)" && docker compose pull -q && docker compose up -d )
+  echo "  ↓ baixando a imagem $V (pode levar alguns minutos)..."
+  ( cd "$(dir)" && docker compose pull && docker compose up -d )
   ok "$C: $ANT → $V   (voltar: pi-cliente.sh atualizar $C $ANT)"
   ;;
 
