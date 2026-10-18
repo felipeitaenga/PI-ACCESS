@@ -6,3 +6,4 @@
 - Toda mudança de backend precisa de teste automatizado em `backend/tests`.
 - Antes de salvar no GitHub: `git fetch origin main` + `git merge origin/main` (origin = https://github.com/felipeitaenga/PI-ACCESS.git). Sem reset, nunca force push na main. Salvar em branch conflict_* é aceitável.
 - Não alterar o arquivo VERSION (publicação é feita depois da revisão).
+- Autocadastro público NÃO tem busca por CPF (rota /public/selfreg/lookup e preenchimento automático removidos na 1.5.5 por decisão do cliente). Visitante sempre digita CPF e nome. Não recriar. Mantêm-se doc_known/owner_verified (alerta + comparação de fotos na portaria). Busca por CPF na portaria (logado, /visits/lookup) continua.

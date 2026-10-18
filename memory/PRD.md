@@ -170,6 +170,7 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 - [x] Autocadastro: só selfie pela câmera; sem agendar (solicitação imediata, visita começa na aprovação mantendo a duração); convite gera mensagem com detalhes (copiar/WhatsApp, campo Observações); tela de espera com spinner (polling 5 s, vibração/som) + Web Push (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT no .env, sw.js, manifest.json) avisando aprovada/recusada (2026-10-18, iteration_23 + testes test_selfreg_now_invite_msg.py, test_selfreg_push.py).
 
 - [x] CPF primeiro e só CPF (público e portaria) com "CPF inválido"; busca por CPF (pública: só "Encontramos seu cadastro, Mar***", dados usados sem exibir; status mascara o nome); empresas do QR único só ao tocar/digitar; campo opcional "Motivo da visita" (visit_reason) na portaria, anfitrião, fila, presentes e relatório Visitas (2026-10-18, iteration_24 + tests/test_selfreg_cpf_reason.py). Merge da main 1.5.3 (validação SSRF do endpoint de push).
+- [x] Merge da main 1.5.5: busca pública por CPF REMOVIDA por decisão do cliente (visitante sempre digita CPF e nome; não recriar). Mantidos doc_known/owner_verified (comparação de fotos na portaria) e busca por CPF da portaria. tests/test_selfreg_cpf_reason.py atualizado (rota inexistente, nome obrigatório, CPF conhecido sinaliza conferência).
 
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
