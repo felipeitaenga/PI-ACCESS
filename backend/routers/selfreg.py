@@ -28,7 +28,7 @@ from selfreg_core import (get_settings, otp_active, new_token, token_hash, new_c
 public = APIRouter(prefix="/public/selfreg", tags=["selfreg-public"])
 router = APIRouter(prefix="/selfreg", tags=["selfreg"])
 WRITE = ("admin", "operator", "reception", "company_manager")
-SELF_DOCS = ("cpf", "rg", "passaporte")
+SELF_DOCS = ("cpf",)
 MAX_PHOTO = 3_000_000
 GENERIC_LIMIT = "Muitas tentativas. Aguarde alguns minutos e tente novamente."
 
@@ -157,6 +157,33 @@ async def info(request: Request, code: str = "", invite: str = ""):
     return out
 
 
+@public.post("/lookup")
+async def lookup(body: dict, request: Request):
+    """CPF já cadastrado? Só responde ao DONO do cadastro: e-mail confirmado por código igual ao do cadastro.
+    Sem isso responde sempre {"found": false} — não revela se um CPF visitou o local (LGPD)."""
+    await _limit(f"lookup:{client_ip(request)}", 15, 600)
+    ctx = await _ctx(body)
+    num, err = validate_doc("cpf", _s(body.get("doc_number"), 20), await visit_settings())
+    if err:
+        _err({"doc_number": err}, err)
+    ver = await _owner_verification(ctx, _s(body.get("verify_token"), 200))
+    if not ver:
+        return {"found": False}
+    v = await db.visitors.find_one({**ND, "doc_type": "cpf", "doc_key": doc_key("cpf", num), "blacklist": {"$ne": True}},
+                                   {"_id": 0, "name": 1, "email": 1})
+    if not v or not v.get("name") or (v.get("email") or "").lower() != ver["email"]:
+        return {"found": False}
+    first = v["name"].split(" ")[0]
+    return {"found": True, "greeting": f"{first[:3]}{'*' * max(len(first) - 3, 2)}"}
+
+
+async def _owner_verification(ctx, vtoken):
+    if not vtoken:
+        return None
+    return await db.selfreg_verifications.find_one({"token_hash": token_hash(vtoken), "ctx": _ctx_key(ctx), "used": False,
+                                                    "expires_at": {"$gt": utcnow()}}, {"_id": 0, "email": 1})
+
+
 @public.post("/hosts")
 async def hosts(body: dict, request: Request):
     """Busca do anfitrião pelo nome: no máx. 3 resultados, nunca lista aberta."""
@@ -268,22 +295,36 @@ async def submit(body: dict, request: Request):
     if body.get("use_saved") and verification:
         saved = await db.visitors.find_one({**ND, "email": email, "remember": True, "photo": {"$nin": ["", None]},
                                             "blacklist": {"$ne": True}}, {"_id": 0})
+    owner = bool(saved)
     if saved:
         name, doc_type, doc_number = saved["name"], saved.get("doc_type"), saved.get("doc_number")
         vcomp = (body.get("visitor_company") or saved.get("origin_company") or "").strip()[:120]
     else:
-        name = re.sub(r"\s+", " ", (body.get("name") or "")).strip()[:120]
-        if len(name) < 5 or " " not in name:
-            errs["name"] = "Informe o nome completo"
-        doc_type = body.get("doc_type")
+        doc_type = body.get("doc_type") or "cpf"
+        doc_number = ""
         if doc_type not in SELF_DOCS:
-            errs["doc_type"] = "Selecione o tipo de documento"
-            doc_number = ""
+            errs["doc_type"] = "Informe o CPF"
         else:
             doc_number, derr = validate_doc(doc_type, body.get("doc_number"), await visit_settings())
             if derr:
                 errs["doc_number"] = derr
-        vcomp = (body.get("visitor_company") or "").strip()[:120]
+        known = None if not doc_number else await db.visitors.find_one(
+            {**ND, "doc_type": doc_type, "doc_key": doc_key(doc_type, doc_number)},
+            {"_id": 0, "name": 1, "origin_company": 1, "phone": 1, "plate": 1, "email": 1})
+        # dados do cadastro só para o dono (e-mail confirmado igual ao do cadastro); senão é como CPF novo
+        owner = bool(known and verification and (known.get("email") or "").lower() == verification["email"])
+        if not owner:
+            known = None
+        name = re.sub(r"\s+", " ", _s(body.get("name"), 120)).strip()
+        from_record = not name and bool(known)
+        name = name or (known or {}).get("name", "")
+        if len(name) < 5 or " " not in name:
+            errs["name"] = "Informe o nome completo"
+        vcomp = _s(body.get("visitor_company"), 120).strip() or (known or {}).get("origin_company", "")
+        if known:
+            body = {**body, "phone": _s(body.get("phone"), 30) or known.get("phone", ""),
+                    "plate": _s(body.get("plate"), 10) or known.get("plate", "")}
+    visit_reason = _s(body.get("visit_reason"), 200).strip()
     phone = re.sub(r"[^\d+() -]", "", body.get("phone") or "")[:20]
     plate, perr = norm_plate(body.get("plate"))
     if perr:
@@ -331,11 +372,14 @@ async def submit(body: dict, request: Request):
            "host_person_id": host["id"], "host_name": host["name"], "host_email": (host.get("email") or "").strip().lower(),
            "visit_type_id": vt["id"], "visit_type_name": vt["name"], "start_at": start_iso, "end_at": end_iso,
            "name": name, "doc_type": doc_type, "doc_number": doc_number, "doc_key": key, "visitor_company": vcomp,
-           "email": email, "email_verified": bool(verification), "phone": phone, "plate": plate,
+           "email": email, "email_verified": bool(verification), "phone": phone, "plate": plate, "visit_reason": visit_reason,
+           "name_from_record": bool(not saved and from_record),
            "photo": photo, "photo_thumb": make_thumb(photo) if photo else (saved or {}).get("photo_thumb", ""),
            "photo_metrics": (pcheck or {}).get("metrics", {}), "saved_visitor_id": (saved or {}).get("id"),
            "remember": bool(body.get("remember")) and bool(verification),
            "blacklist": bool((existing or {}).get("blacklist")), "visitor_id": (existing or {}).get("id"),
+           # CPF já cadastrado por quem não comprovou ser o dono: a portaria compara as fotos antes de liberar
+           "doc_known": bool(existing), "owner_verified": owner,
            "consent_at": now_iso(), "lgpd_text": s["lgpd_text"], "ip": ip,
            "created_at": now_iso(), "expires_at": utcnow() + timedelta(hours=int(s["approval_hours"]))}
     if inv:
@@ -353,7 +397,7 @@ async def submit(body: dict, request: Request):
                     f"{name} → {host['name']} ({comp['name']}) via {reg['source']}", ip)
 
     # convite com liberação automática (quem convidou já autorizou) — nunca para lista negra
-    if inv and inv.get("auto_approve") and not reg["blacklist"]:
+    if inv and inv.get("auto_approve") and not reg["blacklist"] and not (reg["doc_known"] and not reg["owner_verified"]):
         actor = {"email": inv.get("created_by", ""), "name": inv.get("created_by_name") or "Convite", "role": "convite"}
         try:
             await _approve(reg, actor, "convite", {}, ip)
@@ -371,7 +415,10 @@ async def status(token: str, request: Request):
     r = await db.self_registrations.find_one({"status_token_hash": token_hash(token)}, {"_id": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
-    return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": r["name"].split(" ")[0],
+    first = r["name"].split(" ")[0]
+    if r.get("name_from_record"):
+        first = f"{first[:3]}{'*' * max(len(first) - 3, 2)}"
+    return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": first,
             "company": r["host_company_name"], "host_name": r["host_name"], "start_at": r["start_at"], "end_at": r["end_at"]}
 
 
@@ -407,8 +454,9 @@ async def decision_view(token: str, request: Request):
             "decided_by_name": r.get("decided_by_name", "")}
     if r["status"] != "pendente":
         return base
-    return {**base, "visitor_company": r.get("visitor_company", ""), "doc_type": r.get("doc_type"),
+    return {**base, "visitor_company": r.get("visitor_company", ""), "doc_type": r.get("doc_type"), "visit_reason": r.get("visit_reason", ""),
             "doc_number": mask_doc(r.get("doc_number")), "plate": r.get("plate", ""), "visit_type": r["visit_type_name"],
+            "identity_check": bool(r.get("doc_known") and not r.get("owner_verified")),
             "photo": r.get("photo") or r.get("photo_thumb", ""), "blacklist": r.get("blacklist", False)}
 
 
@@ -469,7 +517,7 @@ async def _approve(reg, actor, via, adj, ip):
             "end_at_manual": bool(adj.get("end_at")), "host_company_id": reg["host_company_id"],
             "host_person_id": reg["host_person_id"], "name": reg["name"], "doc_type": reg["doc_type"],
             "doc_number": reg["doc_number"], "visitor_company": reg.get("visitor_company", ""), "plate": reg.get("plate", ""),
-            "identifier": {"type": "facial"}, "photo": reg.get("photo", ""),
+            "identifier": {"type": "facial"}, "photo": reg.get("photo", ""), "visit_reason": reg.get("visit_reason", ""),
             "notes": f"Autocadastro ({reg['source']}) aprovado por {via}",
             "blacklist_justification": adj.get("blacklist_justification", "")}
     try:
@@ -560,6 +608,10 @@ async def _scoped_reg(user, rid):
                                              {"_id": 0, "status_token_hash": 0, "decision_token_hash": 0, "ip": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    if r.get("doc_known") and not r.get("owner_verified") and r.get("visitor_id") and r.get("status") == "pendente":
+        v = await db.visitors.find_one({"id": r["visitor_id"]}, {"_id": 0, "photo_thumb": 1, "name": 1})
+        r["existing_photo"] = (v or {}).get("photo_thumb", "")
+        r["existing_name"] = (v or {}).get("name", "")
     r["expires_at"] = _iso(r.get("expires_at"))
     return r
 
@@ -576,7 +628,7 @@ async def edit_request(rid: str, body: dict, request: Request, user: dict = Depe
     if r["status"] != "pendente":
         raise HTTPException(status_code=409, detail="Esta solicitação já foi respondida.")
     upd, errs = {}, {}
-    for k, n in (("name", 120), ("visitor_company", 120), ("plate", 10), ("phone", 30), ("email", 160)):
+    for k, n in (("name", 120), ("visitor_company", 120), ("plate", 10), ("phone", 30), ("email", 160), ("visit_reason", 200)):
         if k in body:
             upd[k] = _s(body.get(k), n).strip()
     if "name" in upd and len(upd["name"].split()) < 2:

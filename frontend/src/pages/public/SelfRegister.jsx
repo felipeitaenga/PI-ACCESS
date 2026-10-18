@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Building2, Camera, CheckCircle2, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
 import { CameraCapture } from "@/components/CameraCapture";
-import { maskCpf } from "@/lib/br";
+import { maskCpf, validCpf } from "@/lib/br";
 import { Box, Captcha, PButton, PField, PublicShell, errFields, errMsg, fmtDT, inputCls, pub } from "./common";
 
-const DOCS = [["cpf", "CPF"], ["rg", "RG"], ["passaporte", "Passaporte"]];
 const maskPlate = (v) => {
   const r = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
   return /^[A-Z]{3}\d{4}$/.test(r) ? `${r.slice(0, 3)}-${r.slice(3)}` : r;
@@ -58,6 +57,13 @@ function HostSearch({ ctxKey, value, onPick, error }) {
 
 function CompanyPicker({ companies, value, onPick, error }) {
   const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); } };
+    document.addEventListener("pointerdown", h);
+    return () => document.removeEventListener("pointerdown", h);
+  }, []);
   const list = companies.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
   if (value) {
     return (
@@ -70,19 +76,40 @@ function CompanyPicker({ companies, value, onPick, error }) {
     );
   }
   return (
-    <PField label="Empresa que você vai visitar" required error={error}>
-      {companies.length > 6 && (
-        <div className="relative mb-2">
-          <Search className="absolute left-3 top-3 h-5 w-5 text-slate-500" />
-          <input className={`${inputCls} pl-10`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar empresas" />
+    <PField label="Empresa que você vai visitar" required error={error} hint="Toque para escolher ou digite o nome">
+      <div ref={ref}>
+      <div className="relative">
+        <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-500" />
+        <input className={`${inputCls} pl-10`} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
+          placeholder="Selecione a empresa" autoComplete="off" data-testid="selfreg-company-input" />
+      </div>
+      {open && (
+        <div className="mt-2 max-h-64 space-y-1.5 overflow-auto" data-testid="selfreg-company-list">
+          {list.map((c) => (
+            <button key={c.id} type="button" onClick={() => { onPick(c); setOpen(false); setQ(""); }} className="w-full rounded-lg border border-slate-700 px-3 py-2.5 text-left hover:border-sky-500" data-testid={`selfreg-company-${c.id}`}>{c.name}</button>
+          ))}
+          {list.length === 0 && <p className="text-xs text-slate-400">Nenhuma empresa encontrada.</p>}
         </div>
       )}
-      <div className="max-h-72 space-y-1.5 overflow-auto">
-        {list.map((c) => (
-          <button key={c.id} type="button" onClick={() => onPick(c)} className="w-full rounded-lg border border-slate-700 px-3 py-2.5 text-left hover:border-sky-500">{c.name}</button>
-        ))}
-        {list.length === 0 && <p className="text-xs text-slate-400">Nenhuma empresa encontrada.</p>}
       </div>
+    </PField>
+  );
+}
+
+function CpfField({ ctxKey, verifyToken, value, onChange, error, onFound }) {
+  const [found, setFound] = useState(null);
+  const digits = value.replace(/\D/g, "");
+  const bad = digits.length === 11 && !validCpf(value);
+  useEffect(() => {
+    setFound(null); onFound(null);
+    if (digits.length !== 11 || !validCpf(value)) { return; }
+    pub.post("/lookup", { ...ctxKey, verify_token: verifyToken, doc_number: digits }).then(({ data }) => { setFound(data.found ? data.greeting : ""); onFound(data.found ? data.greeting : ""); }).catch(() => {});
+  }, [digits]); // eslint-disable-line
+  return (
+    <PField label="CPF" required error={error || (bad ? "CPF inválido — confira os números" : "")} hint="Digite seu CPF">
+      <input className={inputCls} inputMode="numeric" autoComplete="off" value={value} placeholder="000.000.000-00"
+        onChange={(e) => onChange(maskCpf(e.target.value))} data-testid="selfreg-cpf-input" />
+      {found && <p className="mt-2 flex items-center gap-2 text-sm text-emerald-300" data-testid="selfreg-cpf-found"><CheckCircle2 className="h-4 w-4" />Encontramos seu cadastro, {found}. Seus dados serão usados.</p>}
     </PField>
   );
 }
@@ -120,7 +147,8 @@ export default function SelfRegister({ mode }) {
   const [verifyToken, setVerifyToken] = useState("");
   const [recurring, setRecurring] = useState(null);
   const [useSaved, setUseSaved] = useState(false);
-  const [f, setF] = useState({ name: "", doc_type: "cpf", doc_number: "", visitor_company: "", phone: "", plate: "", remember: false });
+  const [f, setF] = useState({ name: "", doc_type: "cpf", doc_number: "", visitor_company: "", phone: "", plate: "", visit_reason: "", remember: false });
+  const [known, setKnown] = useState(null);
   const [host, setHost] = useState(null);
   const [company, setCompany] = useState(null);
   const [photo, setPhoto] = useState("");
@@ -237,26 +265,21 @@ export default function SelfRegister({ mode }) {
 
           {!useSaved && (
             <Box className="space-y-4">
-              <PField label="Nome completo" required error={errors.name}>
-                <input className={inputCls} autoComplete="name" value={f.name} onChange={set("name")} />
-              </PField>
-              <div className="grid grid-cols-[110px_1fr] gap-2">
-                <PField label="Documento" required error={errors.doc_type}>
-                  <select className={inputCls} value={f.doc_type} onChange={(e) => setF((s) => ({ ...s, doc_type: e.target.value, doc_number: "" }))}>
-                    {DOCS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                  </select>
+              <CpfField ctxKey={ctxKey} verifyToken={verifyToken} value={f.doc_number} onChange={set("doc_number")} error={errors.doc_number} onFound={setKnown} />
+              {!known && (
+                <PField label="Nome completo" required error={errors.name}>
+                  <input className={inputCls} autoComplete="name" value={f.name} onChange={set("name")} data-testid="selfreg-name-input" />
                 </PField>
-                <PField label="Número" required error={errors.doc_number}>
-                  <input className={inputCls} inputMode={f.doc_type === "cpf" ? "numeric" : "text"} value={f.doc_number}
-                    onChange={(e) => set("doc_number")(f.doc_type === "cpf" ? maskCpf(e.target.value) : e.target.value.toUpperCase())} />
-                </PField>
-              </div>
+              )}
               <Selfie photo={photo} setPhoto={setPhoto} error={errors.photo} />
             </Box>
           )}
 
           <Box className="space-y-4">
-            <PField label="Sua empresa" hint="Opcional">
+            <PField label="Motivo da visita" hint="Opcional">
+              <input className={inputCls} maxLength={200} value={f.visit_reason} onChange={set("visit_reason")} placeholder="Ex.: reunião, entrega, manutenção" data-testid="selfreg-reason-input" />
+            </PField>
+            <PField label="Sua empresa" hint={known ? "Opcional — em branco mantém a do seu cadastro" : "Opcional"}>
               <input className={inputCls} value={f.visitor_company} onChange={set("visitor_company")} />
             </PField>
             <div className="grid grid-cols-2 gap-2">

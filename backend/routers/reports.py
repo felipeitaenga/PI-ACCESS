@@ -26,6 +26,7 @@ COLS = {
     "denied": EV_COLS,
     "visits": [("visitor_name", "Visitante"), ("doc", "Documento"), ("visitor_company", "Empresa do visitante"),
                ("host_name", "Anfitrião"), ("host_company_name", "Empresa visitada"), ("visit_type_name", "Tipo"),
+               ("visit_reason", "Motivo"),
                ("start_at", "Início"), ("end_at", "Fim previsto"), ("checkin_at", "Entrada"), ("checkout_at", "Saída"),
                ("status", "Status")],
     "present": [("name", "Pessoa"), ("kind", "Tipo"), ("company", "Empresa"), ("where", "Anfitrião / área"),
@@ -123,7 +124,7 @@ async def _visits(user, f):
     async for v in db.visits.find(q, {"_id": 0}).sort("start_at", -1).limit(LIMIT):
         rows.append({"id": v["id"], "visitor_name": v.get("visitor_name", ""), "doc": v.get("doc_number") or v.get("visitor_document", ""),
                      "visitor_company": v.get("visitor_company") or v.get("origin_company", ""), "host_name": v.get("host_name", ""),
-                     "host_company_name": v.get("host_company_name", ""), "visit_type_name": v.get("visit_type_name", ""),
+                     "host_company_name": v.get("host_company_name", ""), "visit_type_name": v.get("visit_type_name", ""), "visit_reason": v.get("visit_reason", ""),
                      "start_at": fmt(v.get("start_at") or v.get("expected_start")), "end_at": fmt(v.get("end_at") or v.get("expected_end")),
                      "checkin_at": fmt(v.get("checkin_at")), "checkout_at": fmt(v.get("checkout_at")),
                      "status": VSTATUS.get(v.get("status"), v.get("status", ""))})
