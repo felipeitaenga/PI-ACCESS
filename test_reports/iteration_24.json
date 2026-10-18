@@ -1,0 +1,37 @@
+{
+  "summary": "Iter24: CPF-first + CPF-only + CPF lookup + QR único company picker + 'Motivo da visita'. Backend: test_selfreg_cpf_reason.py + test_selfreg_flow.py = 22 passed/1 skipped; new test_iter24_visit_reason_reports.py = 5 passed (report column Motivo json/xlsx/pdf, UI-created visit reason in report and /visits/present). Frontend (all via public URL): public /v/<code> at 390px – CPF is first field, no doc select, 123.456.789-00 → 'CPF inválido — confira os números', new CPF keeps Nome, known CPF shows 'Encontramos seu cadastro, TES******' and hides Nome, page HTML does not leak name/company, submit with known CPF and empty name → /solicitacao (reg stored with real name + reason). QR único /v/<site_code> – only selfreg-company-input initially, list appears on focus (6 companies), filter 'beta' works, 'Nenhuma empresa encontrada' for no match, picking company shows host search; CPF lookup works in site context. Portaria /cadastro/visitantes – 'CPF do visitante' first, no doc type select, invalid CPF message, existing CPF auto-fills name+company, visit-reason-input saved on visit (report + present API). Admin /autocadastro dialog shows selfreg-request-reason, edit has selfreg-edit-reason and only CPF (labels: Nome, CPF, Motivo…), saving updates reason; /aprovar/<token> shows host-decision-reason with edited reason; approval copies visit_reason to visit. Reports › Visitas UI shows 'Motivo' column with value. All TEST data cleaned; company selfreg_enabled and site_enabled restored (site link back to 404).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/public/selfreg/submit + SelfStatus", "issue": "Lookup masks the first name (TES******/Mar***), but after submitting with a known CPF the status page /solicitacao/<token> shows the full stored first name ('Mariana, sua solicitação foi enviada…'). Anyone who knows a CPF can still learn the first name. Consider using the masked greeting on the status page when the name came from the stored record."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SelfRegister CompanyPicker (QR único)", "issue": "Company list opens on focus but never closes on blur/outside tap; after tapping the CPF field the long list stays open and pushes the form down. Add outside-click/blur close (like VisitorSuggest).", "selector": "[data-testid=selfreg-company-list]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin /autocadastro request dialog (edit mode)", "issues": ["Right column content (Motivo da visita/E-mail inputs, 'Aprovar e liberar' button) touches/clips at the dialog's right border at 1920px – horizontal overflow of the dialog body"]},
+      {"screen": "Portaria visitors present card / visit lists", "issues": ["visit_reason is not shown in 'Visitantes presentes agora' card or other portaria lists (only in form, reports, admin dialog, host page). If 'aparece para portaria' means after save, add it to the present card/detail"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_selfreg_cpf_reason.py", "/app/backend/tests/test_selfreg_flow.py", "/app/backend/tests/test_iter24_visit_reason_reports.py", "/app/backend/tests/ui_setup_iter24.py", "/app/test_reports/pytest/iter24.xml"],
+  "action_items": [
+    "Close the QR único company list on blur/outside click (CompanyPicker)",
+    "Fix horizontal overflow in /autocadastro request dialog edit mode",
+    "Optional: mask first name on /solicitacao status page for lookup-based submissions",
+    "Optional: show visit_reason in portaria present-visitor card"
+  ],
+  "critical_code_review_comments": [
+    "Frontend bundle was stale at start (old Documento/Número UI served) until .jsx files were touched – hot reload missed the change; verify after edits",
+    "useVisitForm.prefill sets doc_type from the visitor record; picking a legacy RG/passport visitor via name suggestion puts a non-CPF number into the 'CPF do visitante' field (will show CPF inválido / fail validation) – decide how legacy non-CPF visitors are handled",
+    "Known-CPF public submit still requires a new selfie (photo 422 without it) – fine, but worth confirming that is intended"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter24_visit_reason_reports.py", "/app/backend/tests/ui_setup_iter24.py"],
+  "success_rate": {"backend": "100% (27 passed, 1 skipped)", "frontend": "~95% (all requested flows pass; 1 low UX bug, 1 design issue)"},
+  "seed_data_creation": "TEST_UI24 visitors/visits/self_registration created and fully removed by `python tests/ui_setup_iter24.py cleanup`; companies selfreg_enabled and site_enabled restored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with `-n 0` and export REACT_APP_BACKEND_URL (not in backend/.env). Use backend/tests/ui_setup_iter24.py setup|hosttoken REGID|cleanup (enables companies with hosts + site QR, inserts known CPFs 744.000.001-33 public / 744.000.003-03 portaria; hosttoken sets decision_token_hash so /aprovar/TESTUI24TOKEN<id8> works). Submit photo injected via page.route on /api/public/selfreg/submit. In portaria, host company combo only lists propria/cliente companies (NX Corp). If UI is stale, touch the changed .jsx files."
+}
