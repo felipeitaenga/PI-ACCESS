@@ -96,20 +96,12 @@ function CompanyPicker({ companies, value, onPick, error }) {
   );
 }
 
-function CpfField({ ctxKey, verifyToken, value, onChange, error, onFound }) {
-  const [found, setFound] = useState(null);
-  const digits = value.replace(/\D/g, "");
-  const bad = digits.length === 11 && !validCpf(value);
-  useEffect(() => {
-    setFound(null); onFound(null);
-    if (digits.length !== 11 || !validCpf(value)) { return; }
-    pub.post("/lookup", { ...ctxKey, verify_token: verifyToken, doc_number: digits }).then(({ data }) => { setFound(data.found ? data.greeting : ""); onFound(data.found ? data.greeting : ""); }).catch(() => {});
-  }, [digits]); // eslint-disable-line
+function CpfField({ value, onChange, error }) {
+  const bad = value.replace(/\D/g, "").length === 11 && !validCpf(value);
   return (
     <PField label="CPF" required error={error || (bad ? "CPF inválido — confira os números" : "")} hint="Digite seu CPF">
       <input className={inputCls} inputMode="numeric" autoComplete="off" value={value} placeholder="000.000.000-00"
         onChange={(e) => onChange(maskCpf(e.target.value))} data-testid="selfreg-cpf-input" />
-      {found && <p className="mt-2 flex items-center gap-2 text-sm text-emerald-300" data-testid="selfreg-cpf-found"><CheckCircle2 className="h-4 w-4" />Encontramos seu cadastro, {found}. Seus dados serão usados.</p>}
     </PField>
   );
 }
@@ -148,7 +140,6 @@ export default function SelfRegister({ mode }) {
   const [recurring, setRecurring] = useState(null);
   const [useSaved, setUseSaved] = useState(false);
   const [f, setF] = useState({ name: "", doc_type: "cpf", doc_number: "", visitor_company: "", phone: "", plate: "", visit_reason: "", remember: false });
-  const [known, setKnown] = useState(null);
   const [host, setHost] = useState(null);
   const [company, setCompany] = useState(null);
   const [photo, setPhoto] = useState("");
@@ -265,12 +256,10 @@ export default function SelfRegister({ mode }) {
 
           {!useSaved && (
             <Box className="space-y-4">
-              <CpfField ctxKey={ctxKey} verifyToken={verifyToken} value={f.doc_number} onChange={set("doc_number")} error={errors.doc_number} onFound={setKnown} />
-              {!known && (
-                <PField label="Nome completo" required error={errors.name}>
-                  <input className={inputCls} autoComplete="name" value={f.name} onChange={set("name")} data-testid="selfreg-name-input" />
-                </PField>
-              )}
+              <CpfField value={f.doc_number} onChange={set("doc_number")} error={errors.doc_number} />
+              <PField label="Nome completo" required error={errors.name}>
+                <input className={inputCls} autoComplete="name" value={f.name} onChange={set("name")} data-testid="selfreg-name-input" />
+              </PField>
               <Selfie photo={photo} setPhoto={setPhoto} error={errors.photo} />
             </Box>
           )}
@@ -279,7 +268,7 @@ export default function SelfRegister({ mode }) {
             <PField label="Motivo da visita" hint="Opcional">
               <input className={inputCls} maxLength={200} value={f.visit_reason} onChange={set("visit_reason")} placeholder="Ex.: reunião, entrega, manutenção" data-testid="selfreg-reason-input" />
             </PField>
-            <PField label="Sua empresa" hint={known ? "Opcional — em branco mantém a do seu cadastro" : "Opcional"}>
+            <PField label="Sua empresa" hint="Opcional">
               <input className={inputCls} value={f.visitor_company} onChange={set("visitor_company")} />
             </PField>
             <div className="grid grid-cols-2 gap-2">
