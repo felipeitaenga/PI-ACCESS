@@ -273,6 +273,7 @@ async def register_visit(body: dict, user: dict, ip: str = "", origin: str = "")
              "doc_type": body["doc_type"], "doc_number": c["doc_number"], "identifier": c["identifier"],
              "credential_type": c["identifier"]["type"], "credential_value": c["identifier"]["value"],
              "plate": c["plate"], "vehicle_plate": c["plate"], "notes": (body.get("notes") or "").strip(),
+             "visit_reason": str(body.get("visit_reason") or "").strip()[:200],
              "start_at": start_iso, "end_at": end_iso, "expected_start": start_iso, "expected_end": end_iso,
              "end_at_manual": bool(body.get("end_at_manual")), "status": status,
              **({"checkin_at": now.isoformat()} if status == "presente" else {}),

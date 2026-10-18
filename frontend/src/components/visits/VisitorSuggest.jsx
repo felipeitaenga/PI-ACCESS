@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { UserRound } from "lucide-react";
 
-export function VisitorSuggest({ value, onChange, onPick, className, testid, field }) {
+export function VisitorSuggest({ value, onChange, onPick, className, testid, field, inputMode }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -31,7 +31,7 @@ export function VisitorSuggest({ value, onChange, onPick, className, testid, fie
   return (
     <div ref={ref} className="relative">
       <Input value={value} onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKey}
-        autoComplete="off" className={className} data-testid={testid} />
+        autoComplete="off" inputMode={inputMode} className={className} data-testid={testid} />
       {open && items.length > 0 && (
         <div className="absolute z-30 mt-1 max-h-72 w-full min-w-72 overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl" data-testid={`${testid}-suggestions`}>
           <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Visitantes cadastrados · Enter preenche</p>

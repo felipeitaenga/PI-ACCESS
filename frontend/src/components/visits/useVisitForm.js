@@ -7,7 +7,7 @@ import { toast } from "sonner";
 const blank = (keep = {}) => ({
   visit_type_id: "", start_at: nowLocal(), end_at: "", end_at_manual: false,
   host_company_id: "", host_person_id: "", host_name: "", name: "", doc_type: "cpf", doc_number: "",
-  visitor_company: "", id_type: "facial", id_value: "", photo: "", plate: "", notes: "",
+  visitor_company: "", id_type: "facial", id_value: "", photo: "", plate: "", notes: "", visit_reason: "",
   blacklist: null, blacklist_justification: "", ...keep,
 });
 
@@ -79,7 +79,7 @@ export function useVisitForm(onSaved) {
         end_at_manual: f.end_at_manual, host_company_id: f.host_company_id, host_person_id: f.host_person_id,
         name: f.name, doc_type: f.doc_type, doc_number: f.doc_number, visitor_company: f.visitor_company,
         identifier: { type: f.id_type, value: f.id_value }, photo: f.photo?.startsWith("data:") ? f.photo : "",
-        plate: f.plate, notes: f.notes, blacklist_justification: f.blacklist_justification,
+        plate: f.plate, notes: f.notes, visit_reason: f.visit_reason, blacklist_justification: f.blacklist_justification,
       });
       setSync({ status: "done", devices: data.sync });
       setLast(data.visit);

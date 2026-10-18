@@ -48,6 +48,7 @@ export default function HostDecision() {
           <div className="min-w-0 space-y-1 text-sm">
             <p className="text-lg font-bold leading-tight text-white">{r.name}</p>
             {r.visitor_company && <p className="text-slate-300">{r.visitor_company}</p>}
+            {r.visit_reason && <p className="text-slate-300" data-testid="host-decision-reason">Motivo: {r.visit_reason}</p>}
             <p className="text-slate-400">{r.doc_type?.toUpperCase()} {r.doc_number}</p>
             {r.plate && <p className="text-slate-400">Placa {r.plate}</p>}
           </div>
