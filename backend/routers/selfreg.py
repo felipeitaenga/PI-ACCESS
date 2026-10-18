@@ -157,33 +157,6 @@ async def info(request: Request, code: str = "", invite: str = ""):
     return out
 
 
-@public.post("/lookup")
-async def lookup(body: dict, request: Request):
-    """CPF já cadastrado? Só responde ao DONO do cadastro: e-mail confirmado por código igual ao do cadastro.
-    Sem isso responde sempre {"found": false} — não revela se um CPF visitou o local (LGPD)."""
-    await _limit(f"lookup:{client_ip(request)}", 15, 600)
-    ctx = await _ctx(body)
-    num, err = validate_doc("cpf", _s(body.get("doc_number"), 20), await visit_settings())
-    if err:
-        _err({"doc_number": err}, err)
-    ver = await _owner_verification(ctx, _s(body.get("verify_token"), 200))
-    if not ver:
-        return {"found": False}
-    v = await db.visitors.find_one({**ND, "doc_type": "cpf", "doc_key": doc_key("cpf", num), "blacklist": {"$ne": True}},
-                                   {"_id": 0, "name": 1, "email": 1})
-    if not v or not v.get("name") or (v.get("email") or "").lower() != ver["email"]:
-        return {"found": False}
-    first = v["name"].split(" ")[0]
-    return {"found": True, "greeting": f"{first[:3]}{'*' * max(len(first) - 3, 2)}"}
-
-
-async def _owner_verification(ctx, vtoken):
-    if not vtoken:
-        return None
-    return await db.selfreg_verifications.find_one({"token_hash": token_hash(vtoken), "ctx": _ctx_key(ctx), "used": False,
-                                                    "expires_at": {"$gt": utcnow()}}, {"_id": 0, "email": 1})
-
-
 @public.post("/hosts")
 async def hosts(body: dict, request: Request):
     """Busca do anfitrião pelo nome: no máx. 3 resultados, nunca lista aberta."""
@@ -308,22 +281,10 @@ async def submit(body: dict, request: Request):
             doc_number, derr = validate_doc(doc_type, body.get("doc_number"), await visit_settings())
             if derr:
                 errs["doc_number"] = derr
-        known = None if not doc_number else await db.visitors.find_one(
-            {**ND, "doc_type": doc_type, "doc_key": doc_key(doc_type, doc_number)},
-            {"_id": 0, "name": 1, "origin_company": 1, "phone": 1, "plate": 1, "email": 1})
-        # dados do cadastro só para o dono (e-mail confirmado igual ao do cadastro); senão é como CPF novo
-        owner = bool(known and verification and (known.get("email") or "").lower() == verification["email"])
-        if not owner:
-            known = None
         name = re.sub(r"\s+", " ", _s(body.get("name"), 120)).strip()
-        from_record = not name and bool(known)
-        name = name or (known or {}).get("name", "")
         if len(name) < 5 or " " not in name:
             errs["name"] = "Informe o nome completo"
-        vcomp = _s(body.get("visitor_company"), 120).strip() or (known or {}).get("origin_company", "")
-        if known:
-            body = {**body, "phone": _s(body.get("phone"), 30) or known.get("phone", ""),
-                    "plate": _s(body.get("plate"), 10) or known.get("plate", "")}
+        vcomp = _s(body.get("visitor_company"), 120).strip()
     visit_reason = _s(body.get("visit_reason"), 200).strip()
     phone = re.sub(r"[^\d+() -]", "", body.get("phone") or "")[:20]
     plate, perr = norm_plate(body.get("plate"))
@@ -373,7 +334,6 @@ async def submit(body: dict, request: Request):
            "visit_type_id": vt["id"], "visit_type_name": vt["name"], "start_at": start_iso, "end_at": end_iso,
            "name": name, "doc_type": doc_type, "doc_number": doc_number, "doc_key": key, "visitor_company": vcomp,
            "email": email, "email_verified": bool(verification), "phone": phone, "plate": plate, "visit_reason": visit_reason,
-           "name_from_record": bool(not saved and from_record),
            "photo": photo, "photo_thumb": make_thumb(photo) if photo else (saved or {}).get("photo_thumb", ""),
            "photo_metrics": (pcheck or {}).get("metrics", {}), "saved_visitor_id": (saved or {}).get("id"),
            "remember": bool(body.get("remember")) and bool(verification),
