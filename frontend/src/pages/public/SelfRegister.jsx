@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Building2, Camera, CheckCircle2, ImagePlus, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
+import { Building2, Camera, CheckCircle2, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
 import { CameraCapture } from "@/components/CameraCapture";
-import { cropTo34Jpeg, fileToImage } from "@/lib/image";
 import { maskCpf } from "@/lib/br";
 import { Box, Captcha, PButton, PField, PublicShell, errFields, errMsg, fmtDT, inputCls, pub } from "./common";
 
@@ -17,7 +16,6 @@ const maskPhone = (v) => {
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
 };
-const localNow = () => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
 
 function HostSearch({ ctxKey, value, onPick, error }) {
   const [q, setQ] = useState("");
@@ -91,23 +89,14 @@ function CompanyPicker({ companies, value, onPick, error }) {
 
 function Selfie({ photo, setPhoto, error }) {
   const [cam, setCam] = useState(false);
-  const fileRef = useRef(null);
-  const pick = async (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    try { const img = await fileToImage(f); setPhoto(cropTo34Jpeg(img, img.naturalWidth, img.naturalHeight)); } catch { /* */ }
-  };
   return (
-    <PField label="Foto do rosto (selfie)" required error={error} hint="De frente, sem óculos escuros, boné ou máscara, em local bem iluminado.">
+    <PField label="Foto do rosto (selfie)" required error={error} hint="Tire a foto agora pela câmera: de frente, sem óculos escuros, boné ou máscara, em local bem iluminado.">
       <div className="flex items-center gap-3">
         <div className="flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
           {photo ? <img src={photo} alt="Sua foto" className="h-full w-full object-cover" /> : <Camera className="h-8 w-8 text-slate-600" />}
         </div>
         <div className="flex flex-1 flex-col gap-2">
-          <PButton onClick={() => setCam(true)}><Camera className="h-5 w-5" />{photo ? "Tirar outra" : "Tirar selfie"}</PButton>
-          <PButton variant="outline" onClick={() => fileRef.current?.click()}><ImagePlus className="h-5 w-5" />Escolher foto</PButton>
-          <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pick} />
+          <PButton onClick={() => setCam(true)} data-testid="selfreg-take-selfie"><Camera className="h-5 w-5" />{photo ? "Tirar outra" : "Tirar selfie"}</PButton>
         </div>
       </div>
       <CameraCapture open={cam} onClose={() => setCam(false)} onCapture={setPhoto} />
@@ -134,8 +123,6 @@ export default function SelfRegister({ mode }) {
   const [f, setF] = useState({ name: "", doc_type: "cpf", doc_number: "", visitor_company: "", phone: "", plate: "", remember: false });
   const [host, setHost] = useState(null);
   const [company, setCompany] = useState(null);
-  const [when, setWhen] = useState("now");
-  const [start, setStart] = useState(localNow());
   const [photo, setPhoto] = useState("");
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
@@ -166,8 +153,7 @@ export default function SelfRegister({ mode }) {
   });
   const submit = () => run(async () => {
     const body = { ...ctxKey, company_id: company?.id || "", consent, captcha, verify_token: verifyToken, email, use_saved: useSaved, ...f,
-      photo: useSaved ? "" : photo, host_person_id: host?.id || "",
-      start_at: when === "later" && start ? new Date(start).toISOString() : "" };
+      photo: useSaved ? "" : photo, host_person_id: host?.id || "" };
     const { data } = await pub.post("/submit", body);
     navigate(`/solicitacao/${data.status_token}`, { replace: true });
   });
@@ -246,17 +232,7 @@ export default function SelfRegister({ mode }) {
           <Box className="space-y-4">
             {isSite && <CompanyPicker companies={info.companies} value={company} onPick={(c) => { setCompany(c); setHost(null); }} error={errors.company_id} />}
             {!isInvite && (!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={hostKey} value={host} onPick={setHost} error={errors.host_person_id} />}
-            {!isInvite && (
-              <PField label="Quando" error={errors.start_at} hint={hours ? `A visita vale por ${String(hours).replace(".", ",")} h a partir do início.` : ""}>
-                <div className="grid grid-cols-2 gap-2">
-                  {[["now", "Agora"], ["later", "Agendar"]].map(([k, l]) => (
-                    <button key={k} type="button" onClick={() => setWhen(k)}
-                      className={`h-11 rounded-lg border text-sm font-medium ${when === k ? "border-sky-500 bg-sky-500/15 text-sky-200" : "border-slate-700 text-slate-300"}`}>{l}</button>
-                  ))}
-                </div>
-                {when === "later" && <input type="datetime-local" className={`${inputCls} mt-2`} value={start} min={localNow()} onChange={(e) => setStart(e.target.value)} />}
-              </PField>
-            )}
+            {!isInvite && <p className="text-xs text-slate-400">A solicitação vai agora para o anfitrião. A visita começa quando ele aprovar{hours ? ` e vale por ${String(hours).replace(".", ",")} h` : ""}.</p>}
           </Box>
 
           {!useSaved && (

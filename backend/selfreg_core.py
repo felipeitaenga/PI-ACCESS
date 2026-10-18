@@ -161,6 +161,37 @@ async def send_email(to: str, subject: str, paragraphs: list, button=None, kind=
     return rec["ok"]
 
 
+# ---------------- notificação no celular (Web Push) ----------------
+def push_enabled():
+    return bool(cfg.VAPID_PUBLIC_KEY and cfg.VAPID_PRIVATE_KEY)
+
+
+def _webpush(sub, payload):
+    import json
+    from pywebpush import webpush
+    webpush(subscription_info=sub, data=json.dumps(payload), vapid_private_key=cfg.VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": cfg.VAPID_SUBJECT}, ttl=86400)
+
+
+async def send_push(reg, title, body, url):
+    """Notifica o visitante no celular (se ele autorizou). Registra em notifications."""
+    sub = reg.get("push_sub")
+    if not sub or not push_enabled():
+        return False
+    rec = {"id": new_id(), "channel": "push", "to": "", "subject": title, "kind": "push", "ref": reg["id"],
+           "at": now_iso(), "ok": False, "error": ""}
+    try:
+        await asyncio.to_thread(_webpush, sub, {"title": title, "body": body, "url": url, "tag": reg["id"]})
+        rec["ok"] = True
+    except Exception as e:  # noqa: BLE001
+        rec["error"] = str(e)[:200]
+        if "410" in rec["error"] or "404" in rec["error"]:
+            await db.self_registrations.update_one({"id": reg["id"]}, {"$unset": {"push_sub": ""}})
+    await db.notifications.insert_one(rec)
+    return rec["ok"]
+
+
+
 # ---------------- retenção (LGPD) ----------------
 async def _last_visit_end(visitor_id):
     v = await db.visits.find_one({"visitor_id": visitor_id}, {"_id": 0, "end_at": 1, "ended_at": 1, "status": 1},

@@ -18,7 +18,7 @@ import { toast } from "sonner";
 const sel = "h-9 w-full rounded-md border border-input bg-field px-3 text-sm focus:border-sky-500 focus:outline-none";
 const primary = "bg-sky-500 text-slate-950 hover:bg-sky-400";
 const err = (e) => toast.error(formatApiErrorDetail(e.response?.data?.detail));
-const copy = (t) => navigator.clipboard?.writeText(t).then(() => toast.success("Link copiado"), () => toast.error("Não foi possível copiar"));
+const copy = (t, ok = "Link copiado") => navigator.clipboard?.writeText(t).then(() => toast.success(ok), () => toast.error("Não foi possível copiar"));
 const STATUS = {
   pendente: "border-amber-500/40 text-amber-300", processando: "border-sky-500/40 text-sky-300", aprovado: "border-emerald-500/40 text-emerald-300",
   recusado: "border-red-500/40 text-red-300", expirado: "border-slate-500/40 text-slate-400", ativo: "border-sky-500/40 text-sky-300",
@@ -244,10 +244,14 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
         {result ? (
           <div className="space-y-3 text-sm">
             <p className="text-emerald-300">Convite criado{result.email_sent ? " e enviado por e-mail" : ""}.</p>
-            <p className="text-muted-foreground">Envie o link ao visitante (WhatsApp, e-mail…). Ele só aparece agora e vale uma única vez.</p>
-            <div className="flex gap-2"><Input readOnly value={result.link} className="font-mono text-xs" /><Button onClick={() => copy(result.link)}><Copy className="h-4 w-4" /></Button></div>
-            <a className="inline-flex items-center gap-1 text-sky-300 underline" target="_blank" rel="noreferrer"
-              href={`https://wa.me/?text=${encodeURIComponent(`Olá! Faça seu cadastro de visitante pelo link: ${result.link}`)}`}>Enviar pelo WhatsApp</a>
+            <p className="text-muted-foreground">Envie a mensagem ao visitante (WhatsApp, e-mail…). O link só aparece agora e vale uma única vez.</p>
+            <textarea readOnly value={result.message} rows={11} className="w-full rounded-md border border-input bg-field p-2 font-mono text-xs" data-testid="invite-message" />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => copy(result.message, "Mensagem copiada")} data-testid="invite-copy-message"><Copy className="mr-1 h-4 w-4" />Copiar mensagem</Button>
+              <Button variant="outline" onClick={() => copy(result.link)} data-testid="invite-copy-link"><Link2 className="mr-1 h-4 w-4" />Copiar só o link</Button>
+              <a className="inline-flex items-center gap-1 self-center text-sky-300 underline" target="_blank" rel="noreferrer" data-testid="invite-whatsapp"
+                href={`https://wa.me/?text=${encodeURIComponent(result.message)}`}>Enviar pelo WhatsApp</a>
+            </div>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
