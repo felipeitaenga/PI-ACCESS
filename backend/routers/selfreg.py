@@ -298,7 +298,9 @@ async def submit(body: dict, request: Request):
         known = None if not doc_number else await db.visitors.find_one(
             {**ND, "doc_type": doc_type, "doc_key": doc_key(doc_type, doc_number)},
             {"_id": 0, "name": 1, "origin_company": 1, "phone": 1, "plate": 1})
-        name = re.sub(r"\s+", " ", _s(body.get("name"), 120)).strip() or (known or {}).get("name", "")
+        name = re.sub(r"\s+", " ", _s(body.get("name"), 120)).strip()
+        from_record = not name and bool(known)
+        name = name or (known or {}).get("name", "")
         if len(name) < 5 or " " not in name:
             errs["name"] = "Informe o nome completo"
         vcomp = _s(body.get("visitor_company"), 120).strip() or (known or {}).get("origin_company", "")
@@ -354,6 +356,7 @@ async def submit(body: dict, request: Request):
            "visit_type_id": vt["id"], "visit_type_name": vt["name"], "start_at": start_iso, "end_at": end_iso,
            "name": name, "doc_type": doc_type, "doc_number": doc_number, "doc_key": key, "visitor_company": vcomp,
            "email": email, "email_verified": bool(verification), "phone": phone, "plate": plate, "visit_reason": visit_reason,
+           "name_from_record": bool(not saved and from_record),
            "photo": photo, "photo_thumb": make_thumb(photo) if photo else (saved or {}).get("photo_thumb", ""),
            "photo_metrics": (pcheck or {}).get("metrics", {}), "saved_visitor_id": (saved or {}).get("id"),
            "remember": bool(body.get("remember")) and bool(verification),
@@ -393,7 +396,10 @@ async def status(token: str, request: Request):
     r = await db.self_registrations.find_one({"status_token_hash": token_hash(token)}, {"_id": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
-    return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": r["name"].split(" ")[0],
+    first = r["name"].split(" ")[0]
+    if r.get("name_from_record"):
+        first = f"{first[:3]}{'*' * max(len(first) - 3, 2)}"
+    return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": first,
             "company": r["host_company_name"], "host_name": r["host_name"], "start_at": r["start_at"], "end_at": r["end_at"]}
 
 

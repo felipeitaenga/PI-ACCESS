@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Building2, Camera, CheckCircle2, Loader2, Search, ShieldCheck, UserCheck } from "lucide-react";
 import { CameraCapture } from "@/components/CameraCapture";
@@ -58,6 +58,12 @@ function HostSearch({ ctxKey, value, onPick, error }) {
 function CompanyPicker({ companies, value, onPick, error }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); } };
+    document.addEventListener("pointerdown", h);
+    return () => document.removeEventListener("pointerdown", h);
+  }, []);
   const list = companies.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
   if (value) {
     return (
@@ -71,6 +77,7 @@ function CompanyPicker({ companies, value, onPick, error }) {
   }
   return (
     <PField label="Empresa que você vai visitar" required error={error} hint="Toque para escolher ou digite o nome">
+      <div ref={ref}>
       <div className="relative">
         <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-500" />
         <input className={`${inputCls} pl-10`} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
@@ -84,6 +91,7 @@ function CompanyPicker({ companies, value, onPick, error }) {
           {list.length === 0 && <p className="text-xs text-slate-400">Nenhuma empresa encontrada.</p>}
         </div>
       )}
+      </div>
     </PField>
   );
 }

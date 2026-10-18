@@ -89,10 +89,13 @@ def test_known_cpf_fills_hidden_data_and_reason(ctx):
                                                             "doc_number": KNOWN, "photo": FACE, "host_person_id": host["id"],
                                                             "visit_reason": "Reunião comercial"}, timeout=30)
     assert r.status_code == 200, r.text
+    stat = requests.get(f"{API}/public/selfreg/status/{r.json()['status_token']}", timeout=10).json()
+    assert stat["name"].endswith("**") and "Mariana" not in stat["name"]
     reg = run(db.self_registrations.find_one({"doc_key": KNOWN, "status": "pendente"}, {"_id": 0}))
     assert reg["name"] == f"{TAG} Mariana Souza" and reg["visitor_company"] == "TEST Origem"
     assert reg["visit_reason"] == "Reunião comercial"
     ok = s.post(f"{API}/selfreg/requests/{reg['id']}/approve", json={})
+    assert reg["name_from_record"] is True
     assert ok.status_code == 200, ok.text
     v = run(db.visits.find_one({"id": ok.json()["visit_id"]}, {"_id": 0, "visit_reason": 1, "visitor_id": 1}))
     assert v["visit_reason"] == "Reunião comercial"

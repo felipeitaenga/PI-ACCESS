@@ -33,7 +33,7 @@ function EditFields({ e, setE }) {
   useEffect(() => { api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {}); }, []);
   const s = (k) => (ev) => setE({ ...e, [k]: ev.target.value });
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="selfreg-edit-fields">
+    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 [&_input]:min-w-0" data-testid="selfreg-edit-fields">
       <Field label="Nome completo" className="sm:col-span-2"><Input value={e.name} onChange={s("name")} data-testid="selfreg-edit-name" /></Field>
       <Field label="CPF"><Input value={e.doc_number} onChange={s("doc_number")} data-testid="selfreg-edit-docnumber" /></Field>
       <Field label="Motivo da visita"><Input value={e.visit_reason} onChange={s("visit_reason")} data-testid="selfreg-edit-reason" /></Field>
