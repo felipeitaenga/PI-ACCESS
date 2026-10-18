@@ -22,7 +22,7 @@ from visits_core import (get_settings as visit_settings, validate_doc, doc_key, 
                          norm_plate, TZ)
 from routers.visits import register_visit
 from selfreg_core import (get_settings, otp_active, new_token, token_hash, new_code, new_otp, same, valid_email, link,
-                          mask_doc, mask_email, hit, captcha_ok, send_email, send_push, push_enabled, utcnow,
+                          mask_doc, mask_email, hit, captcha_ok, send_email, send_push, push_enabled, push_endpoint_ok, utcnow,
                           TURNSTILE_SITE_KEY, DEFAULTS)
 
 public = APIRouter(prefix="/public/selfreg", tags=["selfreg-public"])
@@ -388,7 +388,7 @@ async def push_subscribe(token: str, body: dict, request: Request):
         raise HTTPException(status_code=400, detail="Notificações desativadas")
     keys = body.get("keys") if isinstance(body.get("keys"), dict) else {}
     sub = {"endpoint": _s(body.get("endpoint"), 1000), "keys": {"p256dh": _s(keys.get("p256dh"), 200), "auth": _s(keys.get("auth"), 100)}}
-    if not sub["endpoint"].startswith("https://") or not sub["keys"]["p256dh"] or not sub["keys"]["auth"]:
+    if not push_endpoint_ok(sub["endpoint"]) or not sub["keys"]["p256dh"] or not sub["keys"]["auth"]:
         raise HTTPException(status_code=400, detail="Inscrição inválida")
     res = await db.self_registrations.update_one({"status_token_hash": token_hash(token)}, {"$set": {"push_sub": sub}})
     if not res.matched_count:

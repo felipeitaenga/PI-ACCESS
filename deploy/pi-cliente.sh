@@ -16,6 +16,7 @@
 #    pi-cliente.sh empresas <cliente> <csv> <email-admin>  cria empresas e gestores em lote
 #    pi-cliente.sh senha-admin <cliente>         redefine a senha do administrador
 #    pi-cliente.sh senha-mqtt <cliente>          gera nova senha MQTT (atualizar no facial!)
+#    pi-cliente.sh vapid <cliente>               gera as chaves do aviso no celular (autocadastro)
 #    pi-cliente.sh excluir <cliente>             backup + remove (dados vão para excluidos/)
 #
 #  Variáveis opcionais no "criar":  NOME="Hospital X"  ADMIN_EMAIL="ti@hospitalx.com.br"
@@ -175,6 +176,20 @@ empresas)
   curl -fsSL https://raw.githubusercontent.com/felipeitaenga/PI-ACCESS/main/deploy/pi-empresas.py -o "$BASE/pi-empresas.py"
   ( cd "$(dir)" && python3 "$BASE/pi-empresas.py" --url "https://$C.$DOMINIO" --admin "$ADM" --arquivo "$(realpath "$CSV")" )
   ;;
+vapid)
+  # chaves do aviso no celular (Web Push) do autocadastro; gera uma vez por cliente
+  validar; existe
+  if [[ -n "$(env_get VAPID_PRIVATE_KEY)" ]]; then ok "$C já tem chaves VAPID"; exit 0; fi
+  KEYS=$(docker exec "piaccess_$C" python -c "
+from py_vapid import Vapid01, b64urlencode
+from cryptography.hazmat.primitives import serialization as s
+v = Vapid01(); v.generate_keys()
+pub = v.public_key.public_bytes(s.Encoding.X962, s.PublicFormat.UncompressedPoint)
+prv = v.private_key.private_numbers().private_value.to_bytes(32, 'big')
+print(b64urlencode(pub), b64urlencode(prv))") || erro "não foi possível gerar as chaves (container piaccess_$C rodando na 1.5.3+?)"
+  read -r PUBK PRVK <<<"$KEYS"
+  printf 'VAPID_PUBLIC_KEY=%s\nVAPID_PRIVATE_KEY=%s\n' "$PUBK" "$PRVK" >> "$(dir)/.env"
+  ( cd "$(dir)" && docker compose up -d app ) && ok "chaves VAPID criadas para $C (aviso no celular ativo)" ;;
 padrao)        validar; existe; docker exec "piaccess_$C" python -m app.bootstrap ${3:+"$3"} ;;
 
 senha-mqtt)
@@ -199,6 +214,6 @@ excluir)
   ;;
 
 *)
-  sed -n '3,22p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '3,23p' "$0" | sed 's/^# \{0,1\}//'
   ;;
 esac
