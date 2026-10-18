@@ -90,7 +90,8 @@ function RequestDialog({ id, mode, onClose, onDone }) {
         {!r ? <p className="text-sm text-muted-foreground">Carregando…</p> : (
           <div className="space-y-3 text-sm">
             <div className="flex gap-4">
-              {(r.photo || r.photo_thumb) && <img src={r.photo || r.photo_thumb} alt="" className="h-40 w-[120px] rounded-md object-cover" />}
+              {(r.photo || r.photo_thumb) && <img src={r.photo || r.photo_thumb} alt="" className="h-40 w-[120px] rounded-md object-cover" title="Selfie enviada agora" />}
+              {r.existing_photo && <img src={r.existing_photo} alt="" className="h-40 w-[120px] rounded-md object-cover ring-2 ring-amber-400" title="Foto do cadastro existente" />}
               <div className="min-w-0 space-y-0.5">
                 <p className="text-base font-semibold">{r.name}</p>
                 {r.visitor_company && <p>{r.visitor_company}</p>}
@@ -106,6 +107,11 @@ function RequestDialog({ id, mode, onClose, onDone }) {
               <p><b>{r.host_name}</b> · {r.host_company_name}</p>
               <p className="text-xs text-muted-foreground">{r.visit_type_name} · {fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)} · via {r.source}</p>
             </div>
+            {r.existing_photo !== undefined && (
+              <p className="flex gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs text-amber-200" data-testid="selfreg-identity-check">
+                <AlertTriangle className="h-4 w-4 shrink-0" />Este CPF já está cadastrado{r.existing_name ? ` (${r.existing_name})` : ""} e quem enviou não confirmou ser o dono. Compare a selfie com a foto do cadastro (borda amarela) antes de liberar; ao aprovar, nome e foto do cadastro serão substituídos.
+              </p>
+            )}
             {r.blacklist && (
               <div className="rounded-md border border-red-500/50 bg-red-500/10 p-2 text-red-200">
                 <p className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />Visitante em LISTA NEGRA</p>

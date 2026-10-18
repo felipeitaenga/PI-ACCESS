@@ -96,14 +96,14 @@ function CompanyPicker({ companies, value, onPick, error }) {
   );
 }
 
-function CpfField({ ctxKey, value, onChange, error, onFound }) {
+function CpfField({ ctxKey, verifyToken, value, onChange, error, onFound }) {
   const [found, setFound] = useState(null);
   const digits = value.replace(/\D/g, "");
   const bad = digits.length === 11 && !validCpf(value);
   useEffect(() => {
     setFound(null); onFound(null);
     if (digits.length !== 11 || !validCpf(value)) { return; }
-    pub.post("/lookup", { ...ctxKey, doc_number: digits }).then(({ data }) => { setFound(data.found ? data.greeting : ""); onFound(data.found ? data.greeting : ""); }).catch(() => {});
+    pub.post("/lookup", { ...ctxKey, verify_token: verifyToken, doc_number: digits }).then(({ data }) => { setFound(data.found ? data.greeting : ""); onFound(data.found ? data.greeting : ""); }).catch(() => {});
   }, [digits]); // eslint-disable-line
   return (
     <PField label="CPF" required error={error || (bad ? "CPF inválido — confira os números" : "")} hint="Digite seu CPF">
@@ -265,7 +265,7 @@ export default function SelfRegister({ mode }) {
 
           {!useSaved && (
             <Box className="space-y-4">
-              <CpfField ctxKey={ctxKey} value={f.doc_number} onChange={set("doc_number")} error={errors.doc_number} onFound={setKnown} />
+              <CpfField ctxKey={ctxKey} verifyToken={verifyToken} value={f.doc_number} onChange={set("doc_number")} error={errors.doc_number} onFound={setKnown} />
               {!known && (
                 <PField label="Nome completo" required error={errors.name}>
                   <input className={inputCls} autoComplete="name" value={f.name} onChange={set("name")} data-testid="selfreg-name-input" />

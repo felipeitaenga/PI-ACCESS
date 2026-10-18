@@ -57,6 +57,7 @@ export default function HostDecision() {
           <p>Visita a <b>{r.host_name}</b> · {r.visit_type}</p>
           <p className="text-slate-400">{fmtDT(r.start_at)} até {fmtDT(r.end_at)}</p>
         </div>
+        {r.identity_check && <p className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"><AlertTriangle className="h-5 w-5 shrink-0" />Este CPF já tinha cadastro. Confira se a foto é mesmo da pessoa que você espera antes de aprovar.</p>}
         {r.blacklist && <p className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"><AlertTriangle className="h-5 w-5 shrink-0" />Esta solicitação precisa ser analisada pela portaria.</p>}
         {err && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{err}</p>}
         {rejecting ? (

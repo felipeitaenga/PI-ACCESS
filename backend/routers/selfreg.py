@@ -159,17 +159,29 @@ async def info(request: Request, code: str = "", invite: str = ""):
 
 @public.post("/lookup")
 async def lookup(body: dict, request: Request):
-    """CPF já cadastrado? Responde só se encontrou e o início do primeiro nome mascarado — nenhum outro dado."""
+    """CPF já cadastrado? Só responde ao DONO do cadastro: e-mail confirmado por código igual ao do cadastro.
+    Sem isso responde sempre {"found": false} — não revela se um CPF visitou o local (LGPD)."""
     await _limit(f"lookup:{client_ip(request)}", 15, 600)
-    await _ctx(body)
+    ctx = await _ctx(body)
     num, err = validate_doc("cpf", _s(body.get("doc_number"), 20), await visit_settings())
     if err:
         _err({"doc_number": err}, err)
-    v = await db.visitors.find_one({**ND, "doc_type": "cpf", "doc_key": doc_key("cpf", num)}, {"_id": 0, "name": 1})
-    if not v or not v.get("name"):
+    ver = await _owner_verification(ctx, _s(body.get("verify_token"), 200))
+    if not ver:
+        return {"found": False}
+    v = await db.visitors.find_one({**ND, "doc_type": "cpf", "doc_key": doc_key("cpf", num), "blacklist": {"$ne": True}},
+                                   {"_id": 0, "name": 1, "email": 1})
+    if not v or not v.get("name") or (v.get("email") or "").lower() != ver["email"]:
         return {"found": False}
     first = v["name"].split(" ")[0]
     return {"found": True, "greeting": f"{first[:3]}{'*' * max(len(first) - 3, 2)}"}
+
+
+async def _owner_verification(ctx, vtoken):
+    if not vtoken:
+        return None
+    return await db.selfreg_verifications.find_one({"token_hash": token_hash(vtoken), "ctx": _ctx_key(ctx), "used": False,
+                                                    "expires_at": {"$gt": utcnow()}}, {"_id": 0, "email": 1})
 
 
 @public.post("/hosts")
@@ -283,6 +295,7 @@ async def submit(body: dict, request: Request):
     if body.get("use_saved") and verification:
         saved = await db.visitors.find_one({**ND, "email": email, "remember": True, "photo": {"$nin": ["", None]},
                                             "blacklist": {"$ne": True}}, {"_id": 0})
+    owner = bool(saved)
     if saved:
         name, doc_type, doc_number = saved["name"], saved.get("doc_type"), saved.get("doc_number")
         vcomp = (body.get("visitor_company") or saved.get("origin_company") or "").strip()[:120]
@@ -297,7 +310,11 @@ async def submit(body: dict, request: Request):
                 errs["doc_number"] = derr
         known = None if not doc_number else await db.visitors.find_one(
             {**ND, "doc_type": doc_type, "doc_key": doc_key(doc_type, doc_number)},
-            {"_id": 0, "name": 1, "origin_company": 1, "phone": 1, "plate": 1})
+            {"_id": 0, "name": 1, "origin_company": 1, "phone": 1, "plate": 1, "email": 1})
+        # dados do cadastro só para o dono (e-mail confirmado igual ao do cadastro); senão é como CPF novo
+        owner = bool(known and verification and (known.get("email") or "").lower() == verification["email"])
+        if not owner:
+            known = None
         name = re.sub(r"\s+", " ", _s(body.get("name"), 120)).strip()
         from_record = not name and bool(known)
         name = name or (known or {}).get("name", "")
@@ -361,6 +378,8 @@ async def submit(body: dict, request: Request):
            "photo_metrics": (pcheck or {}).get("metrics", {}), "saved_visitor_id": (saved or {}).get("id"),
            "remember": bool(body.get("remember")) and bool(verification),
            "blacklist": bool((existing or {}).get("blacklist")), "visitor_id": (existing or {}).get("id"),
+           # CPF já cadastrado por quem não comprovou ser o dono: a portaria compara as fotos antes de liberar
+           "doc_known": bool(existing), "owner_verified": owner,
            "consent_at": now_iso(), "lgpd_text": s["lgpd_text"], "ip": ip,
            "created_at": now_iso(), "expires_at": utcnow() + timedelta(hours=int(s["approval_hours"]))}
     if inv:
@@ -378,7 +397,7 @@ async def submit(body: dict, request: Request):
                     f"{name} → {host['name']} ({comp['name']}) via {reg['source']}", ip)
 
     # convite com liberação automática (quem convidou já autorizou) — nunca para lista negra
-    if inv and inv.get("auto_approve") and not reg["blacklist"]:
+    if inv and inv.get("auto_approve") and not reg["blacklist"] and not (reg["doc_known"] and not reg["owner_verified"]):
         actor = {"email": inv.get("created_by", ""), "name": inv.get("created_by_name") or "Convite", "role": "convite"}
         try:
             await _approve(reg, actor, "convite", {}, ip)
@@ -437,6 +456,7 @@ async def decision_view(token: str, request: Request):
         return base
     return {**base, "visitor_company": r.get("visitor_company", ""), "doc_type": r.get("doc_type"), "visit_reason": r.get("visit_reason", ""),
             "doc_number": mask_doc(r.get("doc_number")), "plate": r.get("plate", ""), "visit_type": r["visit_type_name"],
+            "identity_check": bool(r.get("doc_known") and not r.get("owner_verified")),
             "photo": r.get("photo") or r.get("photo_thumb", ""), "blacklist": r.get("blacklist", False)}
 
 
@@ -588,6 +608,10 @@ async def _scoped_reg(user, rid):
                                              {"_id": 0, "status_token_hash": 0, "decision_token_hash": 0, "ip": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    if r.get("doc_known") and not r.get("owner_verified") and r.get("visitor_id") and r.get("status") == "pendente":
+        v = await db.visitors.find_one({"id": r["visitor_id"]}, {"_id": 0, "photo_thumb": 1, "name": 1})
+        r["existing_photo"] = (v or {}).get("photo_thumb", "")
+        r["existing_name"] = (v or {}).get("name", "")
     r["expires_at"] = _iso(r.get("expires_at"))
     return r
 
