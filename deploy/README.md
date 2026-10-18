@@ -77,6 +77,7 @@ Depois de editar: `docker exec caddy caddy reload --config /etc/caddy/Caddyfile`
 | `SEED_DEMO` | não | `false` em produção (banco inicia vazio) |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | não | e-mails (recuperação de senha e autocadastro: código de confirmação, aprovação do anfitrião, avisos ao visitante). Porta 465 = SSL; outras = STARTTLS |
 | `TURNSTILE_SITE_KEY` `TURNSTILE_SECRET` | não | captcha Cloudflare Turnstile nas páginas públicas do autocadastro |
+| `VAPID_PUBLIC_KEY` `VAPID_PRIVATE_KEY` | não | aviso no celular do visitante (Web Push). Gere com `pi-cliente vapid <cliente>` |
 | `CORS_ORIGINS` | não | origens extras, separadas por vírgula |
 
 Variáveis definidas pela imagem (não precisa mexer): `APP_VERSION`, `STATIC_DIR=/app/static`, `DATA_DIR=/app/data`.

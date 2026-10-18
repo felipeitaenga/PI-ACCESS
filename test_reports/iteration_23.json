@@ -1,0 +1,44 @@
+{
+  "summary": "Iter23: autocadastro selfie-only, solicitação imediata (sem agendar), mensagem de convite, tela de espera + Web Push. Backend: test_selfreg_now_invite_msg (3), test_selfreg_push (4), test_selfreg_flow (regressão) = 25 passed, 1 skipped (after updating 2 obsolete scheduling assertions + fixing fixture path). Frontend (390px): /v/<code> has only 'Tirar selfie' (no file input/'Escolher foto'), no Quando/Agendar block, 'A solicitação vai agora para o anfitrião...' text present; camera modal opens. /solicitacao/<token>: selfreg-waiting with animated spinner (animationName=spin), 'Aguardando aprovação', push-enable button; approve via API -> selfreg-status-aprovado in 5.0s; reject -> selfreg-status-recusado in 3.9s; polling stops after final state; no 429. /sw.js, /manifest.json, /icon-192.png, /favicon-32.png 200. Admin invite: invite-message textarea has Empresa/Anfitrião/Data-hora/Tipo/link, copy-message and copy-link write clipboard correctly, invite-whatsapp href=wa.me/?text=<msg>. Found 1 data bug (approved start_at shown stale), 1 missing UI field (Observações), 1 empty card on invite page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "_approve (routers/selfreg.py ~L489-493) -> GET /api/public/selfreg/status/{token}", "issue": "On approval only end_at is copied from the visit to self_registrations, start_at is NOT. Status page/admin list then show submission time as start and approval+duration as end (seen: '02:29 até 10:31' for an 8h type). Fix: add \"start_at\": visit[\"start_at\"] to the $set."},
+      {"endpoint": "GET /api/public/selfreg/status/{token}", "issue": "Rate limit is 240/10min per IP; the page polls every 5s (120/10min). Two waiting visitors behind the same NAT (e.g. lobby Wi-Fi) reach the limit, three or more get 429. Consider keying the limit by IP+token or raising it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "InviteDialog (SelfRegAdmin.jsx)", "issue": "There is no 'Observações' (notes) input. The state has notes:'' but nothing renders it, so admins can never add notes and the 'Observações:' line never shows up in the invite message. The backend already supports it.", "selector": "[data-testid=invite-dialog]", "priority": "MEDIUM"},
+      {"component": "SelfRegister.jsx form (invite /convite/<token>)", "issue": "Empty bordered <Box> is rendered under the invite banner, because all its children are !isInvite. Wrap the Box at L232-236 with (!isInvite) or render it conditionally.", "selector": "Box at SelfRegister.jsx:232", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SelfRegister public form", "issues": ["Only selfreg-take-selfie has a data-testid. Consent checkbox, Começar, name/doc inputs, host search and the submit 'Enviar para aprovação' button have none."]},
+      {"screen": "InviteDialog", "issues": ["Uses the browser's native datetime-local picker instead of a shadcn calendar (existing behaviour)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_selfreg_now_invite_msg.py", "/app/backend/tests/test_selfreg_push.py", "/app/backend/tests/test_selfreg_flow.py", "/app/backend/tests/ui_setup_iter23.py", "/app/test_reports/pytest/pytest_iter23.xml"],
+  "action_items": [
+    "routers/selfreg.py _approve: also set start_at=visit['start_at'] on the self_registration so the status page/e-mail/admin lists are consistent",
+    "SelfRegAdmin InviteDialog: add a notes/Observações textarea bound to f.notes",
+    "SelfRegister.jsx: don't render the empty Box for invites",
+    "Add data-testids to SelfRegister (consent, start, inputs, host search, submit)",
+    "Optional: per-token rate limit for /public/selfreg/status"
+  ],
+  "critical_code_review_comments": [
+    "Environment note: the webpack dev server had NOT picked up the SelfStatus.jsx changes. The served bundle still had the old 'Você receberá um e-mail...' clock screen and no selfreg-waiting. I ran touch on SelfStatus.jsx/common.jsx/SelfRegAdmin.jsx to force a recompile. After that, verify edits are actually in the bundle.",
+    "test_selfreg_flow.py must be run with -n 0 (pytest-xdist in use splits the shared-state classes across workers, so pytest.selfreg_* attributes are missing)",
+    "send_push passes url '/' (unused; the SW opens the cached /__last_status URL). This is OK but redundant.",
+    "PushOptIn caches the status URL before asking for permission. This is harmless."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_selfreg_flow.py (FACE fixture path -> tests/fixtures/face.jpg; C3 end_at assertion updated to 'override ignored + drift <120s'; TestH now asserts start ~now and cancel returns 400 since scheduling was removed)",
+    "/app/backend/tests/ui_setup_iter23.py (new helper: setup/submit/approve/reject/cleanup)"
+  ],
+  "success_rate": {"backend": "100% (25/25, 1 skipped)", "frontend": "90% (all requested flows pass; 2 minor UI bugs)"},
+  "seed_data_creation": "Temporarily enabled selfreg on 'Beta Manutenção' and created TEST_UI regs/visitor/invite. All of it was cleaned up, selfreg_enabled restored to false and rate_hits cleared.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run selfreg tests with `pytest -n 0`. Use backend/tests/ui_setup_iter23.py (setup -> submit N -> open /solicitacao/<token>, approve/reject via page.request with admin Bearer). SelfRegister public form: consent checkbox + 'Começar' button (no testids). Backend _fmt uses America/Sao_Paulo; the headless browser is UTC, so a 3h difference between the message and the UI is expected. If the UI looks stale, touch the changed .jsx files."
+}

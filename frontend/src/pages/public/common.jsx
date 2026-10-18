@@ -31,8 +31,8 @@ export function PublicShell({ title, subtitle, children }) {
   );
 }
 
-export const Box = ({ className, children }) => (
-  <div className={cn("rounded-xl border border-slate-800 bg-slate-900/70 p-4", className)}>{children}</div>
+export const Box = ({ className, children, ...p }) => (
+  <div className={cn("rounded-xl border border-slate-800 bg-slate-900/70 p-4", className)} {...p}>{children}</div>
 );
 
 export const PField = ({ label, error, hint, children, required }) => (

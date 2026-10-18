@@ -22,7 +22,8 @@ from visits_core import (get_settings as visit_settings, validate_doc, doc_key, 
                          norm_plate, TZ)
 from routers.visits import register_visit
 from selfreg_core import (get_settings, otp_active, new_token, token_hash, new_code, new_otp, same, valid_email, link,
-                          mask_doc, mask_email, hit, captcha_ok, send_email, utcnow, TURNSTILE_SITE_KEY, DEFAULTS)
+                          mask_doc, mask_email, hit, captcha_ok, send_email, send_push, push_enabled, push_endpoint_ok, utcnow,
+                          TURNSTILE_SITE_KEY, DEFAULTS)
 
 public = APIRouter(prefix="/public/selfreg", tags=["selfreg-public"])
 router = APIRouter(prefix="/selfreg", tags=["selfreg"])
@@ -298,16 +299,7 @@ async def submit(body: dict, request: Request):
         if not host:
             errs["host_person_id"] = "Escolha quem você vai visitar"
         now = datetime.now(timezone.utc)
-        try:
-            start = parse_dt(body["start_at"]) if body.get("start_at") else now
-            if start < now - timedelta(minutes=30):
-                errs["start_at"] = "Escolha um horário a partir de agora"
-            elif start > now + timedelta(days=int(s["max_days_ahead"])):
-                errs["start_at"] = f"Agende com no máximo {s['max_days_ahead']} dias de antecedência"
-            start = max(start, now)
-        except ValueError:
-            errs["start_at"] = "Data/hora inválida"
-            start = now
+        start = now  # a solicitação vale a partir do envio; o anfitrião decide quando aprovar
         start_iso = start.astimezone(timezone.utc).isoformat()
         end_iso = compute_end(start_iso, type_hours(vt, await visit_settings())).astimezone(timezone.utc).isoformat()
 
@@ -375,12 +367,33 @@ async def submit(body: dict, request: Request):
 
 @public.get("/status/{token}")
 async def status(token: str, request: Request):
-    await _limit(f"status:{client_ip(request)}", 60, 600)
+    await _limit(f"status:{client_ip(request)}:{token_hash(token)[:12]}", 240, 600)
     r = await db.self_registrations.find_one({"status_token_hash": token_hash(token)}, {"_id": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
     return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": r["name"].split(" ")[0],
             "company": r["host_company_name"], "host_name": r["host_name"], "start_at": r["start_at"], "end_at": r["end_at"]}
+
+
+@public.get("/push-key")
+async def push_key():
+    return {"enabled": push_enabled(), "key": cfg.VAPID_PUBLIC_KEY if push_enabled() else ""}
+
+
+@public.post("/push/{token}")
+async def push_subscribe(token: str, body: dict, request: Request):
+    """Visitante autoriza notificação no celular. Só texto: endpoint https + chaves."""
+    await _limit(f"push:{client_ip(request)}", 20, 600)
+    if not push_enabled():
+        raise HTTPException(status_code=400, detail="Notificações desativadas")
+    keys = body.get("keys") if isinstance(body.get("keys"), dict) else {}
+    sub = {"endpoint": _s(body.get("endpoint"), 1000), "keys": {"p256dh": _s(keys.get("p256dh"), 200), "auth": _s(keys.get("auth"), 100)}}
+    if not push_endpoint_ok(sub["endpoint"]) or not sub["keys"]["p256dh"] or not sub["keys"]["auth"]:
+        raise HTTPException(status_code=400, detail="Inscrição inválida")
+    res = await db.self_registrations.update_one({"status_token_hash": token_hash(token)}, {"$set": {"push_sub": sub}})
+    if not res.matched_count:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    return {"ok": True}
 
 
 @public.get("/decision/{token}")
@@ -445,8 +458,14 @@ async def _lock(reg_id):
 
 async def _approve(reg, actor, via, adj, ip):
     await _lock(reg["id"])
-    end_at = adj.get("end_at") or reg["end_at"]
-    body = {"visit_type_id": adj.get("visit_type_id") or reg["visit_type_id"], "start_at": reg["start_at"], "end_at": end_at,
+    start_at, end_at = reg["start_at"], adj.get("end_at") or reg["end_at"]
+    now = datetime.now(timezone.utc)
+    if reg["source"] != "convite" and parse_dt(start_at) < now:
+        # link público: a visita começa na aprovação e mantém a duração do tipo
+        if not adj.get("end_at"):
+            end_at = (now + (parse_dt(reg["end_at"]) - parse_dt(start_at))).astimezone(timezone.utc).isoformat()
+        start_at = now.isoformat()
+    body = {"visit_type_id": adj.get("visit_type_id") or reg["visit_type_id"], "start_at": start_at, "end_at": end_at,
             "end_at_manual": bool(adj.get("end_at")), "host_company_id": reg["host_company_id"],
             "host_person_id": reg["host_person_id"], "name": reg["name"], "doc_type": reg["doc_type"],
             "doc_number": reg["doc_number"], "visitor_company": reg.get("visitor_company", ""), "plate": reg.get("plate", ""),
@@ -470,7 +489,7 @@ async def _approve(reg, actor, via, adj, ip):
     await db.self_registrations.update_one({"id": reg["id"]}, {"$set": {
         "status": "aprovado", "visit_id": visit["id"], "visitor_id": visitor["id"], "decided_at": now_iso(),
         "decided_via": via, "decided_by": actor.get("email"), "decided_by_name": actor.get("name", ""),
-        "end_at": visit["end_at"], "photo": "", "sync_ok": sum(1 for x in res["sync"] if x["status"] == "ok"),
+        "start_at": visit["start_at"], "end_at": visit["end_at"], "photo": "", "sync_ok": sum(1 for x in res["sync"] if x["status"] == "ok"),
         "sync_total": len(res["sync"])}})
     await log_audit(actor, "autocadastro:aprovar", "self_registration", reg["id"], f"{reg['name']} via {via}", ip)
     if reg.get("email"):
@@ -480,6 +499,8 @@ async def _approve(reg, actor, via, adj, ip):
                           f"Válida de {_fmt(visit['start_at'])} até {_fmt(visit['end_at'])}. "
                           "Na chegada, olhe para o leitor facial. Se não liberar, procure a recepção."],
                          kind="aprovado", ref=reg["id"])
+    await send_push(reg, "Visita aprovada", f"{reg['host_company_name']}: válida de {_fmt(visit['start_at'])} até {_fmt(visit['end_at'])}. "
+                    "Na chegada, olhe para o leitor facial.", "/")
     if via != "anfitriao" and reg.get("host_email") and valid_email(reg["host_email"]):
         await send_email(reg["host_email"], f"Visita de {reg['name']} aprovada",
                          [f"A visita de <b>{escape(reg['name'])}</b> foi aprovada por {escape(actor.get('name') or via)}.",
@@ -501,6 +522,8 @@ async def _reject(reg, actor, via, reason, ip):
                           f"Sua solicitação de visita a {escape(reg['host_company_name'])} não foi aprovada."
                           + (f" Motivo: {escape(reason)}" if reason else ""),
                           "Em caso de dúvida, procure a recepção."], kind="recusado", ref=reg["id"])
+    await send_push(reg, "Visita não aprovada", f"{reg['host_company_name']}" + (f": {reason}" if reason else ". Procure a recepção."),
+                    "/")
     if via != "anfitriao" and reg.get("host_email") and valid_email(reg["host_email"]):
         await send_email(reg["host_email"], f"Visita de {reg['name']} recusada",
                          [f"A visita de <b>{escape(reg['name'])}</b> foi recusada por {escape(actor.get('name') or via)}."
@@ -664,12 +687,14 @@ async def create_invite(body: dict, request: Request, user: dict = Depends(requi
            "expires_at": exp}
     await db.selfreg_invites.insert_one(dict(inv))
     url = link(f"/convite/{token}")
+    message = _invite_message(inv, comp, host, url)
     sent = False
     if gemail:
         sent = await send_email(gemail, f"Convite de visita — {comp['name']}",
                                 [f"Olá{', ' + escape(inv['guest_name'].split(' ')[0]) if inv['guest_name'] else ''}.",
                                  f"<b>{escape(host['name'])}</b> ({escape(comp['name'])}) convidou você para uma visita em "
-                                 f"{_fmt(inv['start_at'])}.",
+                                 f"{_fmt(inv['start_at'])} até {_fmt(inv['end_at'])} ({escape(vt['name'])}).",
+                                 *([f"Observações: {escape(inv['notes'])}"] if inv["notes"] else []),
                                  "Faça seu cadastro pelo link abaixo (leva 1 minuto, com uma selfie). "
                                  "Assim você entra direto pelo leitor facial, sem fila na recepção."],
                                 button=("Fazer meu cadastro", url), kind="convite", ref=inv["id"])
@@ -678,7 +703,20 @@ async def create_invite(body: dict, request: Request, user: dict = Depends(requi
     inv.pop("_id", None)
     inv.pop("token_hash")
     inv["expires_at"] = _iso(exp)
-    return {"invite": inv, "link": url, "email_sent": sent}
+    return {"invite": inv, "link": url, "email_sent": sent, "message": message}
+
+
+def _invite_message(inv, comp, host, url):
+    first = inv["guest_name"].split(" ")[0] if inv["guest_name"] else ""
+    lines = [f"Olá{', ' + first if first else ''}! Você foi convidado(a) para uma visita.", "",
+             f"Empresa: {comp['name']}", f"Anfitrião: {host['name']}",
+             f"Data/hora: {_fmt(inv['start_at'])} até {_fmt(inv['end_at'])}",
+             f"Tipo de visita: {inv['visit_type_name']}"]
+    if inv["notes"]:
+        lines.append(f"Observações: {inv['notes']}")
+    lines += ["", "Faça seu cadastro antes de chegar (leva 1 minuto, com uma selfie) e entre direto pelo leitor facial:",
+              url, "", f"O link é pessoal, vale uma única vez e expira em {_fmt(_iso(inv['expires_at']))}."]
+    return "\n".join(lines)
 
 
 @router.get("/invites")
