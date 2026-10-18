@@ -166,6 +166,23 @@ def push_enabled():
     return bool(cfg.VAPID_PUBLIC_KEY and cfg.VAPID_PRIVATE_KEY)
 
 
+# O servidor faz POST no endpoint informado pelo navegador: só serviços oficiais de push (evita SSRF)
+PUSH_HOSTS = ("fcm.googleapis.com", "android.googleapis.com", "updates.push.services.mozilla.com",
+              "web.push.apple.com", "notify.windows.com")
+
+
+def push_endpoint_ok(endpoint):
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(endpoint or "")
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower()
+    if u.scheme != "https" or u.port not in (None, 443) or u.username or u.password:
+        return False
+    return any(host == h or host.endswith("." + h) for h in PUSH_HOSTS)
+
+
 def _webpush(sub, payload):
     import json
     from pywebpush import webpush
@@ -176,7 +193,7 @@ def _webpush(sub, payload):
 async def send_push(reg, title, body, url):
     """Notifica o visitante no celular (se ele autorizou). Registra em notifications."""
     sub = reg.get("push_sub")
-    if not sub or not push_enabled():
+    if not sub or not push_enabled() or not push_endpoint_ok(sub.get("endpoint")):
         return False
     rec = {"id": new_id(), "channel": "push", "to": "", "subject": title, "kind": "push", "ref": reg["id"],
            "at": now_iso(), "ok": False, "error": ""}
