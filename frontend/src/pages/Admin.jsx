@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { PageHeader } from "@/components/common";
 import { CategoryMulti } from "@/components/registry/FormBits";
@@ -12,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -22,7 +23,15 @@ import { toast } from "sonner";
 
 const ROLE_LABEL = { admin: "Administrador", operator: "Operador", reception: "Recepção", viewer: "Somente leitura", company_manager: "Gestor de empresa" };
 
+const SECTIONS = {
+  "/configuracoes/usuarios": ["users", "Usuários", "Contas de acesso ao sistema e perfis"],
+  "/logs/auditoria": ["audit", "Auditoria", "Quem fez o quê e quando no sistema"],
+  "/configuracoes/geral": ["settings", "Configurações gerais", "Parâmetros gerais do sistema"],
+};
+
 export default function Admin() {
+  const { pathname } = useLocation();
+  const [section, title, subtitle] = SECTIONS[pathname] || SECTIONS["/configuracoes/usuarios"];
   const [users, setUsers] = useState([]);
   const [audit, setAudit] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -70,13 +79,8 @@ export default function Admin() {
 
   return (
     <div>
-      <PageHeader title="Administração" subtitle="Usuários, auditoria e configurações gerais" />
-      <Tabs defaultValue="users">
-        <TabsList>
-          <TabsTrigger value="users" data-testid="admin-tab-users">Usuários</TabsTrigger>
-          <TabsTrigger value="audit" data-testid="admin-tab-audit">Auditoria</TabsTrigger>
-          <TabsTrigger value="settings" data-testid="admin-tab-settings">Configurações</TabsTrigger>
-        </TabsList>
+      <PageHeader title={title} subtitle={subtitle} />
+      <Tabs value={section}>
 
         <TabsContent value="users">
           <div className="mb-4 flex justify-end">
