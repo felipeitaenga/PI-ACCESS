@@ -229,11 +229,11 @@ export default function SelfRegister({ mode }) {
             </Box>
           )}
 
-          <Box className="space-y-4">
+          {!isInvite && <Box className="space-y-4">
             {isSite && <CompanyPicker companies={info.companies} value={company} onPick={(c) => { setCompany(c); setHost(null); }} error={errors.company_id} />}
-            {!isInvite && (!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={hostKey} value={host} onPick={setHost} error={errors.host_person_id} />}
-            {!isInvite && <p className="text-xs text-slate-400">A solicitação vai agora para o anfitrião. A visita começa quando ele aprovar{hours ? ` e vale por ${String(hours).replace(".", ",")} h` : ""}.</p>}
-          </Box>
+            {(!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={hostKey} value={host} onPick={setHost} error={errors.host_person_id} />}
+            <p className="text-xs text-slate-400">A solicitação vai agora para o anfitrião. A visita começa quando ele aprovar{hours ? ` e vale por ${String(hours).replace(".", ",")} h` : ""}.</p>
+          </Box>}
 
           {!useSaved && (
             <Box className="space-y-4">

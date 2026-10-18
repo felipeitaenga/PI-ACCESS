@@ -167,6 +167,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] Regra fixa: filtros por empresa validados com scope.own_company_or_404 (registry/people company_id, registry/visitors host_company, reports company_id); merge de origin/main 1.5.1 feito (2026-10-14). Ver /app/memory/RULES.md.
 
+- [x] Autocadastro: só selfie pela câmera; sem agendar (solicitação imediata, visita começa na aprovação mantendo a duração); convite gera mensagem com detalhes (copiar/WhatsApp, campo Observações); tela de espera com spinner (polling 5 s, vibração/som) + Web Push (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY/VAPID_SUBJECT no .env, sw.js, manifest.json) avisando aprovada/recusada (2026-10-18, iteration_23 + testes test_selfreg_now_invite_msg.py, test_selfreg_push.py).
+
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
 1. Implement real Control iD driver + device connection test against real API.

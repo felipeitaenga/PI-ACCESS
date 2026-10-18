@@ -367,7 +367,7 @@ async def submit(body: dict, request: Request):
 
 @public.get("/status/{token}")
 async def status(token: str, request: Request):
-    await _limit(f"status:{client_ip(request)}", 240, 600)
+    await _limit(f"status:{client_ip(request)}:{token_hash(token)[:12]}", 240, 600)
     r = await db.self_registrations.find_one({"status_token_hash": token_hash(token)}, {"_id": 0})
     if not r:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
@@ -489,7 +489,7 @@ async def _approve(reg, actor, via, adj, ip):
     await db.self_registrations.update_one({"id": reg["id"]}, {"$set": {
         "status": "aprovado", "visit_id": visit["id"], "visitor_id": visitor["id"], "decided_at": now_iso(),
         "decided_via": via, "decided_by": actor.get("email"), "decided_by_name": actor.get("name", ""),
-        "end_at": visit["end_at"], "photo": "", "sync_ok": sum(1 for x in res["sync"] if x["status"] == "ok"),
+        "start_at": visit["start_at"], "end_at": visit["end_at"], "photo": "", "sync_ok": sum(1 for x in res["sync"] if x["status"] == "ok"),
         "sync_total": len(res["sync"])}})
     await log_audit(actor, "autocadastro:aprovar", "self_registration", reg["id"], f"{reg['name']} via {via}", ip)
     if reg.get("email"):

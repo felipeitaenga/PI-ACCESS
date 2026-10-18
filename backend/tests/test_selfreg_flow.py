@@ -30,7 +30,7 @@ ADMIN = {"email": "felipejferreira@gmail.com", "password": "NxAccess@2026"}
 OPER = {"email": "operador@nxaccess.com", "password": "Operador@2026"}
 RECEP = {"email": "recepcao@nxaccess.com", "password": "Recepcao@2026"}
 MGR = {"email": "TEST_gestor_selfreg@teste.com", "password": "TEST_Gestor@2026"}
-FACE = Path("/tmp/face.jpg")
+FACE = Path(__file__).parent / "fixtures" / "face.jpg"
 
 # -------- helpers --------
 def _sha(t):
@@ -304,8 +304,10 @@ class TestC_Approval:
         r = requests.post(f"{API}/public/selfreg/decision/{tok}", json={"action": "approve", "end_at": "2099-01-01T00:00:00+00:00"})
         assert r.status_code == 200
         after = loop.run_until_complete(db.self_registrations.find_one({"id": rid}, {"_id": 0, "end_at": 1, "visit_id": 1}))
-        # host link ignores end_at override — selfreg kept original end
-        assert after["end_at"] == original["end_at"], f"host end_at changed from {original['end_at']} to {after['end_at']}"
+        # host link ignores end_at override (new semantics iter23: visit starts at approval, keeps type duration)
+        assert not after["end_at"].startswith("2099"), f"host end_at override applied: {after['end_at']}"
+        drift = abs((datetime.fromisoformat(after["end_at"]) - datetime.fromisoformat(original["end_at"])).total_seconds())
+        assert drift < 120, f"end_at drift too large: {drift}s"
         pytest.cpf_c3 = cpf
 
     def test_concurrency_only_one_visit(self, admin, recep, oper):
@@ -550,19 +552,14 @@ class TestH_Scheduled:
         ap = recep.post(f"{API}/selfreg/requests/{reg['id']}/approve", json={})
         assert ap.status_code == 200
         vid = ap.json()["visit_id"]
-        # scheduled list should include it
-        for days in (1, 7, 30):
-            lst = s.get(f"{API}/visits/scheduled?days={days}").json()
-            assert any(v["id"] == vid for v in lst), f"visit missing from scheduled?days={days}"
-        # cancel
+        # iter23: 'agendado' option removed — start_at in body is ignored, visit starts at approval (active now)
+        v = s.get(f"{API}/visits/{vid}").json() if s.get(f"{API}/visits/{vid}").status_code == 200 else None
+        if v:
+            st = datetime.fromisoformat(v["start_at"])
+            assert abs((st - datetime.now(timezone.utc)).total_seconds()) < 300, f"start_at not ~now: {v['start_at']}"
+        # cancel not applicable: visit is already active (not 'agendada') → 400 expected
         c = s.post(f"{API}/visits/{vid}/cancel")
-        assert c.status_code == 200, c.text
-        # sync_jobs removal
-        n = loop.run_until_complete(db.sync_jobs.count_documents({"person_id": {"$exists": True}}))
-        assert n > 0
-        # cannot cancel again
-        c2 = s.post(f"{API}/visits/{vid}/cancel")
-        assert c2.status_code == 400
+        assert c.status_code == 400, c.text
         pytest.visit_h = vid
 
 

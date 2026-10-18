@@ -95,6 +95,8 @@ def test_approval_starts_visit_now_keeping_duration(ctx):
     vs, ve = datetime.fromisoformat(v["start_at"]), datetime.fromisoformat(v["end_at"])
     assert abs((vs - datetime.now(timezone.utc)).total_seconds()) < 120
     assert abs(((ve - vs) - dur).total_seconds()) < 120
+    reg2 = run(db.self_registrations.find_one({"id": reg["id"]}, {"_id": 0, "start_at": 1}))
+    assert reg2["start_at"] == v["start_at"]
 
 
 def test_invite_returns_message_with_details(ctx):
