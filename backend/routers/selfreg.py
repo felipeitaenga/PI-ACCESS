@@ -356,17 +356,9 @@ async def submit(body: dict, request: Request):
     await log_audit(None, "autocadastro", "self_registration", reg["id"],
                     f"{name} → {host['name']} ({comp['name']}) via {reg['source']}", ip)
 
-    # convite com liberação automática (quem convidou já autorizou) — nunca para lista negra
-    if inv and inv.get("auto_approve") and not reg["blacklist"] and not (reg["doc_known"] and not reg["owner_verified"]):
-        actor = {"email": inv.get("created_by", ""), "name": inv.get("created_by_name") or "Convite", "role": "convite"}
-        try:
-            await _approve(reg, actor, "convite", {}, ip)
-        except HTTPException:
-            await _notify_pending(reg, decision_token, s["approval_hours"])
-    else:
-        await _notify_pending(reg, decision_token, s["approval_hours"])
-    cur = await db.self_registrations.find_one({"id": reg["id"]}, {"_id": 0, "status": 1})
-    return {"status_token": status_token, "status": cur["status"]}
+    # toda solicitação (link ou convite) vai para aprovação humana
+    await _notify_pending(reg, decision_token, s["approval_hours"])
+    return {"status_token": status_token, "status": reg["status"]}
 
 
 @public.get("/status/{token}")
@@ -694,7 +686,7 @@ async def create_invite(body: dict, request: Request, user: dict = Depends(requi
            "host_name": host["name"], "visit_type_id": vt["id"], "visit_type_name": vt["name"],
            "start_at": start.astimezone(timezone.utc).isoformat(), "end_at": end.astimezone(timezone.utc).isoformat(),
            "guest_name": (body.get("guest_name") or "").strip()[:120], "guest_email": gemail,
-           "notes": (body.get("notes") or "").strip()[:300], "auto_approve": bool(body.get("auto_approve", True)),
+           "notes": (body.get("notes") or "").strip()[:300],
            "created_by": user.get("email"), "created_by_name": user.get("name", ""), "created_at": now_iso(),
            "expires_at": exp}
     await db.selfreg_invites.insert_one(dict(inv))

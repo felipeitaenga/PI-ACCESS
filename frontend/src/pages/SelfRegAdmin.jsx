@@ -221,7 +221,7 @@ function HostSelect({ companyId, value, onChange }) {
 
 function InviteDialog({ open, companies, onClose, onSaved }) {
   const [types, setTypes] = useState([]);
-  const E = { host_company_id: "", host_person_id: "", visit_type_id: "", start_at: nowLocal(), end_at: "", end_manual: false, guest_name: "", guest_email: "", notes: "", auto_approve: true };
+  const E = { host_company_id: "", host_person_id: "", visit_type_id: "", start_at: nowLocal(), end_at: "", end_manual: false, guest_name: "", guest_email: "", notes: "" };
   const [f, setF] = useState(E);
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
@@ -287,8 +287,7 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
             <Field label="Nome do visitante" hint="Opcional"><Input value={f.guest_name} onChange={(e) => set("guest_name")(e.target.value)} /></Field>
             <Field label="E-mail do visitante" error={errors.guest_email} hint="Se informado, o convite é enviado por e-mail"><Input type="email" value={f.guest_email} onChange={(e) => set("guest_email")(e.target.value)} /></Field>
             <Field label="Observações" className="sm:col-span-2" hint="Vai na mensagem do convite (ex.: trazer EPI, portaria 2)"><Input value={f.notes} maxLength={300} onChange={(e) => set("notes")(e.target.value)} data-testid="invite-notes" /></Field>
-            <label className="flex items-start gap-2 text-sm sm:col-span-2"><Switch checked={f.auto_approve} onCheckedChange={set("auto_approve")} />
-              <span>Liberar automaticamente quando o visitante concluir o cadastro<span className="block text-xs text-muted-foreground">Desligado: a solicitação vai para aprovação. Lista negra sempre vai para a portaria.</span></span></label>
+            <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="invite-approval-note">Quando o visitante concluir o cadastro, a solicitação vai para aprovação do anfitrião ou da portaria.</p>
           </div>
         )}
         <DialogFooter>
@@ -319,7 +318,7 @@ function Invites({ companies }) {
           <div key={i.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{i.guest_name || i.guest_email || "Visitante"} → {i.host_name}</p>
-              <p className="truncate text-xs text-muted-foreground">{i.host_company_name} · {fmtDateTime(i.start_at)} até {fmtDateTime(i.end_at)} · por {i.created_by_name || i.created_by}{i.auto_approve ? " · liberação automática" : ""}</p>
+              <p className="truncate text-xs text-muted-foreground">{i.host_company_name} · {fmtDateTime(i.start_at)} até {fmtDateTime(i.end_at)} · por {i.created_by_name || i.created_by}</p>
             </div>
             <Pill s={i.status} />
             {i.status === "ativo" && <Button size="icon" variant="ghost" className="text-red-400" onClick={() => revoke(i)}><Trash2 className="h-4 w-4" /></Button>}
