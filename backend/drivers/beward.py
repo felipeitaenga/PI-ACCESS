@@ -27,7 +27,7 @@ class _BewardShared:
             "IdType": 2, "PersonUUID": str(person.get("id"))[:48],
             "Name": (person.get("name") or "")[:32],
             "PersonType": 1 if person.get("_impeditive") else 0,
-            "IdCard": person.get("document", ""), "Telnum": person.get("phone", ""),
+            "IdCard": "", "Telnum": "",  # LGPD: CPF e telefone não vão para o facial
             "Notes": person.get("role_title", ""),
         }
         if person.get("valid_until"):
@@ -169,6 +169,13 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
         return await self._post("RebootDevice", {"DeviceID": self._device_id()})
 
 
+def delete_persons_info(ids):
+    """Formato aceito pelo facial (testado no 1457460): sem DataBegin/DataEnd ele responde
+    "can not find DataBegin" e NÃO apaga."""
+    ids = [str(i) for i in ids]
+    return {"DataBegin": "BeginFlag", "PersonNum": len(ids), "customId": ids, "DataEnd": "EndFlag"}
+
+
 # Formato aceito pelo facial (testado no 1457460): com espaço ele responde "ok" mas NÃO aplica a hora
 SYSTIME_FMT = "%Y-%m-%dT%H:%M:%S"
 
@@ -243,8 +250,7 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
 
     async def sync_person(self, person, strategy_ids=None):
         info = {"customId": str(person.get("id"))[:48], "name": (person.get("name") or "")[:32],
-                "personType": 0, "idCard": person.get("document") or person.get("cpf") or "",
-                "telnum": person.get("phone", ""), "tempCardType": 0}
+                "personType": 0, "idCard": "", "telnum": "", "tempCardType": 0}  # LGPD: CPF e telefone não vão para o facial (vazio apaga o que já estava lá)
         if person.get("temp_valid"):
             info.update({"tempCardType": 1, "cardValidBegin": person["card_valid_begin"],
                          "cardValidEnd": person["card_valid_end"]})
@@ -260,7 +266,7 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
 
     async def delete_person(self, person_id):
         ids = person_id if isinstance(person_id, list) else [person_id]
-        return await self._publish("DeletePersons", {"customId": [str(i) for i in ids]})
+        return await self._publish("DeletePersons", delete_persons_info(ids))
 
     async def sync_face(self, person_id, photo):
         return {"ok": True, "detail": "foto enviada junto no EditPerson"}
