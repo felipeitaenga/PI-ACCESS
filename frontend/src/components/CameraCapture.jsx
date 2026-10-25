@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Camera, Check, Loader2, RotateCcw } from "lucide-react";
@@ -109,10 +109,10 @@ export function CameraCapture({ open, onClose, onCapture }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="max-h-[100dvh] max-w-xl overflow-y-auto p-4 sm:p-6" data-testid="camera-modal">
+      <DialogContent className="max-w-xl" data-testid="camera-modal">
         <DialogHeader>
           <DialogTitle>Tirar foto</DialogTitle>
-          <DialogDescription>Encaixe o rosto inteiro dentro do oval, de frente, sem boné ou óculos escuros, em local iluminado.</DialogDescription>
+          <DialogDescription>Encaixe o rosto inteiro dentro do oval, de frente, sem boné e sem óculos, em local iluminado.</DialogDescription>
         </DialogHeader>
         {devices.length > 1 && status !== "captured" && (
           <Select value={deviceId} onValueChange={changeDevice}>
@@ -123,7 +123,7 @@ export function CameraCapture({ open, onClose, onCapture }) {
           </Select>
         )}
         <CameraStage videoRef={videoRef} status={status} error={error} shot={shot} />
-        <div className="flex flex-wrap justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={close} data-testid="camera-cancel-button">Cancelar</Button>
           {status === "error" && <Button variant="outline" onClick={() => start(deviceId)} data-testid="camera-retry-button"><RotateCcw className="mr-2 h-4 w-4" />Tentar novamente</Button>}
           {status === "captured" ? (
@@ -134,7 +134,7 @@ export function CameraCapture({ open, onClose, onCapture }) {
           ) : (
             <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={status !== "live"} onClick={capture} data-testid="camera-capture-button"><Camera className="mr-2 h-4 w-4" />Capturar</Button>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -142,11 +142,11 @@ export function CameraCapture({ open, onClose, onCapture }) {
 
 function CameraStage({ videoRef, status, error, shot }) {
   return (
-    <div className="relative mx-auto aspect-[3/4] w-full max-w-[calc(68dvh*0.75)] overflow-hidden rounded-lg bg-black" data-testid="camera-stage">
+    <div className="relative mx-auto aspect-[3/4] w-full max-w-[calc(62dvh*0.75)] overflow-hidden rounded-lg bg-black" data-testid="camera-stage">
       <video ref={videoRef} autoPlay playsInline muted className={`h-full w-full object-cover -scale-x-100 ${status === "captured" ? "invisible" : ""}`} data-testid="camera-video" />
       {status === "live" && (
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-[46%] h-[74%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] border-dashed border-sky-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.35)]" data-testid="camera-oval" />
+          <div className="absolute left-1/2 top-[47%] h-[82%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] border-dashed border-sky-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.35)]" data-testid="camera-oval" />
         </div>
       )}
       {status === "captured" && shot && (

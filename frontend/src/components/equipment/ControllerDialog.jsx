@@ -128,7 +128,7 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid="controller-dialog">
+      <DialogContent className="max-w-2xl sm:max-h-[90vh]" data-testid="controller-dialog">
         <DialogHeader><DialogTitle>{editId ? "Editar" : "Nova"} controladora</DialogTitle><DialogDescription>Cada ponto de acesso usa 1 leitora + 1 relé da controladora.</DialogDescription></DialogHeader>
         <Tabs defaultValue="general">
           <TabsList className="grid w-full grid-cols-2">

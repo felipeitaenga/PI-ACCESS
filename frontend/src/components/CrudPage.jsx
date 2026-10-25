@@ -170,7 +170,7 @@ export default function CrudPage({
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-thin">
+        <DialogContent className="max-w-2xl sm:max-h-[85vh] overflow-y-auto scrollbar-thin">
           <DialogHeader><DialogTitle>{editId ? "Editar" : "Novo"} — {title}</DialogTitle></DialogHeader>
           {renderForm ? renderForm(form, setForm) : (
             <GenericForm fields={formFields || []} form={form} setForm={setForm} />

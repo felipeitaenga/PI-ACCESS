@@ -104,10 +104,10 @@ const DAYS = [[1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "S
 export function NoEventAlertFields({ form, setForm, hours, setHours }) {
   const toggle = (d) => setHours((h) => ({ ...h, days: h.days.includes(d) ? h.days.filter((x) => x !== d) : [...h.days, d].sort() }));
   return (
-    <div className="col-span-2 grid grid-cols-2 gap-3 rounded-md border border-border p-3" data-testid="no-event-alert-fields">
+    <div className="col-span-2 grid grid-cols-1 gap-3 rounded-md border border-border p-3 sm:grid-cols-2 [&>*]:min-w-0" data-testid="no-event-alert-fields">
       <FormRow label="Aviso sem eventos após (min)"><Input type="number" min={10} value={form.no_event_alert_minutes ?? 120} onChange={(e) => setForm((f) => ({ ...f, no_event_alert_minutes: +e.target.value }))} data-testid="controller-no-event-minutes" /></FormRow>
       <FormRow label="Horário de funcionamento do site">
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1 [&>input]:min-w-0">
           <Input type="time" value={hours.start} onChange={(e) => setHours((h) => ({ ...h, start: e.target.value }))} data-testid="site-hours-start" />
           <span className="text-xs">às</span>
           <Input type="time" value={hours.end} onChange={(e) => setHours((h) => ({ ...h, end: e.target.value }))} data-testid="site-hours-end" />

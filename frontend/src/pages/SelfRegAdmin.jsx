@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { fmtDateTime, fromLocalInput, nowLocal, toLocalInput } from "@/lib/br";
-import { addHours, endOfDay, typeHours } from "@/components/visits/visitUtils";
+import { fmtDateTime, fromLocalInput, toLocalInput } from "@/lib/br";
+import { InviteWizard } from "@/components/selfreg/InviteWizard";
+import { downloadPoster, shareLink } from "@/components/selfreg/poster";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/registry/FormBits";
-import { AlertTriangle, Check, Copy, Link2, Mail, Pencil, Plus, Printer, QrCode, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, FileDown, Link2, Pencil, Plus, QrCode, RefreshCw, Save, Share2, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 const sel = "h-9 w-full rounded-md border border-input bg-field px-3 text-sm focus:border-sky-500 focus:outline-none";
@@ -85,7 +86,7 @@ function RequestDialog({ id, mode, onClose, onDone }) {
   const pending = r?.status === "pendente";
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto" data-testid="selfreg-request-dialog">
+      <DialogContent className="max-w-lg" data-testid="selfreg-request-dialog">
         <DialogHeader><DialogTitle>Solicitação de visita</DialogTitle></DialogHeader>
         {!r ? <p className="text-sm text-muted-foreground">Carregando…</p> : (
           <div className="space-y-3 text-sm">
@@ -145,15 +146,67 @@ function RequestDialog({ id, mode, onClose, onDone }) {
   );
 }
 
+function QuickActions({ r, busy, onApprove, onOpen }) {
+  if (r.status !== "pendente") return null;
+  return (
+    <div className="grid grid-cols-3 gap-1.5 sm:flex">
+      <Button className={`${primary} h-12 sm:h-8`} disabled={busy} onClick={() => onApprove(r)} data-testid={`selfreg-quick-approve-${r.id}`}><Check className="mr-1 h-4 w-4" />Liberar</Button>
+      <Button variant="outline" className="h-12 text-red-400 sm:h-8" disabled={busy} onClick={() => onOpen({ id: r.id, mode: "view" })} data-testid={`selfreg-quick-reject-${r.id}`}><X className="mr-1 h-4 w-4" />Recusar</Button>
+      <Button variant="outline" className="h-12 sm:h-8" disabled={busy} onClick={() => onOpen({ id: r.id, mode: "edit" })} data-testid={`selfreg-quick-edit-${r.id}`}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
+    </div>
+  );
+}
+
+const Thumb = ({ r, cls }) => (r.photo_thumb ? <img src={r.photo_thumb} alt="" className={`${cls} rounded-md object-cover`} /> : <div className={`${cls} rounded-md bg-secondary`} />);
+const BL = ({ r }) => (r.blacklist ? <span className="ml-1 rounded bg-red-500/20 px-1 text-[10px] text-red-300">LISTA NEGRA</span> : null);
+
+function RequestCard({ r, busy, onApprove, onOpen }) {
+  return (
+    <div className="space-y-3 rounded-xl border border-border p-3" data-testid={`selfreg-row-${r.id}`}>
+      <button type="button" onClick={() => onOpen({ id: r.id, mode: "view" })} className="flex w-full gap-3 text-left" data-testid={`selfreg-open-${r.id}`}>
+        <Thumb r={r} cls="h-20 w-16 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="truncate font-semibold leading-tight">{r.name}<BL r={r} /></p>
+          <p className="truncate text-sm text-muted-foreground">{r.host_name} · {r.host_company_name}</p>
+          <p className="text-xs text-muted-foreground">{fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
+          {r.visit_reason && <p className="truncate text-xs">Motivo: {r.visit_reason}</p>}
+          <p className="pt-0.5"><Pill s={r.status} /> <span className="text-[11px] text-muted-foreground">{r.source}</span></p>
+        </div>
+      </button>
+      <QuickActions r={r} busy={busy} onApprove={onApprove} onOpen={onOpen} />
+    </div>
+  );
+}
+
+function RequestTable({ items, busyId, onApprove, onOpen }) {
+  return (
+    <table className="hidden w-full text-sm sm:table" data-testid="selfreg-table">
+      <thead><tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+        <th className="py-2 pr-2">Visitante</th><th className="pr-2">Anfitrião / empresa</th><th className="pr-2">Horário</th><th className="pr-2">Status</th><th /></tr></thead>
+      <tbody>{items.map((r) => (
+        <tr key={r.id} className="border-b border-border/60 hover:bg-secondary/40" data-testid={`selfreg-trow-${r.id}`}>
+          <td className="py-2 pr-2"><button type="button" onClick={() => onOpen({ id: r.id, mode: "view" })} className="flex items-center gap-3 text-left" data-testid={`selfreg-topen-${r.id}`}>
+            <Thumb r={r} cls="h-12 w-9 shrink-0" /><span><span className="font-medium">{r.name}</span><BL r={r} />{r.visit_reason && <span className="block text-xs text-muted-foreground">{r.visit_reason}</span>}</span></button></td>
+          <td className="pr-2">{r.host_name}<span className="block text-xs text-muted-foreground">{r.host_company_name}</span></td>
+          <td className="pr-2 text-xs">{fmtDateTime(r.start_at)}<span className="block text-muted-foreground">até {fmtDateTime(r.end_at)}</span></td>
+          <td className="pr-2"><Pill s={r.status} /><span className="block text-[11px] text-muted-foreground">{r.source}</span></td>
+          <td className="py-2"><div className="flex justify-end"><QuickActions r={r} busy={busyId === r.id} onApprove={onApprove} onOpen={onOpen} /></div></td>
+        </tr>
+      ))}</tbody>
+    </table>
+  );
+}
+
 function Requests() {
   const [status, setStatus] = useState("pendente");
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(null);
   const [open, setOpen] = useState(null);
   const [busyId, setBusyId] = useState("");
-  const load = useCallback(() => api.get(`/selfreg/requests?status=${status}`).then(({ data }) => setItems(data)).catch(() => {}), [status]);
-  useEffect(() => { load(); const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => api.get(`/selfreg/requests?status=${status}`).then(({ data }) => { setItems(data); setFailed(false); }).catch(() => { setFailed(true); setItems((s) => s || []); }), [status]);
+  useEffect(() => { setItems(null); load(); const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
   const quickApprove = async (r) => {
-    if (r.blacklist) { setOpen({ id: r.id, mode: "view" }); return; }
+    if (r.blacklist || (r.doc_known && !r.owner_verified)) { setOpen({ id: r.id, mode: "view" }); return; }
     setBusyId(r.id);
     try {
       const { data } = await api.post(`/selfreg/requests/${r.id}/approve`, {});
@@ -166,145 +219,29 @@ function Requests() {
     <Card className="border-border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {[["pendente", "Aguardando"], ["aprovado", "Aprovadas"], ["recusado", "Recusadas"], ["expirado", "Expiradas"]].map(([k, l]) => (
-          <Button key={k} size="sm" variant={status === k ? "default" : "outline"} className={status === k ? primary : ""} onClick={() => setStatus(k)}>{l}</Button>
+          <Button key={k} size="sm" variant={status === k ? "default" : "outline"} className={`h-10 sm:h-8 ${status === k ? primary : ""}`} onClick={() => setStatus(k)} data-testid={`selfreg-filter-${k}`}>{l}</Button>
         ))}
         <span className="flex-1" />
-        <Button size="sm" variant="ghost" onClick={load}><RefreshCw className="h-4 w-4" /></Button>
+        <Button size="sm" variant="ghost" className="h-10 w-10 sm:h-8 sm:w-8" onClick={load} aria-label="Atualizar"><RefreshCw className="h-4 w-4" /></Button>
       </div>
-      {items.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma solicitação.</p>}
-      <div className="space-y-1.5">
-        {items.map((r) => (
-          <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border px-3 py-2 hover:border-sky-500/50" data-testid={`selfreg-row-${r.id}`}>
-            <button type="button" onClick={() => setOpen({ id: r.id, mode: "view" })} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-testid={`selfreg-open-${r.id}`}>
-              {r.photo_thumb ? <img src={r.photo_thumb} alt="" className="h-12 w-9 rounded object-cover" /> : <div className="h-12 w-9 rounded bg-secondary" />}
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{r.name} {r.blacklist && <span className="ml-1 rounded bg-red-500/20 px-1 text-[10px] text-red-300">LISTA NEGRA</span>}</p>
-                <p className="truncate text-xs text-muted-foreground">{r.host_name} · {r.host_company_name} · {fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
-              </div>
-              <div className="text-right text-[11px] text-muted-foreground"><Pill s={r.status} /><p>{r.source}</p></div>
-            </button>
-            {r.status === "pendente" && (
-              <div className="flex w-full gap-1.5 sm:w-auto">
-                <Button size="sm" className={`${primary} flex-1 sm:flex-none`} disabled={busyId === r.id} onClick={() => quickApprove(r)} data-testid={`selfreg-quick-approve-${r.id}`}><Check className="mr-1 h-4 w-4" />Liberar</Button>
-                <Button size="sm" variant="outline" className="flex-1 text-red-400 sm:flex-none" disabled={busyId === r.id} onClick={() => setOpen({ id: r.id, mode: "view" })} data-testid={`selfreg-quick-reject-${r.id}`}><X className="mr-1 h-4 w-4" />Recusar</Button>
-                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" disabled={busyId === r.id} onClick={() => setOpen({ id: r.id, mode: "edit" })} data-testid={`selfreg-quick-edit-${r.id}`}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {items === null && <div className="space-y-2" data-testid="selfreg-loading">{[0, 1, 2].map((i) => <div key={i} className="h-20 rounded-xl bg-secondary/60 motion-safe:animate-pulse" />)}</div>}
+      {failed && <p className="mb-2 flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-300" data-testid="selfreg-load-error"><AlertTriangle className="h-4 w-4" />Não foi possível carregar as solicitações.<Button size="sm" variant="outline" className="ml-auto h-9" onClick={load}>Tentar de novo</Button></p>}
+      {items?.length === 0 && !failed && <p className="py-10 text-center text-sm text-muted-foreground" data-testid="selfreg-empty">Nenhuma solicitação {status === "pendente" ? "aguardando liberação" : "nesta lista"}.</p>}
+      {!!items?.length && <>
+        <div className="space-y-2 sm:hidden">{items.map((r) => <RequestCard key={r.id} r={r} busy={busyId === r.id} onApprove={quickApprove} onOpen={setOpen} />)}</div>
+        <RequestTable items={items} busyId={busyId} onApprove={quickApprove} onOpen={setOpen} />
+      </>}
       <RequestDialog id={open?.id} mode={open?.mode} onClose={() => setOpen(null)} onDone={() => { setOpen(null); load(); }} />
     </Card>
   );
 }
 
 // ---------------- Convites ----------------
-function HostSelect({ companyId, value, onChange }) {
-  const [items, setItems] = useState([]);
-  const [q, setQ] = useState("");
-  useEffect(() => {
-    if (!companyId) { setItems([]); return undefined; }
-    const t = setTimeout(() => api.get(`/registry/people?status=ativo&authorize=true&limit=20&company_id=${companyId}&q=${encodeURIComponent(q)}`)
-      .then(({ data }) => setItems(data.items || [])).catch(() => setItems([])), 250);
-    return () => clearTimeout(t);
-  }, [companyId, q]);
-  return (
-    <div className="space-y-1">
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={companyId ? "Filtrar pelo nome…" : "Escolha a empresa"} disabled={!companyId} />
-      <select className={sel} value={value} onChange={(e) => onChange(e.target.value)} disabled={!companyId}>
-        <option value="">Selecione o anfitrião…</option>
-        {items.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-    </div>
-  );
-}
 
-function InviteDialog({ open, companies, onClose, onSaved }) {
-  const [types, setTypes] = useState([]);
-  const E = { host_company_id: "", host_person_id: "", visit_type_id: "", start_at: nowLocal(), end_at: "", end_manual: false, guest_name: "", guest_email: "", notes: "" };
-  const [f, setF] = useState(E);
-  const [errors, setErrors] = useState({});
-  const [result, setResult] = useState(null);
-  useEffect(() => {
-    if (!open) return;
-    setF({ ...E, host_company_id: companies.length === 1 ? companies[0].id : "" }); setErrors({}); setResult(null);
-    api.get("/visits/types?active=true").then(({ data }) => setTypes(data)).catch(() => {});
-  }, [open]); // eslint-disable-line
-  const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }));
-  // fim = início + duração do tipo, até a pessoa alterar manualmente
-  useEffect(() => {
-    if (f.end_manual || !f.start_at) return;
-    const t = types.find((x) => x.id === f.visit_type_id);
-    setF((s) => ({ ...s, end_at: addHours(s.start_at, typeHours(t, null)) }));
-  }, [f.start_at, f.visit_type_id, f.end_manual, types]);
-  const manualEnd = (v) => setF((s) => ({ ...s, end_at: v, end_manual: true }));
-  const save = async () => {
-    try {
-      const { data } = await api.post("/selfreg/invites", { ...f, start_at: fromLocalInput(f.start_at), end_at: fromLocalInput(f.end_at) });
-      setResult(data); onSaved();
-    } catch (e) { setErrors(e.response?.data?.detail?.fields || {}); err(e); }
-  };
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg" data-testid="invite-dialog">
-        <DialogHeader><DialogTitle>Convidar visitante</DialogTitle></DialogHeader>
-        {result ? (
-          <div className="space-y-3 text-sm">
-            <p className="text-emerald-300">Convite criado{result.email_sent ? " e enviado por e-mail" : ""}.</p>
-            <p className="text-muted-foreground">Envie a mensagem ao visitante (WhatsApp, e-mail…). O link só aparece agora e vale uma única vez.</p>
-            <textarea readOnly value={result.message} rows={11} className="w-full rounded-md border border-input bg-field p-2 font-mono text-xs" data-testid="invite-message" />
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => copy(result.message, "Mensagem copiada")} data-testid="invite-copy-message"><Copy className="mr-1 h-4 w-4" />Copiar mensagem</Button>
-              <Button variant="outline" onClick={() => copy(result.link)} data-testid="invite-copy-link"><Link2 className="mr-1 h-4 w-4" />Copiar só o link</Button>
-              <a className="inline-flex items-center gap-1 self-center text-sky-300 underline" target="_blank" rel="noreferrer" data-testid="invite-whatsapp"
-                href={`https://wa.me/?text=${encodeURIComponent(result.message)}`}>Enviar pelo WhatsApp</a>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Empresa visitada" required error={errors.host_company_id} className="sm:col-span-2">
-              <select className={sel} value={f.host_company_id} onChange={(e) => setF((s) => ({ ...s, host_company_id: e.target.value, host_person_id: "" }))}>
-                <option value="">Selecione…</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Anfitrião" required error={errors.host_person_id} className="sm:col-span-2"><HostSelect companyId={f.host_company_id} value={f.host_person_id} onChange={set("host_person_id")} /></Field>
-            {!types.length && <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300 sm:col-span-2" data-testid="invite-no-types">Nenhum tipo de visita liberado para sua empresa. Peça ao Administrador para marcar em Empresas › editar empresa › "Tipos de visita que a empresa pode usar".</p>}
-            <Field label="Tipo da visita" required error={errors.visit_type_id}>
-              <select className={sel} value={f.visit_type_id} onChange={(e) => set("visit_type_id")(e.target.value)}>
-                <option value="">Selecione…</option>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Início" required error={errors.start_at}><Input type="datetime-local" value={f.start_at} onChange={(e) => set("start_at")(e.target.value)} /></Field>
-            <Field label="Fim da visita" required error={errors.end_at} className="sm:col-span-2" hint={f.end_manual ? "Alterado manualmente" : "Calculado pela duração do tipo de visita"}>
-              <Input type="datetime-local" value={f.end_at} onChange={(e) => manualEnd(e.target.value)} data-testid="invite-end" />
-              <div className="mt-1 flex flex-wrap gap-1">
-                {[["+1h", 1], ["+4h", 4]].map(([l, h]) => (
-                  <Button key={l} type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => manualEnd(addHours(f.end_at || f.start_at, h))}>{l}</Button>
-                ))}
-                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => manualEnd(endOfDay(f.start_at))}>Fim do dia</Button>
-                {f.end_manual && <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setF((s) => ({ ...s, end_manual: false }))}>Usar duração do tipo</Button>}
-              </div>
-            </Field>
-            <Field label="Nome do visitante" hint="Opcional"><Input value={f.guest_name} onChange={(e) => set("guest_name")(e.target.value)} /></Field>
-            <Field label="E-mail do visitante" error={errors.guest_email} hint="Se informado, o convite é enviado por e-mail"><Input type="email" value={f.guest_email} onChange={(e) => set("guest_email")(e.target.value)} /></Field>
-            <Field label="Observações" className="sm:col-span-2" hint="Vai na mensagem do convite (ex.: trazer EPI, portaria 2)"><Input value={f.notes} maxLength={300} onChange={(e) => set("notes")(e.target.value)} data-testid="invite-notes" /></Field>
-            <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="invite-approval-note">Quando o visitante concluir o cadastro, a solicitação vai para aprovação do anfitrião ou da portaria.</p>
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Fechar</Button>
-          {!result && <Button className={primary} onClick={save} disabled={!types.length} data-testid="invite-save"><Mail className="mr-1 h-4 w-4" />Criar convite</Button>}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Invites({ companies }) {
-  const [items, setItems] = useState([]);
-  const [open, setOpen] = useState(false);
-  const load = useCallback(() => api.get("/selfreg/invites").then(({ data }) => setItems(data)).catch(() => {}), []);
-  useEffect(() => { load(); }, [load]);
+function Invites({ tick, onNew }) {
+  const [items, setItems] = useState(null);
+  const load = useCallback(() => api.get("/selfreg/invites").then(({ data }) => setItems(data)).catch(() => setItems([])), []);
+  useEffect(() => { load(); }, [load, tick]);
   const revoke = async (i) => {
     if (!window.confirm("Revogar este convite?")) return;
     try { await api.delete(`/selfreg/invites/${i.id}`); toast.success("Convite revogado"); load(); } catch (e) { err(e); }
@@ -312,39 +249,35 @@ function Invites({ companies }) {
   return (
     <Card className="border-border bg-card p-4">
       <div className="mb-3 flex items-center"><h2 className="flex-1 font-heading text-sm font-bold uppercase tracking-widest">Convites</h2>
-        <Button size="sm" className={primary} onClick={() => setOpen(true)} data-testid="invite-new"><Plus className="mr-1 h-4 w-4" />Novo convite</Button></div>
-      {items.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Nenhum convite.</p>}
+        <Button size="sm" className={`${primary} hidden sm:inline-flex`} onClick={onNew} data-testid="invite-new"><Plus className="mr-1 h-4 w-4" />Novo convite</Button></div>
+      {items === null && <div className="space-y-2">{[0, 1].map((i) => <div key={i} className="h-14 rounded-md bg-secondary/60 motion-safe:animate-pulse" />)}</div>}
+      {items?.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground" data-testid="invites-empty">Nenhum convite. Toque em "Convidar" para criar o primeiro.</p>}
       <div className="space-y-1.5">
-        {items.map((i) => (
-          <div key={i.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+        {(items || []).map((i) => (
+          <div key={i.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm" data-testid={`invite-row-${i.id}`}>
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{i.guest_name || i.guest_email || "Visitante"} → {i.host_name}</p>
               <p className="truncate text-xs text-muted-foreground">{i.host_company_name} · {fmtDateTime(i.start_at)} até {fmtDateTime(i.end_at)} · por {i.created_by_name || i.created_by}</p>
             </div>
             <Pill s={i.status} />
-            {i.status === "ativo" && <Button size="icon" variant="ghost" className="text-red-400" onClick={() => revoke(i)}><Trash2 className="h-4 w-4" /></Button>}
+            {i.status === "ativo" && <Button size="icon" variant="ghost" className="h-11 w-11 text-red-400 sm:h-9 sm:w-9" onClick={() => revoke(i)} aria-label="Revogar convite"><Trash2 className="h-4 w-4" /></Button>}
           </div>
         ))}
       </div>
-      <InviteDialog open={open} companies={companies} onClose={() => setOpen(false)} onSaved={load} />
     </Card>
   );
 }
 
 // ---------------- Links públicos ----------------
-const esc = (t) => String(t || "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-function printQr(name, link, qr) {
-  const company = esc(name), url = esc(link);
-  const w = window.open("", "_blank", "width=600,height=800");
-  if (!w) return;
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${company}</title><style>
-    body{font-family:Arial,sans-serif;text-align:center;padding:40px;color:#0f172a}h1{font-size:30px;margin:0 0 8px}
-    h2{font-size:20px;font-weight:normal;margin:0 0 24px;color:#334155}img{width:340px;height:340px}
-    ol{text-align:left;display:inline-block;font-size:17px;line-height:1.7}p.u{font-size:12px;color:#64748b;word-break:break-all}</style></head>
-    <body><h1>Visitante? Faça seu cadastro</h1>${company ? `<h2>${company}</h2>` : "<h2>&nbsp;</h2>"}<img src="${qr}" alt="QR"/>
-    <ol><li>Aponte a câmera do celular para o QR Code</li><li>Preencha seus dados e tire uma selfie</li><li>Aguarde a aprovação e entre pelo leitor facial</li></ol>
-    <p class="u">${url}</p><script>window.onload=function(){window.print()}</script></body></html>`);
-  w.document.close();
+function LinkActions({ name, link, qr, onRegen, regenMsg }) {
+  return (
+    <div className="grid w-full grid-cols-2 gap-2 pb-16 sm:flex sm:w-auto sm:flex-wrap sm:pb-0 [&>button]:min-w-0 [&>button]:px-2 [&>button]:text-xs sm:[&>button]:px-3 sm:[&>button]:text-sm">
+      <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => copy(link)} data-testid="link-copy"><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
+      <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => shareLink(name, link)} data-testid="link-share"><Share2 className="mr-1 h-4 w-4" />Compartilhar</Button>
+      <Button size="sm" variant="outline" className="h-11 sm:h-8" disabled={!qr} onClick={() => downloadPoster(name, link, qr).catch(() => toast.error("Não foi possível gerar o cartaz"))} data-testid="link-poster"><FileDown className="mr-1 h-4 w-4" />Baixar cartaz</Button>
+      <Button size="sm" variant="ghost" className="h-11 sm:h-8" title="Gerar novo link (o anterior para de funcionar)" onClick={() => window.confirm(regenMsg) && onRegen()} data-testid="link-regenerate"><RefreshCw className="mr-1 h-4 w-4 sm:mr-0" /><span className="sm:hidden">Novo link</span></Button>
+    </div>
+  );
 }
 
 function CompanyLink({ c, types, onChange }) {
@@ -367,11 +300,7 @@ function CompanyLink({ c, types, onChange }) {
           <select className={`${sel} max-w-56`} value={vt} onChange={(e) => setVt(e.target.value)} onBlur={() => vt !== (c.selfreg_visit_type_id || "") && save({ visit_type_id: vt })}>
             <option value="">Tipo de visita do link…</option>{allowed.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          {c.link && c.selfreg_enabled && <>
-            <Button size="sm" variant="outline" onClick={() => copy(c.link)}><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
-            <Button size="sm" variant="outline" onClick={() => printQr(c.name, c.link, qr)} disabled={!qr}><Printer className="mr-1 h-4 w-4" />Imprimir QR</Button>
-            <Button size="sm" variant="ghost" title="Gerar novo link (o anterior para de funcionar)" onClick={() => window.confirm("Gerar um novo link? O link e o QR atuais deixam de funcionar.") && save({ regenerate: true })}><RefreshCw className="h-4 w-4" /></Button>
-          </>}
+          {c.link && c.selfreg_enabled && <LinkActions name={c.name} link={c.link} qr={qr} onRegen={() => save({ regenerate: true })} regenMsg="Gerar um novo link? O link e o QR atuais deixam de funcionar." />}
         </div>
         {c.link && c.selfreg_enabled && <p className="truncate font-mono text-[11px] text-muted-foreground">{c.link}</p>}
       </div>
@@ -399,13 +328,7 @@ function SiteLink({ onChange }) {
             <label className="flex items-center gap-2 text-xs"><Switch checked={d.enabled} onCheckedChange={(v) => save({ enabled: v })} />Ativo</label>
           </div>
           <p className="text-xs text-muted-foreground">Um só QR na recepção: o visitante escolhe a empresa e depois o anfitrião. Aparecem só as empresas ativas abaixo ({d.companies.length}).</p>
-          {d.enabled && d.link && (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => copy(d.link)}><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
-              <Button size="sm" variant="outline" onClick={() => printQr("", d.link, qr)} disabled={!qr}><Printer className="mr-1 h-4 w-4" />Imprimir QR</Button>
-              <Button size="sm" variant="ghost" title="Gerar novo link" onClick={() => window.confirm("Gerar um novo QR único? O atual deixa de funcionar.") && save({ regenerate: true })}><RefreshCw className="h-4 w-4" /></Button>
-            </div>
-          )}
+          {d.enabled && d.link && <LinkActions name="" link={d.link} qr={qr} onRegen={() => save({ regenerate: true })} regenMsg="Gerar um novo QR único? O atual deixa de funcionar." />}
           {d.enabled && d.companies.length === 0 && <p className="text-xs text-amber-300">Ative ao menos uma empresa abaixo (com tipo de visita).</p>}
           {d.enabled && d.link && <p className="truncate font-mono text-[11px] text-muted-foreground">{d.link}</p>}
         </div>
@@ -465,22 +388,28 @@ export default function SelfRegAdmin() {
   const loadCompanies = useCallback(() => api.get("/selfreg/companies").then(({ data }) => setCompanies(data)).catch(() => {}), []);
   useEffect(() => { loadCompanies(); }, [loadCompanies]);
   const canLinks = ["admin", "company_manager"].includes(user?.role);
+  const [inviting, setInviting] = useState(false);
+  const [tab, setTab] = useState("requests");
+  const [tick, setTick] = useState(0);
+  const newInvite = () => { setTab("invites"); setInviting(true); };
   return (
-    <div className="space-y-4" data-testid="page-selfreg">
+    <div className="space-y-4 pb-20 sm:pb-0" data-testid="page-selfreg">
       <div><h1 className="font-heading text-2xl font-bold tracking-tight">Autocadastro de visitantes</h1>
         <p className="mt-1 text-sm text-muted-foreground">Solicitações pelo link público e convites individuais. Vale a primeira resposta: anfitrião ou portaria.</p></div>
-      <Tabs defaultValue="requests">
-        <TabsList className="h-auto flex-wrap justify-start">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="h-auto w-full flex-wrap justify-start sm:w-auto [&>button]:min-h-10">
           <TabsTrigger value="requests">Aguardando liberação</TabsTrigger>
           <TabsTrigger value="invites">Convites</TabsTrigger>
           {canLinks && <TabsTrigger value="links">Links públicos</TabsTrigger>}
           {user?.role === "admin" && <TabsTrigger value="settings">Configurações</TabsTrigger>}
         </TabsList>
         <TabsContent value="requests"><Requests /></TabsContent>
-        <TabsContent value="invites"><Invites companies={companies} /></TabsContent>
+        <TabsContent value="invites"><Invites tick={tick} onNew={newInvite} /></TabsContent>
         {canLinks && <TabsContent value="links"><PublicLinks companies={companies} reload={loadCompanies} isAdmin={user?.role === "admin"} /></TabsContent>}
         {user?.role === "admin" && <TabsContent value="settings"><Settings /></TabsContent>}
       </Tabs>
+      <Button onClick={newInvite} className={`${primary} fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 h-14 rounded-full px-6 text-base shadow-lg shadow-black/40 sm:hidden`} data-testid="invite-fab"><Plus className="mr-1 h-5 w-5" />Convidar</Button>
+      <InviteWizard open={inviting} companies={companies} onClose={() => setInviting(false)} onSaved={() => setTick((t) => t + 1)} />
     </div>
   );
 }
