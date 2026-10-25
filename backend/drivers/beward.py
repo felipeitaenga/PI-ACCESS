@@ -169,6 +169,10 @@ class BewardHttpDriver(_BewardShared, AccessControlDriver):
         return await self._post("RebootDevice", {"DeviceID": self._device_id()})
 
 
+# Formato aceito pelo facial (testado no 1457460): com espaço ele responde "ok" mas NÃO aplica a hora
+SYSTIME_FMT = "%Y-%m-%dT%H:%M:%S"
+
+
 class BewardMqttDriver(_BewardShared, AccessControlDriver):
     """Transporte MQTT via broker externo (mqtt_bus). Comandos em <prefixo>/<ID Equipamento> com Ack."""
     brand = "beward_mqtt"
@@ -214,7 +218,7 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         if not self._dev():
             return {"ok": False, "detail": "Informe o ID Equipamento (DeviceID)"}
         # nunca vai para a fila: reenviado depois levaria a hora antiga ao facial
-        return await bus.command(self._dev(), "SetSysTime", {"SysTime": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d %H:%M:%S")},
+        return await bus.command(self._dev(), "SetSysTime", {"SysTime": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime(SYSTIME_FMT)},
                                  online=self._online(), queue=False)
 
     async def open_door(self, door_id, seconds=5):
