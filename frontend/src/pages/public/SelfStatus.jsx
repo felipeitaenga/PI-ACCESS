@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Bell, BellRing, CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Box, PButton, PublicShell, errMsg, fmtDT, pub } from "./common";
+import { Bell, BellRing, CheckCircle2, Clock, ScanFace, XCircle } from "lucide-react";
+import { Box, PButton, PageSkeleton, PublicShell, errMsg, fmtDT, pub } from "./common";
 
 const VIEW = {
-  aprovado: { icon: CheckCircle2, color: "text-emerald-400", title: "Visita aprovada", text: "Na chegada, olhe para o leitor facial na entrada. Se não liberar, procure a recepção." },
-  recusado: { icon: XCircle, color: "text-red-400", title: "Visita não aprovada", text: "Em caso de dúvida, procure a recepção." },
-  expirado: { icon: XCircle, color: "text-slate-400", title: "Solicitação expirada", text: "Ela não foi respondida a tempo. Faça uma nova solicitação ou procure a recepção." },
+  aprovado: { icon: CheckCircle2, color: "text-emerald-400", ring: "bg-emerald-500/15 ring-emerald-500/40", title: "Visita aprovada", text: "Na chegada, olhe para o leitor facial na entrada. Se não liberar, procure a recepção." },
+  recusado: { icon: XCircle, color: "text-red-400", ring: "bg-red-500/15 ring-red-500/40", title: "Visita não aprovada", text: "Em caso de dúvida, procure a recepção." },
+  expirado: { icon: Clock, color: "text-slate-300", ring: "bg-slate-500/15 ring-slate-500/40", title: "Solicitação expirada", text: "Ela não foi respondida a tempo. Faça uma nova solicitação ou procure a recepção." },
 };
 
 const b64ToBytes = (s) => {
@@ -52,10 +52,10 @@ function PushOptIn({ token }) {
   if (!supported) {
     return ios && !standalone ? <p className="text-xs text-slate-400" data-testid="push-ios-hint">Para ser avisado mesmo com o navegador fechado no iPhone: toque em Compartilhar › "Adicionar à Tela de Início" e abra por lá.</p> : null;
   }
-  if (state === "on") return <p className="flex items-center justify-center gap-2 text-sm text-emerald-300" data-testid="push-on"><BellRing className="h-4 w-4" />Você será avisado no celular quando responderem.</p>;
+  if (state === "on") return <p className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300" data-testid="push-on"><BellRing className="h-5 w-5" />Você será avisado no celular quando responderem.</p>;
   return (
     <div className="space-y-1">
-      <PButton variant="outline" onClick={enable} disabled={state === "busy"} data-testid="push-enable"><Bell className="h-5 w-5" />Avisar-me no celular</PButton>
+      <PButton onClick={enable} disabled={state === "busy"} className="min-h-14 text-lg" data-testid="push-enable"><Bell className="h-6 w-6 motion-safe:animate-[wiggle_1.6s_ease-in-out_infinite]" />Avisar-me no celular</PButton>
       {state === "denied" && <p className="text-xs text-amber-300">Notificações bloqueadas no navegador. Libere nas configurações do site.</p>}
       {state === "error" && <p className="text-xs text-amber-300">Não foi possível ativar o aviso neste navegador. Deixe esta página aberta.</p>}
     </div>
@@ -65,17 +65,17 @@ function PushOptIn({ token }) {
 function Waiting({ s, token }) {
   return (
     <Box className="space-y-5 text-center" data-testid="selfreg-waiting">
-      <div className="relative mx-auto h-24 w-24">
+      <div className="relative mx-auto h-28 w-28">
         <div className="absolute inset-0 rounded-full border-4 border-slate-800" />
-        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-sky-400 border-r-sky-400/60" style={{ animationDuration: "1.1s" }} />
-        <div className="absolute inset-3 animate-pulse rounded-full bg-sky-500/10" />
+        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-sky-400 border-r-sky-400/60 motion-safe:animate-spin" style={{ animationDuration: "1.1s" }} />
+        <div className="absolute inset-3 flex items-center justify-center rounded-full bg-sky-500/10 motion-safe:animate-pulse"><Clock className="h-10 w-10 text-sky-300" /></div>
       </div>
       <div>
-        <h1 className="text-xl font-bold">Aguardando aprovação</h1>
-        <p className="mt-1 text-sm text-slate-300">{s.name}, sua solicitação foi enviada para <b>{s.host_name}</b>.</p>
+        <h1 className="text-2xl font-bold">Aguardando aprovação</h1>
+        <p className="mt-1 text-slate-300">{s.name}, sua solicitação foi enviada para <b>{s.host_name}</b>.</p>
       </div>
-      <p className="text-sm leading-relaxed text-slate-400">Aguarde aqui: esta tela se atualiza sozinha. Se fechar, avisamos por e-mail{("PushManager" in window) ? " ou no celular" : ""}.</p>
       <PushOptIn token={token} />
+      <p className="text-sm leading-relaxed text-slate-400">Esta tela se atualiza sozinha. Se fechar, avisamos por e-mail{("PushManager" in window) ? " ou no celular" : ""}.</p>
     </Box>
   );
 }
@@ -97,19 +97,20 @@ export default function SelfStatus() {
     const t = setInterval(() => { if (prev.current === null || prev.current === "pendente") { load(); } }, 5000);
     return () => { alive = false; clearInterval(t); };
   }, [token]);
-  if (err && !s) return <PublicShell title="Solicitação de visita"><Box>{err}</Box></PublicShell>;
-  if (!s) return <PublicShell title="Solicitação de visita"><div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-sky-400" /></div></PublicShell>;
+  if (err && !s) return <PublicShell title="Solicitação de visita"><Box data-testid="selfreg-status-error">{err}</Box></PublicShell>;
+  if (!s) return <PublicShell title="Solicitação de visita"><PageSkeleton /></PublicShell>;
   if (s.status === "pendente") return <PublicShell title={s.company} subtitle="Solicitação de visita"><Waiting s={s} token={token} /></PublicShell>;
   const v = VIEW[s.status] || VIEW.expirado;
   const Icon = v.icon;
   return (
     <PublicShell title={s.company} subtitle="Solicitação de visita">
-      <Box className="space-y-3 text-center animate-in fade-in zoom-in-95 duration-500" data-testid={`selfreg-status-${s.status}`}>
-        <Icon className={`mx-auto h-16 w-16 ${v.color}`} />
-        <h1 className="text-xl font-bold">{v.title}</h1>
-        <p className="text-sm text-slate-300">{s.name}, visita a <b>{s.host_name}</b></p>
-        {s.status === "aprovado" && <p className="text-sm text-slate-400">{fmtDT(s.start_at)} até {fmtDT(s.end_at)}</p>}
-        <p className="text-sm leading-relaxed text-slate-300">{v.text}</p>
+      <Box className="space-y-4 py-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-300" data-testid={`selfreg-status-${s.status}`}>
+        <div className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full ring-4 ${v.ring}`}><Icon className={`h-14 w-14 ${v.color}`} /></div>
+        <h1 className="text-2xl font-bold">{v.title}</h1>
+        <p className="text-slate-300">{s.name}, visita a <b>{s.host_name}</b></p>
+        {s.status === "aprovado" && <p className="rounded-xl bg-slate-950 p-3 text-sm text-slate-300" data-testid="selfreg-status-time"><Clock className="mr-1 inline h-4 w-4 text-sky-400" />{fmtDT(s.start_at)} até {fmtDT(s.end_at)}</p>}
+        {s.status === "aprovado" && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-left"><ScanFace className="h-10 w-10 shrink-0 text-emerald-300" /><p className="font-semibold text-emerald-100">Na chegada, olhe para o leitor facial.</p></div>}
+        <p className="text-sm leading-relaxed text-slate-400">{v.text}</p>
       </Box>
     </PublicShell>
   );
