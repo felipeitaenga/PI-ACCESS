@@ -66,10 +66,23 @@ async def sync_time(ctrl, force=False):
     upd = {"time_sync_ok": bool(r.get("ok")), "time_sync_detail": str(r.get("detail") or "")[:200]}
     if r.get("ok"):
         upd["time_synced_at"] = now_iso()  # só conta como acertado quando o facial confirma
+        upd["device_clock"] = {"drift_s": 0, "at": now_iso(), "device_time": "", "source": "acerto"}
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})
     if not r.get("ok"):
         logger.warning(f"SetSysTime {ctrl.get('name')}: {r}")
     return r
+
+
+async def clock_reading(ctrl, dev_time, source):
+    """Compara a hora informada pelo facial (horário de Brasília) com a do servidor e guarda a diferença."""
+    try:
+        t = datetime.strptime(str(dev_time)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+    except ValueError:
+        return None
+    clock = {"drift_s": int((t - datetime.now(timezone.utc)).total_seconds()), "at": now_iso(),
+             "device_time": str(dev_time)[:19], "source": source}
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"device_clock": clock}})
+    return clock
 
 
 async def heartbeat(dev, online=True, ip=None):
@@ -196,7 +209,9 @@ def _rec_from_mqtt(info):
 async def on_mqtt(topic, op, data, dev):
     info = data.get("info") or {}
     if op in ("HeartBeat", "Online") or topic.endswith("/heartbeat"):
-        await heartbeat(dev, True, info.get("ip"))
+        ctrl = await heartbeat(dev, True, info.get("ip"))
+        if ctrl and info.get("time"):
+            await clock_reading(ctrl, info["time"], "heartbeat")
         if op == "Online" and dev and await controller_by_device(dev):
             # protocolo Beward: o facial reenvia "Online" até receber Online-Ack
             bus.publish_raw(dev, {"operator": "Online-Ack", "info": {"facesluiceId": str(dev), "result": "ok"}})
@@ -212,6 +227,9 @@ async def on_mqtt(topic, op, data, dev):
         ctrl = await heartbeat(dev, True)
         if not ctrl:
             return
+        # só eventos em tempo real (os reenviados depois trazem a hora antiga do acesso)
+        if info.get("time") and (op == "StrSnapPush" or str(info.get("Sendintime", 1)) == "1"):
+            await clock_reading(ctrl, info["time"], "evento")
         if op == "StrSnapPush":
             await stranger(ctrl, info)
             return
