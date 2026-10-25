@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/registry/FormBits";
 import { ArrowLeft, Copy, Link2, Mail, MessageCircle } from "lucide-react";
+import { SearchSelect } from "./SearchSelect";
 import { toast } from "sonner";
 
 const sel = "h-11 w-full rounded-md border border-input bg-field px-3 text-base sm:h-9 sm:text-sm focus:border-sky-500 focus:outline-none";
@@ -21,21 +22,16 @@ const FIELD_STEP = { host_company_id: 0, host_person_id: 0, visit_type_id: 0, st
 function HostSelect({ companyId, value, onChange }) {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!companyId) { setItems([]); return undefined; }
+    setLoading(true);
     const t = setTimeout(() => api.get(`/registry/people?status=ativo&authorize=true&limit=20&company_id=${companyId}&q=${encodeURIComponent(q)}`)
-      .then(({ data }) => { const l = data.items || []; setItems(l); if (l.length === 1 && !q) onChange(l[0].id); }).catch(() => setItems([])), 250);
+      .then(({ data }) => { const l = data.items || []; setItems(l); if (l.length === 1 && !q) onChange(l[0].id); }).catch(() => setItems([])).finally(() => setLoading(false)), 250);
     return () => clearTimeout(t);
   }, [companyId, q]); // eslint-disable-line
-  return (
-    <div className="space-y-1.5">
-      <Input className="h-11 text-base sm:h-9 sm:text-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder={companyId ? "Filtrar pelo nome…" : "Escolha a empresa"} disabled={!companyId} data-testid="invite-host-filter" />
-      <select className={sel} value={value} onChange={(e) => onChange(e.target.value)} disabled={!companyId} data-testid="invite-host-select">
-        <option value="">Selecione o anfitrião…</option>
-        {items.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-    </div>
-  );
+  return <SearchSelect items={items} value={value} onChange={onChange} onQuery={setQ} loading={loading} disabled={!companyId}
+    placeholder={companyId ? "Toque para escolher ou digite o nome" : "Escolha a empresa primeiro"} testid="invite-host" />;
 }
 
 function StepDots({ step }) {
@@ -128,9 +124,8 @@ export function InviteWizard({ open, companies, onClose, onSaved }) {
             {step === 0 && <>
               {noTypes && <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300" data-testid="invite-no-types">Nenhum tipo de visita liberado para sua empresa. Peça ao Administrador para marcar em Empresas › editar empresa › "Tipos de visita que a empresa pode usar".</p>}
               <Field label="Empresa visitada" required error={errors.host_company_id}>
-                <select className={sel} value={f.host_company_id} onChange={(e) => setF((s) => ({ ...s, host_company_id: e.target.value, host_person_id: "" }))} data-testid="invite-company-select">
-                  <option value="">Selecione…</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <SearchSelect items={companies} value={f.host_company_id} onChange={(id) => setF((s) => ({ ...s, host_company_id: id, host_person_id: "" }))}
+                  placeholder="Toque para escolher ou digite o nome" testid="invite-company" />
               </Field>
               <Field label="Anfitrião" required error={errors.host_person_id}><HostSelect key={f.host_company_id} companyId={f.host_company_id} value={f.host_person_id} onChange={set("host_person_id")} /></Field>
               <Field label="Tipo da visita" required error={errors.visit_type_id}>
