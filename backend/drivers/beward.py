@@ -210,7 +210,12 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
     async def set_datetime(self):
         from datetime import datetime
         from zoneinfo import ZoneInfo
-        return await self._publish("SetSysTime", {"SysTime": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d %H:%M:%S")})
+        from mqtt_bus import bus
+        if not self._dev():
+            return {"ok": False, "detail": "Informe o ID Equipamento (DeviceID)"}
+        # nunca vai para a fila: reenviado depois levaria a hora antiga ao facial
+        return await bus.command(self._dev(), "SetSysTime", {"SysTime": datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d %H:%M:%S")},
+                                 online=self._online(), queue=False)
 
     async def open_door(self, door_id, seconds=5):
         return await self._publish("Unlock", {"openDoor": "1", "showInfo": "Acesso liberado"})

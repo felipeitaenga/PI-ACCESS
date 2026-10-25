@@ -188,6 +188,9 @@ class MqttBus:
             q = await db.mqtt_commands.find({"device_id": dev, "status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(500)
             for c in q:
                 mid = str(c["messageId"])
+                if c.get("operator") == "SetSysTime":  # hora antiga: nunca reenviar
+                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "descartado", "detail": "hora desatualizada"}})
+                    continue
                 fut = self.loop.create_future()
                 self.pending[mid] = fut
                 if not self.publish_raw(dev, c["payload"]):
@@ -209,6 +212,10 @@ class MqttBus:
             self.flushing.discard(dev)
         if sent:
             logger.info(f"Fila do facial {dev}: {sent} comando(s) reenviado(s)")
+            from beward_ingest import controller_by_device, sync_time
+            ctrl = await controller_by_device(dev)
+            if ctrl:
+                await sync_time(ctrl, force=True)
         return {"sent": sent, "pending": await db.mqtt_commands.count_documents({"device_id": dev, "status": "queued"})}
 
     async def flush_online(self):

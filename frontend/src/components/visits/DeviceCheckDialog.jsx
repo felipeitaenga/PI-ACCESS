@@ -20,7 +20,7 @@ function ControllerResult({ c }) {
         <Row label="Está no facial" testId="device-check-on-device">{c.on_device ? "Sim" : `Não ${c.search_detail || ""}`}</Row>
         {c.on_device && <Row label="Validade gravada">{dp.tempCardType ?? "—"} · {dp.cardValidBegin || "—"} → {dp.cardValidEnd || "—"}</Row>}
         <Row label="Validade esperada">{c.expected?.begin} → {c.expected?.end}</Row>
-        <Row label="Hora acertada">{c.time_synced_at ? `${c.time_sync_ok ? "ok" : "falhou"} · ${new Date(c.time_synced_at).toLocaleString("pt-BR")}` : "nunca"}</Row>
+        <Row label="Hora acertada">{c.time_sync_tried_at && !c.time_sync_ok ? `falhou · ${new Date(c.time_sync_tried_at).toLocaleString("pt-BR")}${c.time_sync_detail ? ` (${c.time_sync_detail})` : ""}` : c.time_synced_at ? `ok · ${new Date(c.time_synced_at).toLocaleString("pt-BR")}` : "nunca"}</Row>
         {!c.stranger_at && <p className="text-xs text-muted-foreground">Nenhum "Desconhecido" neste facial nas últimas 3 h.</p>}
         {c.stranger_at && <>
           <Row label="Último desconhecido">{new Date(c.stranger_at).toLocaleString("pt-BR")}</Row>

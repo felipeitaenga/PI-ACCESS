@@ -320,7 +320,8 @@ async def _check_controller(ctrl, visitor, visit, since):
     out = {"controller_id": ctrl["id"], "name": ctrl.get("name"), "online": await drv.connect(),
            "expected": {"begin": visit_subject(visitor, visit)["card_valid_begin"],
                         "end": visit_subject(visitor, visit)["card_valid_end"]},
-           "time_synced_at": ctrl.get("time_synced_at"), "time_sync_ok": ctrl.get("time_sync_ok")}
+           "time_synced_at": ctrl.get("time_synced_at"), "time_sync_ok": ctrl.get("time_sync_ok"),
+           "time_sync_tried_at": ctrl.get("time_sync_tried_at"), "time_sync_detail": ctrl.get("time_sync_detail")}
     if not out["online"]:
         out["error"] = "Facial offline ou broker MQTT desconectado"
         return out

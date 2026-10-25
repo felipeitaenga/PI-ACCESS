@@ -55,16 +55,18 @@ def _age_s(iso):
 
 async def sync_time(ctrl, force=False):
     """Acerta data/hora do facial (validade de visitantes depende do relógio do equipamento)."""
-    if not force and _age_s(ctrl.get("time_synced_at")) < TIME_SYNC_MIN_GAP:
+    if not force and _age_s(ctrl.get("time_sync_tried_at") or ctrl.get("time_synced_at")) < TIME_SYNC_MIN_GAP:
         return {"ok": True, "skipped": True}
     from drivers.factory import get_driver
-    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_synced_at": now_iso()}})
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_sync_tried_at": now_iso()}})
     try:
         r = await asyncio.wait_for(get_driver(ctrl).set_datetime(), 20)
     except Exception as e:  # noqa: BLE001
         r = {"ok": False, "detail": str(e)[:120] or "timeout"}
-    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_sync_ok": bool(r.get("ok")),
-                                                                 "time_sync_detail": str(r.get("detail") or "")[:200]}})
+    upd = {"time_sync_ok": bool(r.get("ok")), "time_sync_detail": str(r.get("detail") or "")[:200]}
+    if r.get("ok"):
+        upd["time_synced_at"] = now_iso()  # só conta como acertado quando o facial confirma
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})
     if not r.get("ok"):
         logger.warning(f"SetSysTime {ctrl.get('name')}: {r}")
     return r
@@ -250,8 +252,8 @@ async def watch_once():
         online = bool(hb) and (now - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW
         if c.get("online") != online and hb:
             await db.controllers.update_one({"id": c["id"]}, {"$set": {"online": online}})
-        if online and c.get("brand") == "beward_mqtt" and _age_s(c.get("time_synced_at")) > TIME_SYNC_HOURS * 3600:
-            await sync_time(c)
+        if online and c.get("brand") == "beward_mqtt" and (_age_s(c.get("time_synced_at")) > TIME_SYNC_HOURS * 3600 or not c.get("time_sync_ok")):
+            await sync_time(c)  # falhou: tenta de novo a cada TIME_SYNC_MIN_GAP
         if online and c.get("brand") == "beward_mqtt" and c.get("device_id") and \
                 await db.mqtt_commands.count_documents({"device_id": str(c["device_id"]), "status": "queued"}, limit=1):
             asyncio.create_task(bus.flush_queue(c["device_id"]))

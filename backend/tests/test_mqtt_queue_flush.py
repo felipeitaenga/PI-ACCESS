@@ -104,3 +104,45 @@ def test_offline_command_returns_message_id(env):
     r = run(bus.command(DEV, "DeletePersons", {"customId": ["TEST_z"]}, online=False))
     assert r["queued"] and r["message_id"].startswith("nx-")
     assert run(db.mqtt_commands.count_documents({"messageId": r["message_id"], "status": "queued"})) == 1
+
+
+def test_old_settime_is_discarded_and_clock_set_after_flush(env, monkeypatch):
+    bus, ctrl = env
+    old = _cmd("TEST-t0", "x")
+    old.update({"operator": "SetSysTime", "payload": {"operator": "SetSysTime", "messageId": "TEST-t0", "info": {"SysTime": "2026-10-11 08:00:00"}}})
+    run(db.mqtt_commands.insert_many([old, _cmd("TEST-t1", "TEST_y")]))
+    fake = FakeDevice(bus)
+    bus.publish_raw = fake.publish
+    clock = []
+
+    async def fake_sync(c, force=False):
+        clock.append((c["id"], force))
+        return {"ok": True}
+    monkeypatch.setattr(beward_ingest, "sync_time", fake_sync)
+    assert run(bus.flush_queue(DEV)) == {"sent": 1, "pending": 0}
+    assert fake.sent == ["TEST-t1"]
+    assert run(db.mqtt_commands.find_one({"messageId": "TEST-t0"}))["status"] == "descartado"
+    assert clock == [(ctrl["id"], True)]
+
+
+def test_set_datetime_never_queues(env, monkeypatch):
+    from drivers.beward import BewardMqttDriver
+    monkeypatch.setattr(mqtt_bus, "bus", env[0])
+    drv = BewardMqttDriver({**env[1], "online": False, "last_heartbeat": "2020-01-01T00:00:00+00:00"})
+    r = run(drv.set_datetime())
+    assert r["ok"] is False and not r.get("queued")
+    assert run(db.mqtt_commands.count_documents({"device_id": DEV, "operator": "SetSysTime"})) == 0
+
+
+def test_failed_time_sync_retries_soon(env, monkeypatch):
+    _, ctrl = env
+
+    class Drv:
+        async def set_datetime(self):
+            return {"ok": False, "detail": "sem Ack do facial em 10 s"}
+    import drivers.factory
+    monkeypatch.setattr(drivers.factory, "get_driver", lambda c: Drv())
+    run(beward_ingest.sync_time(ctrl, force=True))
+    c = run(db.controllers.find_one({"id": ctrl["id"]}, {"_id": 0}))
+    assert c["time_sync_ok"] is False and "time_synced_at" not in c and c["time_sync_tried_at"]
+    assert beward_ingest._age_s(c.get("time_synced_at")) > beward_ingest.TIME_SYNC_HOURS * 3600  # watch_once tenta de novo
