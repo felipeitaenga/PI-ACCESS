@@ -103,7 +103,8 @@ async def sync_to_devices(subject: dict, label: str, remove=False):
                         r = {"ok": False, "error": "foto: " + str(f.get("error") or f.get("detail") or "falha")}
             ok = bool(r.get("ok"))
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "ok" if ok else "erro",
-                            "error": "" if ok else str(r.get("error") or r.get("detail") or "falha")})
+                            "error": "" if ok else str(r.get("error") or r.get("detail") or "falha"),
+                            **({"message_id": r["message_id"]} if r.get("queued") and r.get("message_id") else {})})
         except Exception as e:  # noqa: BLE001
             results.append({"controller_id": c["id"], "name": c.get("name"), "status": "erro",
                             "error": str(e)[:120] or "timeout"})

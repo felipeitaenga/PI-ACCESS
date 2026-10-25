@@ -170,7 +170,8 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
             job["success"] += 1
         else:
             job["errors"].append({"person_id": p["id"], "name": p.get("name"),
-                                  "error": str(r.get("detail") or r.get("error") or "falha")[:200]})
+                                  "error": str(r.get("detail") or r.get("error") or "falha")[:200],
+                                  **({"message_id": r["message_id"]} if r.get("queued") and r.get("message_id") else {})})
     if job["errors"]:
         job["status"] = "erro"
     job["finished_at"] = now_iso()
