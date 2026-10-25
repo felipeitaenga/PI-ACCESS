@@ -271,7 +271,7 @@ function Invites({ tick, onNew }) {
 // ---------------- Links públicos ----------------
 function LinkActions({ name, link, qr, onRegen, regenMsg }) {
   return (
-    <div className="grid grid-cols-2 gap-2 pb-16 sm:flex sm:flex-wrap sm:pb-0">
+    <div className="grid w-full grid-cols-2 gap-2 pb-16 sm:flex sm:w-auto sm:flex-wrap sm:pb-0 [&>button]:min-w-0 [&>button]:px-2 [&>button]:text-xs sm:[&>button]:px-3 sm:[&>button]:text-sm">
       <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => copy(link)} data-testid="link-copy"><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
       <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => shareLink(name, link)} data-testid="link-share"><Share2 className="mr-1 h-4 w-4" />Compartilhar</Button>
       <Button size="sm" variant="outline" className="h-11 sm:h-8" disabled={!qr} onClick={() => downloadPoster(name, link, qr).catch(() => toast.error("Não foi possível gerar o cartaz"))} data-testid="link-poster"><FileDown className="mr-1 h-4 w-4" />Baixar cartaz</Button>

@@ -1,0 +1,37 @@
+{
+  "summary": "Retest of the iteration-25 fixes (mobile-first Autocadastro). Backend: test_selfreg_cpf_reason.py 5/5 passed. Frontend: almost all fixes verified on 375x667, 390x844, 412x915 and 1920x800. The first run used a STALE dev bundle because the CRA watcher did not recompile the 18:06 edits to HostDecision.jsx, SelfRegister.jsx and SelfStatus.jsx. I restarted the frontend and ran everything again on the fresh bundle. Verified: (1) CrudPage (/areas, /empresas), RequestDialog, ControllerDialog and the invite wizard are fullscreen on all 3 phones. Dialog box = viewport, header at y=0, footer at the bottom edge, X visible, Salvar visible while an input has focus. (2) Desktop 1920x800: /areas 'Fora do site' bottom=481 < footer top=497. Invite step 0 'Tipo da visita' bottom=527 < footer top=543. The invite result textarea is inside a collapsed details element, so it is not under the footer. (3) /aprovar: blacklist (y=97) and identity (y=175) warnings appear above the photo (y=273); Aprovar is disabled for the blacklisted visitor. (4) Public step 1: each field error clears when the user edits that field. 11 invalid digits show 'CPF inválido. Confira os números.' (5) Status page: aprovado shows the facial instruction once. Recusado shows selfreg-status-reason 'Motivo: TEST_ sem agenda hoje'; the API returns reason only for recusado. (6) Queue as Recepção: quick Liberar on an identity-check row opens the dialog and does not approve. Quick Liberar on a normal row approves directly. Reject with a reason works. A simulated 500 shows selfreg-load-error, and the retry button recovers. (7) Empresas edit placeholder is 'Buscar e selecionar tipos de visita…'. (8) The poster downloads as cartaz-autocadastro-beta-manutencao.pdf and the logo is now a 17KB JPEG. FAB does not overlap 'Baixar cartaz' at 375. (9) Public /v/:code end-to-end at 375 (host search, CPF, fake-camera selfie, review, submit, waiting page) works. Invite creation as Admin works on desktop and mobile. New issues: desktop RequestDialog overflows horizontally; ControllerDialog overflows horizontally on mobile; poster still 1.46MB (uncompressed QR); small text overflow on Links buttons at 375.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RequestDialog (SelfRegAdmin.jsx:89) desktop", "issue": "At 1920x800 the dialog content overflows horizontally: scrollWidth 539 vs clientWidth 510. The summary card, inputs and 'Aprovar e liberar' are clipped at the right edge. Root cause: DialogContent is sm:grid with an auto track, and the 4 footer buttons in a row (Fechar, Editar, Recusar, Aprovar e liberar) are wider than max-w-lg, so the grid track grows. Fix: add sm:max-w-xl to this dialog, or add [&>*]:min-w-0 / grid-cols-[minmax(0,1fr)] on DialogContent, plus flex-wrap on the footer.", "selector": "[data-testid=selfreg-request-dialog]", "priority": "MEDIUM"},
+      {"component": "ControllerDialog mobile", "issue": "Horizontal overflow on phones: scrollWidth 484 vs 375 at 375px and 503 vs 412 at 412px. The working-hours row (start time 'às' end time) is wider than the screen, so the end-time input is cut off.", "selector": "[data-testid=controller-dialog]", "priority": "MEDIUM"},
+      {"component": "Links públicos company card at 375px", "issue": "Button text overflows: link-share scrollWidth 96 > clientWidth 90 and link-poster 97 > 90. The 'Compartilhar' text crosses the card border and the 'Baixar cartaz' icon sits outside its button.", "selector": "[data-testid=link-share], [data-testid=link-poster]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Poster PDF", "issues": ["Still 1.46MB (was 1.9MB). The logo is fixed (17KB JPEG), but the 600x600 QR PNG is embedded uncompressed: RGB 1.08MB + alpha 360KB. Pass compression 'FAST' to doc.addImage(qr, 'PNG', ..., undefined, 'FAST'), or draw the QR on a white canvas and add it as JPEG, or use a smaller QR."]},
+      {"screen": "RequestDialog on 375x667", "issues": ["The 4 stacked footer buttons take 225px of 667 (34%). This leaves only about 400px of scrollable content. Consider a 2x2 grid for Editar/Fechar."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_selfreg_cpf_reason.py", "/app/test_reports/pytest/iter26.xml", "/app/backend/tests/ui_setup_iter25.py", "/app/backend/tests/ui_submit_iter25.py"],
+  "action_items": [
+    "MEDIUM: Fix the RequestDialog horizontal overflow on desktop (sm:max-w-xl, or min-w-0 grid track plus flex-wrap footer).",
+    "MEDIUM: Fix the ControllerDialog horizontal overflow on mobile (working-hours row: stack it or use flex-wrap/min-w-0 on the time inputs).",
+    "LOW: Compress the QR image in poster.js (addImage compression 'FAST', or JPEG) to bring the PDF well under 1.4MB.",
+    "LOW: Fix the Links card button text overflow at 375px (allow wrapping or use a full-width 2-column grid).",
+    "ENV: The CRA dev watcher did not recompile files edited at 18:06 until 'supervisorctl restart frontend' (fs.inotify.max_user_watches=12288). After big edits, check that the bundle is fresh, or restart the frontend."
+  ],
+  "critical_code_review_comments": [
+    "SelfRegAdmin.jsx is about 30KB / 410+ lines with many sub-components (Requests, Invites, PublicLinks, Settings, RequestDialog). Consider splitting it into components/selfreg/*.",
+    "dialog.jsx: the DialogContent sm:grid has no min-w-0 / minmax(0,1fr) track, so any wide child (a footer with many buttons, long mono text) widens the content past max-w and gets clipped. It is better to fix this globally."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "~93% (all 9 requested fix areas verified; 2 new medium overflow bugs found)"},
+  "seed_data_creation": "TEST_ pending requests and invites, plus a TEST_ known visitor, were created via the iter25 helpers. All were cleaned with ui_setup_iter25.py cleanup. Company/site toggles were restored (0 companies with selfreg enabled, as before), and the TEST_ gestor was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Same helper flow as iter25: python backend/tests/ui_setup_iter25.py setup, then ui_submit_iter25.py CODE NAME SEED [bl], then hosttoken REGID, then cleanup. For an identity-check row without blacklist, insert a non-blacklisted visitor with the same CPF (doc_key) before submitting. Before UI testing, check that the dev bundle is fresh: grep the order of testids in /static/js/bundle.js, or restart the frontend. To measure dialogs, use getBoundingClientRect on [role=dialog] and on its sticky header/footer children, and compare scrollWidth with clientWidth to catch overflow."
+}

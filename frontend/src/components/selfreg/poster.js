@@ -28,7 +28,7 @@ export async function downloadPoster(name, link, qr) {
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold"); doc.setFontSize(30);
   doc.text("Visitante? Faça seu cadastro", W / 2, 56, { align: "center" });
   if (name) { doc.setFontSize(20); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 65, 85); doc.text(name, W / 2, 67, { align: "center", maxWidth: 180 }); }
-  doc.addImage(qr, "PNG", (W - 110) / 2, 76, 110, 110);
+  doc.addImage(qr, "PNG", (W - 110) / 2, 76, 110, 110, undefined, "FAST");
   doc.setFontSize(16); doc.setTextColor(15, 23, 42);
   STEPS.forEach((s, i) => {
     const y = 204 + i * 16;
