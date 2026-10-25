@@ -268,6 +268,7 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
               </select>
             </Field>
             <Field label="Anfitrião" required error={errors.host_person_id} className="sm:col-span-2"><HostSelect companyId={f.host_company_id} value={f.host_person_id} onChange={set("host_person_id")} /></Field>
+            {!types.length && <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300 sm:col-span-2" data-testid="invite-no-types">Nenhum tipo de visita liberado para sua empresa. Peça ao Administrador para marcar em Empresas › editar empresa › "Tipos de visita que a empresa pode usar".</p>}
             <Field label="Tipo da visita" required error={errors.visit_type_id}>
               <select className={sel} value={f.visit_type_id} onChange={(e) => set("visit_type_id")(e.target.value)}>
                 <option value="">Selecione…</option>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -292,7 +293,7 @@ function InviteDialog({ open, companies, onClose, onSaved }) {
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fechar</Button>
-          {!result && <Button className={primary} onClick={save} data-testid="invite-save"><Mail className="mr-1 h-4 w-4" />Criar convite</Button>}
+          {!result && <Button className={primary} onClick={save} disabled={!types.length} data-testid="invite-save"><Mail className="mr-1 h-4 w-4" />Criar convite</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
