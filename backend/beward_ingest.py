@@ -254,9 +254,10 @@ async def watch_once():
             await db.controllers.update_one({"id": c["id"]}, {"$set": {"online": online}})
         if online and c.get("brand") == "beward_mqtt" and (_age_s(c.get("time_synced_at")) > TIME_SYNC_HOURS * 3600 or not c.get("time_sync_ok")):
             await sync_time(c)  # falhou: tenta de novo a cada TIME_SYNC_MIN_GAP
-        if online and c.get("brand") == "beward_mqtt" and c.get("device_id") and \
-                await db.mqtt_commands.count_documents({"device_id": str(c["device_id"]), "status": "queued"}, limit=1):
-            asyncio.create_task(bus.flush_queue(c["device_id"]))
+        dev = str(c.get("beward_device_id") or "")  # ID do facial no MQTT (o controlador não tem "device_id")
+        if online and c.get("brand") == "beward_mqtt" and dev and \
+                await db.mqtt_commands.count_documents({"device_id": dev, "status": "queued"}, limit=1):
+            asyncio.create_task(bus.flush_queue(dev))
         hours = (sites.get(c.get("site_id")) or {}).get("business_hours") or DEFAULT_HOURS
         if not online or c.get("no_event_alerted") or not in_business_hours(now, hours):
             continue

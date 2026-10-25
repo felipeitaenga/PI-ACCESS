@@ -182,11 +182,11 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         hb = self.device.get("last_heartbeat")
         return bool(hb) and (datetime.now(timezone.utc) - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW
 
-    async def _publish(self, operator, info=None):
+    async def _publish(self, operator, info=None, queue=True):
         from mqtt_bus import bus
         if not self._dev():
             return {"ok": False, "detail": "Informe o ID Equipamento (DeviceID)"}
-        return await bus.command(self._dev(), operator, info, online=self._online())
+        return await bus.command(self._dev(), operator, info, online=self._online(), queue=queue)
 
     async def connect(self):
         from mqtt_bus import bus
@@ -200,7 +200,7 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
         return {"online": online, "error": err, "last_heartbeat": self.device.get("last_heartbeat")}
 
     async def get_device_info(self):
-        r = await self._publish("Versions")
+        r = await self._publish("Versions", queue=False)
         if not r.get("ok") and self._online():
             # alguns firmwares não respondem "Versions" por MQTT; o heartbeat recente já prova a comunicação
             return {"ok": True, "firmware": self.device.get("firmware", ""),
@@ -218,10 +218,10 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
                                  online=self._online(), queue=False)
 
     async def open_door(self, door_id, seconds=5):
-        return await self._publish("Unlock", {"openDoor": "1", "showInfo": "Acesso liberado"})
+        return await self._publish("Unlock", {"openDoor": "1", "showInfo": "Acesso liberado"}, queue=False)  # abrir porta horas depois = risco
 
     async def set_door_mode(self, door_id, mode):
-        return await self._publish("SetKeepOpen", {"KeepOpen": 1 if mode == "liberada" else 0})
+        return await self._publish("SetKeepOpen", {"KeepOpen": 1 if mode == "liberada" else 0}, queue=False)
 
     async def _photo_b64(self, photo):
         """Foto sempre embutida em base64 (o facial não alcança URLs externas/HTTPS)."""
@@ -296,4 +296,4 @@ class BewardMqttDriver(_BewardShared, AccessControlDriver):
 
     async def get_events(self, since=None): return []
     async def subscribe(self, payload): return {"ok": True, "note": "MQTT usa o prefixo de tópico definido em Integrações"}
-    async def reboot(self): return await self._publish("RebootDevice")
+    async def reboot(self): return await self._publish("RebootDevice", queue=False)

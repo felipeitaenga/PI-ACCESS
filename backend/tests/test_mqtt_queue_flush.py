@@ -146,3 +146,47 @@ def test_failed_time_sync_retries_soon(env, monkeypatch):
     c = run(db.controllers.find_one({"id": ctrl["id"]}, {"_id": 0}))
     assert c["time_sync_ok"] is False and "time_synced_at" not in c and c["time_sync_tried_at"]
     assert beward_ingest._age_s(c.get("time_synced_at")) > beward_ingest.TIME_SYNC_HOURS * 3600  # watch_once tenta de novo
+
+
+def test_door_commands_never_queue_and_old_ones_are_discarded(env, monkeypatch):
+    """Abrir porta / deixar liberada / reiniciar não podem ser executados horas depois, quando o facial volta."""
+    from drivers.beward import BewardMqttDriver
+    bus, ctrl = env
+    monkeypatch.setattr(mqtt_bus, "bus", bus)
+    drv = BewardMqttDriver({**ctrl, "online": False, "last_heartbeat": "2020-01-01T00:00:00+00:00"})
+    for r in (run(drv.open_door("1")), run(drv.set_door_mode("1", "liberada")), run(drv.reboot())):
+        assert r["ok"] is False and not r.get("queued")
+    assert run(db.mqtt_commands.count_documents({"device_id": DEV})) == 0
+    # comandos antigos que ficaram na fila antes desta versão são descartados
+    olds = []
+    for i, op in enumerate(("Unlock", "SetKeepOpen", "RebootDevice")):
+        c = _cmd(f"TEST-d{i}", "x")
+        c.update({"operator": op, "payload": {"operator": op, "messageId": f"TEST-d{i}", "info": {}}})
+        olds.append(c)
+    run(db.mqtt_commands.insert_many(olds + [_cmd("TEST-d9", "TEST_w")]))
+    fake = FakeDevice(bus)
+    bus.publish_raw = fake.publish
+    monkeypatch.setattr(beward_ingest, "sync_time", lambda c, force=False: asyncio.sleep(0, {"ok": True}))
+    assert run(bus.flush_queue(DEV)) == {"sent": 1, "pending": 0}
+    assert fake.sent == ["TEST-d9"]
+    assert run(db.mqtt_commands.count_documents({"device_id": DEV, "status": "descartado"})) == 3
+
+
+def test_watch_and_reconnect_find_queue_by_beward_device_id(env, monkeypatch):
+    """O controlador guarda o ID do facial em beward_device_id (não existe "device_id" no cadastro)."""
+    bus, ctrl = env
+    run(db.controllers.update_one({"id": ctrl["id"]}, {"$unset": {"device_id": ""}}))
+    run(db.mqtt_commands.insert_one(_cmd("TEST-w0", "TEST_q")))
+    called = []
+
+    async def fake_flush(dev):
+        called.append(dev)
+        return {"sent": 0, "pending": 0}
+    monkeypatch.setattr(bus, "flush_queue", fake_flush)
+    monkeypatch.setattr(beward_ingest, "bus", bus)
+    monkeypatch.setattr(beward_ingest, "sync_time", lambda c, force=False: asyncio.sleep(0, {"ok": True}))
+    run(db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"time_sync_ok": True, "time_synced_at": now_iso()}}))
+    run(beward_ingest.watch_once())
+    run(bus.flush_online())
+    run(asyncio.sleep(0.05))
+    assert called and all(d == DEV for d in called)

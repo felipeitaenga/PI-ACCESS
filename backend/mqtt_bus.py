@@ -188,8 +188,8 @@ class MqttBus:
             q = await db.mqtt_commands.find({"device_id": dev, "status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(500)
             for c in q:
                 mid = str(c["messageId"])
-                if c.get("operator") == "SetSysTime":  # hora antiga: nunca reenviar
-                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "descartado", "detail": "hora desatualizada"}})
+                if c.get("operator") in NO_REPLAY:  # hora antiga, abrir/liberar porta, reiniciar: nunca reenviar depois
+                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "descartado", "detail": "comando não é reenviado"}})
                     continue
                 fut = self.loop.create_future()
                 self.pending[mid] = fut
@@ -223,7 +223,7 @@ class MqttBus:
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         for c in await db.controllers.find({"deleted": {"$ne": True}, "brand": "beward_mqtt"}, {"_id": 0}).to_list(500):
-            hb, dev = c.get("last_heartbeat"), str(c.get("device_id") or "")
+            hb, dev = c.get("last_heartbeat"), str(c.get("beward_device_id") or "")
             if dev and hb and (now - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW:
                 asyncio.create_task(self.flush_queue(dev))
 
@@ -236,6 +236,10 @@ class MqttBus:
 
 def normalize_prefix(p):
     return (p or "").strip().strip("/").replace("#", "").replace("+", "") or DEFAULT_PREFIX
+
+
+# comandos que perdem o sentido (ou viram risco) se executados mais tarde
+NO_REPLAY = {"SetSysTime", "Unlock", "SetKeepOpen", "RebootDevice", "Versions"}
 
 
 def _ack_result(ack):
