@@ -28,6 +28,7 @@ class MqttBus:
         self.stats = {"messages": 0, "last_message_at": None, "last_error": "", "connected_at": None}
         self.handler = None  # async (topic, operator, data) -> None
         self.managed = False
+        self.flushing = set()
 
     @property
     def prefix(self):
@@ -96,6 +97,8 @@ class MqttBus:
             for t in self.topics():
                 cli.subscribe(t, qos=1)
             logger.info(f"MQTT conectado como {self.cfg.get('client_id')}; assinado {', '.join(self.topics())}")
+            if self.loop:
+                asyncio.run_coroutine_threadsafe(self.flush_online(), self.loop)
         else:
             self.stats["last_error"] = f"CONNACK {rc}"
 
@@ -153,7 +156,7 @@ class MqttBus:
         if not (self.connected and online):
             await db.mqtt_commands.insert_one(rec)
             why = "broker MQTT desconectado" if not self.connected else "facial offline"
-            return {"ok": False, "queued": True, "detail": f"{why} — comando na fila"}
+            return {"ok": False, "queued": True, "message_id": mid, "detail": f"{why} — comando na fila"}
         rec["status"] = "sent"
         rec["sent_at"] = now_iso()
         await db.mqtt_commands.insert_one(rec)
@@ -169,23 +172,60 @@ class MqttBus:
                                                                          "detail": "sem Ack"}})
             if not queue:
                 return {"ok": False, "detail": f"sem Ack do facial em {t} s"}
-            return {"ok": False, "queued": True, "detail": f"sem Ack do facial em {t} s — comando na fila"}
-        code = str(ack.get("code", "200"))
-        ainfo = ack.get("info") or {}
-        ok = code == "200" and str(ainfo.get("result", "ok")).lower() in ("ok", "success", "")
-        detail = ainfo.get("detail") or ainfo.get("Detail") or ""
-        if "get pic" in detail.lower():
-            detail = f"Facial não conseguiu obter a foto ({detail})"
+            return {"ok": False, "queued": True, "message_id": mid, "detail": f"sem Ack do facial em {t} s — comando na fila"}
+        ok, code, detail, ainfo = _ack_result(ack)
         return {"ok": ok, "code": code, "detail": detail, "info": _strip(ainfo)}
 
     async def flush_queue(self, device_id):
-        """Reenvia comandos pendentes quando o facial volta online."""
-        q = await db.mqtt_commands.find({"device_id": str(device_id), "status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(200)
-        for c in q:
-            if not self.publish_raw(device_id, c["payload"]):
-                return
-            await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
-            await asyncio.sleep(0.3)
+        """Reenvia, na ordem, os comandos parados na fila quando o facial (ou o broker) volta.
+        Espera o Ack de cada um e atualiza o histórico de sincronizações; sem Ack, para e tenta de novo depois."""
+        dev = str(device_id)
+        if dev in self.flushing:
+            return {"sent": 0, "pending": None}
+        self.flushing.add(dev)
+        sent = 0
+        try:
+            q = await db.mqtt_commands.find({"device_id": dev, "status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(500)
+            for c in q:
+                mid = str(c["messageId"])
+                if c.get("operator") in NO_REPLAY:  # hora antiga, abrir/liberar porta, reiniciar: nunca reenviar depois
+                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "descartado", "detail": "comando não é reenviado"}})
+                    continue
+                fut = self.loop.create_future()
+                self.pending[mid] = fut
+                if not self.publish_raw(dev, c["payload"]):
+                    self.pending.pop(mid, None)
+                    break
+                await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
+                t = ACK_TIMEOUT_BY_OP.get(c.get("operator"), ACK_TIMEOUT)
+                try:
+                    ack = await asyncio.wait_for(fut, t)
+                except asyncio.TimeoutError:
+                    self.pending.pop(mid, None)
+                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "queued", "detail": "sem Ack no reenvio"}})
+                    break
+                ok, _code, detail, _ = _ack_result(ack)
+                await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "ack" if ok else "erro", "detail": detail}})
+                await mark_job(c, ok, detail)
+                sent += 1
+        finally:
+            self.flushing.discard(dev)
+        if sent:
+            logger.info(f"Fila do facial {dev}: {sent} comando(s) reenviado(s)")
+            from beward_ingest import controller_by_device, sync_time
+            ctrl = await controller_by_device(dev)
+            if ctrl:
+                await sync_time(ctrl, force=True)
+        return {"sent": sent, "pending": await db.mqtt_commands.count_documents({"device_id": dev, "status": "queued"})}
+
+    async def flush_online(self):
+        """Após reconectar ao broker: esvazia a fila dos faciais que estão online."""
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        for c in await db.controllers.find({"deleted": {"$ne": True}, "brand": "beward_mqtt"}, {"_id": 0}).to_list(500):
+            hb, dev = c.get("last_heartbeat"), str(c.get("beward_device_id") or "")
+            if dev and hb and (now - datetime.fromisoformat(hb)).total_seconds() < ONLINE_WINDOW:
+                asyncio.create_task(self.flush_queue(dev))
 
     def status(self):
         return {"connected": self.connected, "host": self.cfg.get("host"), "port": self.cfg.get("port"),
@@ -196,6 +236,60 @@ class MqttBus:
 
 def normalize_prefix(p):
     return (p or "").strip().strip("/").replace("#", "").replace("+", "") or DEFAULT_PREFIX
+
+
+# comandos que perdem o sentido (ou viram risco) se executados mais tarde
+NO_REPLAY = {"SetSysTime", "Unlock", "SetKeepOpen", "RebootDevice", "Versions"}
+
+
+def _ack_result(ack):
+    code = str(ack.get("code", "200"))
+    ainfo = ack.get("info") or {}
+    ok = code == "200" and str(ainfo.get("result", "ok")).lower() in ("ok", "success", "")
+    detail = ainfo.get("detail") or ainfo.get("Detail") or ""
+    if "get pic" in detail.lower():
+        detail = f"Facial não conseguiu obter a foto ({detail})"
+    return ok, code, detail, ainfo
+
+
+def _job_status(job):
+    devs = job.get("devices") or []
+    success = sum(1 for d in devs if d.get("status") == "ok")
+    return {"success": success, "status": "concluido" if devs and success == len(devs) else "erro",
+            "errors": [d for d in devs if d.get("status") == "erro"]}
+
+
+async def mark_job(cmd, ok, detail):
+    """Atualiza a linha do histórico (sync_jobs) que ficou "comando na fila" com o resultado do reenvio."""
+    from beward_ingest import controller_by_device
+    mid = str(cmd["messageId"])
+    full = await db.sync_jobs.find_one({"errors.message_id": mid}, {"_id": 0})
+    if full:  # sincronização completa: a pessoa sai da lista de erros quando o facial confirma
+        errs = [e for e in full["errors"] if e.get("message_id") != mid]
+        if not ok:
+            errs.append({**next(e for e in full["errors"] if e.get("message_id") == mid), "error": detail or "falha no reenvio", "message_id": None})
+        upd = {"errors": errs, "status": "erro" if errs else "concluido", "success": full.get("success", 0) + (1 if ok else 0)}
+        await db.sync_jobs.update_one({"id": full["id"]}, {"$set": upd})
+        return
+    job = await db.sync_jobs.find_one({"devices.message_id": mid}, {"_id": 0})
+    if not job:
+        # registros antigos (sem message_id): mesma pessoa, mesmo facial, criado junto com o comando
+        ctrl = await controller_by_device(cmd["device_id"])
+        ids = (cmd.get("payload") or {}).get("info", {}).get("customId")
+        pid = (ids[0] if isinstance(ids, list) and len(ids) == 1 else ids) if ids else None
+        if not ctrl or not isinstance(pid, str):
+            return
+        from datetime import datetime, timedelta
+        t = datetime.fromisoformat(cmd["created_at"])
+        job = await db.sync_jobs.find_one({"person_id": pid, "started_at": {"$gte": (t - timedelta(seconds=60)).isoformat(), "$lte": (t + timedelta(seconds=60)).isoformat()},
+                                           "devices": {"$elemMatch": {"controller_id": ctrl["id"], "error": {"$regex": "na fila"}}}}, {"_id": 0})
+        if not job:
+            return
+    for d in job.get("devices") or []:
+        if d.get("message_id") == mid or (not d.get("message_id") and "na fila" in (d.get("error") or "")):
+            d.update({"status": "ok" if ok else "erro", "error": "" if ok else (detail or "falha no reenvio"), "resent_at": now_iso()})
+            break
+    await db.sync_jobs.update_one({"id": job["id"]}, {"$set": {"devices": job["devices"], **_job_status(job)}})
 
 
 def _device_from_topic(topic, prefix):
