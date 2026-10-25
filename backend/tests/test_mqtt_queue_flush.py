@@ -205,3 +205,62 @@ def test_set_datetime_uses_iso_t_format(env, monkeypatch):
     r = run(BewardMqttDriver({**ctrl, "last_heartbeat": now_iso()}).set_datetime())
     assert r["ok"] is True
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", sent[0]["info"]["SysTime"])
+
+
+def test_delete_person_format_and_ack(env, monkeypatch):
+    """Facial 1457460: DeletePersons só apaga com DataBegin/PersonNum/DataEnd; a resposta traz DelErrNum/DelSucNum."""
+    from drivers.beward import BewardMqttDriver
+    bus, ctrl = env
+    monkeypatch.setattr(mqtt_bus, "bus", bus)
+    bus.connected = True
+    sent = []
+
+    def pub(dev, payload):
+        sent.append(payload)
+        mid = payload["messageId"]
+        ack = {"messageId": mid, "info": {"DelErrNum": "0", "DelSucNum": "1", "DelSucInfo": [{"customId": "TEST_v"}]}}
+        bus.loop.call_later(0.05, lambda: (bus.pending.pop(mid, None) or _dummy()).set_result(ack))
+        return True
+    bus.publish_raw = pub
+    r = run(BewardMqttDriver({**ctrl, "last_heartbeat": now_iso()}).delete_person("TEST_v"))
+    assert r["ok"] is True
+    exp = {"DataBegin": "BeginFlag", "PersonNum": 1, "customId": ["TEST_v"], "DataEnd": "EndFlag"}
+    assert {k: sent[0]["info"].get(k) for k in exp} == exp
+    ok, _c, _d, _i = mqtt_bus._ack_result({"info": {"DelErrNum": "1", "DelSucNum": "0", "DelErrInfo": [{"customId": "x"}]}})
+    assert ok is False
+
+
+def test_lenient_json_from_device():
+    bad = '{\n"messageId":"m1",\n"operator": "DeletePersons-Ack",\n"info": {\n"facesluiceId":"1",\n"result":"fail"\n"detail":"can not find DataBegin",\n}\n}\n'
+    d = mqtt_bus.parse_json_lenient(bad)
+    assert d["messageId"] == "m1" and d["info"]["result"] == "fail" and d["info"]["detail"] == "can not find DataBegin"
+
+
+def test_flush_upgrades_old_delete_payload(env, monkeypatch):
+    bus, _ = env
+    run(db.mqtt_commands.insert_one(_cmd("TEST-old-del", "TEST_old")))  # payload antigo: sem DataBegin
+    fake = FakeDevice(bus)
+    sent = []
+    bus.publish_raw = lambda dev, p: sent.append(p) or fake.publish(dev, p)
+    monkeypatch.setattr(beward_ingest, "sync_time", lambda c, force=False: asyncio.sleep(0, {"ok": True}))
+    assert run(bus.flush_queue(DEV))["sent"] == 1
+    assert sent[0]["info"]["DataBegin"] == "BeginFlag" and sent[0]["info"]["customId"] == ["TEST_old"]
+
+
+def test_sync_person_sends_no_cpf_or_phone(env, monkeypatch):
+    from drivers.beward import BewardMqttDriver
+    bus, ctrl = env
+    monkeypatch.setattr(mqtt_bus, "bus", bus)
+    drv = BewardMqttDriver({**ctrl, "last_heartbeat": now_iso()})
+    seen = {}
+
+    async def fake_publish(op, info=None, queue=True):
+        seen.update(info or {})
+        return {"ok": True}
+
+    async def fake_photo(_):
+        return "AAAA"
+    monkeypatch.setattr(drv, "_publish", fake_publish)
+    monkeypatch.setattr(drv, "_photo_b64", fake_photo)
+    run(drv.sync_person({"id": "TEST_p", "name": "Fulano", "document": "11144477735", "phone": "11999990000", "photo": "x"}))
+    assert seen["idCard"] == "" and seen["telnum"] == ""

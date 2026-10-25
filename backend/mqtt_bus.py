@@ -1,6 +1,7 @@
 """Cliente MQTT do servidor (saída) — assina <prefixo>/#, publica comandos e aguarda Ack."""
 import asyncio
 import json
+import re
 import logging
 import time
 from collections import deque
@@ -107,7 +108,7 @@ class MqttBus:
 
     def _on_message(self, cli, userdata, msg):
         try:
-            data = json.loads(msg.payload.decode("utf-8", errors="ignore") or "{}")
+            data = parse_json_lenient(msg.payload.decode("utf-8", errors="ignore") or "{}")
         except Exception:  # noqa: BLE001
             data = {}
         op = data.get("operator", "")
@@ -191,9 +192,15 @@ class MqttBus:
                 if c.get("operator") in NO_REPLAY:  # hora antiga, abrir/liberar porta, reiniciar: nunca reenviar depois
                     await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "descartado", "detail": "comando não é reenviado"}})
                     continue
+                payload = c["payload"]
+                if c.get("operator") == "DeletePersons" and "DataBegin" not in (payload.get("info") or {}):
+                    from drivers.beward import delete_persons_info  # comando antigo no formato que o facial recusa
+                    ids = payload["info"].get("customId") or []
+                    payload = {**payload, "info": {"facesluiceId": str(dev), **delete_persons_info(ids if isinstance(ids, list) else [ids])}}
+                    await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"payload": payload}})
                 fut = self.loop.create_future()
                 self.pending[mid] = fut
-                if not self.publish_raw(dev, c["payload"]):
+                if not self.publish_raw(dev, payload):
                     self.pending.pop(mid, None)
                     break
                 await db.mqtt_commands.update_one({"id": c["id"]}, {"$set": {"status": "sent", "sent_at": now_iso()}})
@@ -242,11 +249,25 @@ def normalize_prefix(p):
 NO_REPLAY = {"SetSysTime", "Unlock", "SetKeepOpen", "RebootDevice", "Versions"}
 
 
+def parse_json_lenient(txt):
+    """O facial às vezes manda JSON com vírgula faltando ou sobrando (ex.: Ack de erro do DeletePersons)."""
+    try:
+        return json.loads(txt)
+    except ValueError:
+        fixed = re.sub(r'("|\d|\]|\}|true|false|null)(\s*\n\s*)(?=")', r"\1,\2", txt)  # vírgula faltando entre linhas
+        fixed = re.sub(r",(\s*[}\]])", r"\1", fixed)  # vírgula sobrando antes de } ou ]
+        return json.loads(fixed)
+
+
 def _ack_result(ack):
     code = str(ack.get("code", "200"))
     ainfo = ack.get("info") or {}
     ok = code == "200" and str(ainfo.get("result", "ok")).lower() in ("ok", "success", "")
     detail = ainfo.get("detail") or ainfo.get("Detail") or ""
+    if "DelErrNum" in ainfo:  # DeletePersons responde contagem, sem "result"
+        ok = code == "200" and str(ainfo.get("DelErrNum")) == "0"
+        if not ok and not detail:
+            detail = f"facial não apagou: {ainfo.get('DelErrInfo')}"[:200]
     if "get pic" in detail.lower():
         detail = f"Facial não conseguiu obter a foto ({detail})"
     return ok, code, detail, ainfo
