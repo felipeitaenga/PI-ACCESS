@@ -29,7 +29,7 @@ function DeviceClock({ d, onFix }) {
     <>
       <div className="flex justify-between text-muted-foreground" data-testid={`device-clock-${d.id}`}>
         <span>Hora do facial</span>
-        <span className={cn("font-mono", off ? "text-amber-300" : "text-foreground")} title={`Lida em ${ago(c.at)} (${c.source})`}>{now}{!off && " · ok"}</span>
+        <span className={cn("font-mono", off ? "text-amber-300" : "text-foreground")} title={`Lida em ${ago(c.at)} (${c.source})`}>{now}{!off && (c.unconfirmed ? " · acertada, confirma no próximo acesso" : " · ok")}</span>
       </div>
       {off && (
         <div className="flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300" data-testid={`device-clock-warning-${d.id}`}>

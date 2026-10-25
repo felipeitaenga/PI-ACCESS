@@ -190,3 +190,18 @@ def test_watch_and_reconnect_find_queue_by_beward_device_id(env, monkeypatch):
     run(bus.flush_online())
     run(asyncio.sleep(0.05))
     assert called and all(d == DEV for d in called)
+
+
+def test_set_datetime_uses_iso_t_format(env, monkeypatch):
+    """O facial só aplica a hora com "T" (2026-10-25T19:53:00); com espaço responde ok e ignora."""
+    import re
+    from drivers.beward import BewardMqttDriver
+    bus, ctrl = env
+    monkeypatch.setattr(mqtt_bus, "bus", bus)
+    bus.connected = True
+    fake = FakeDevice(bus)
+    sent = []
+    bus.publish_raw = lambda dev, payload: sent.append(payload) or fake.publish(dev, payload)
+    r = run(BewardMqttDriver({**ctrl, "last_heartbeat": now_iso()}).set_datetime())
+    assert r["ok"] is True
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", sent[0]["info"]["SysTime"])

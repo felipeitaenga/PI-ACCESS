@@ -66,7 +66,8 @@ async def sync_time(ctrl, force=False):
     upd = {"time_sync_ok": bool(r.get("ok")), "time_sync_detail": str(r.get("detail") or "")[:200]}
     if r.get("ok"):
         upd["time_synced_at"] = now_iso()  # só conta como acertado quando o facial confirma
-        upd["device_clock"] = {"drift_s": 0, "at": now_iso(), "device_time": "", "source": "acerto"}
+        # o Ack "ok" não prova que a hora mudou: fica "a confirmar" até o próximo evento trazer a hora do facial
+        upd["device_clock"] = {"drift_s": 0, "at": now_iso(), "device_time": "", "source": "acerto", "unconfirmed": True}
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})
     if not r.get("ok"):
         logger.warning(f"SetSysTime {ctrl.get('name')}: {r}")
@@ -76,7 +77,7 @@ async def sync_time(ctrl, force=False):
 async def clock_reading(ctrl, dev_time, source):
     """Compara a hora informada pelo facial (horário de Brasília) com a do servidor e guarda a diferença."""
     try:
-        t = datetime.strptime(str(dev_time)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+        t = datetime.strptime(str(dev_time)[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
     except ValueError:
         return None
     clock = {"drift_s": int((t - datetime.now(timezone.utc)).total_seconds()), "at": now_iso(),
