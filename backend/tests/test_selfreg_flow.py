@@ -364,7 +364,7 @@ class TestD_Invite:
             "invite": token, "consent": True, "name": "TEST Convidado D1 Nome",
             "doc_type": "cpf", "doc_number": cpf, "photo": face_dataurl()})
         assert sub.status_code == 200, sub.text
-        assert sub.json()["status"] == "aprovado"
+        assert sub.json()["status"] == "pendente", "convite nunca libera automaticamente"
         pytest.cpf_d1 = cpf
 
         # second use of same invite token → 404 or 409

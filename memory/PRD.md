@@ -171,6 +171,8 @@ Auth+RBAC · Structure (Sites>Áreas>Portas>Dispositivos) · People (CRUD/CSV/ph
 
 - [x] CPF primeiro e só CPF (público e portaria) com "CPF inválido"; busca por CPF (pública: só "Encontramos seu cadastro, Mar***", dados usados sem exibir; status mascara o nome); empresas do QR único só ao tocar/digitar; campo opcional "Motivo da visita" (visit_reason) na portaria, anfitrião, fila, presentes e relatório Visitas (2026-10-18, iteration_24 + tests/test_selfreg_cpf_reason.py). Merge da main 1.5.3 (validação SSRF do endpoint de push).
 - [x] Merge da main 1.5.5: busca pública por CPF REMOVIDA por decisão do cliente (visitante sempre digita CPF e nome; não recriar). Mantidos doc_known/owner_verified (comparação de fotos na portaria) e busca por CPF da portaria. tests/test_selfreg_cpf_reason.py atualizado (rota inexistente, nome obrigatório, CPF conhecido sinaliza conferência).
+- [x] 2026-10-24: removida a liberação automática do convite (backend ignora auto_approve, inclusive em convites antigos; tela sem a chave). Toda solicitação vai para aprovação do anfitrião/portaria. Criação de convite verificada na preview (Admin). tests/test_selfreg_flow.py ajustado.
+- [x] 2026-10-25: Convite — gestor de empresa sem "Tipos de visita que a empresa pode usar" configurados não conseguia criar convite (lista de tipos vazia). Tela agora mostra aviso explicando e desativa "Criar convite". Regra de permissão mantida. Operador/Recepção/Admin criam normalmente (verificado).
 
 ## Next Tasks
 0. Sincronizar hora (SetSysTime) e OpendoorWay ao receber "Online" do facial; registrar StrSnapPush como evento "Desconhecido".
