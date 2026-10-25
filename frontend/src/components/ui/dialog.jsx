@@ -30,7 +30,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
       ref={ref}
       className={cn(
         // celular: tela cheia com cabeçalho e rodapé fixos; a partir de 640 px: janela central
-        "fixed inset-0 z-50 mx-auto flex h-[100dvh] w-full max-w-lg flex-col gap-4 overflow-y-auto overscroll-contain bg-background p-4 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 motion-reduce:animate-none sm:inset-auto sm:left-[50%] sm:top-[50%] sm:grid sm:h-auto sm:max-h-[92dvh] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
+        "fixed inset-0 z-50 mx-auto flex h-[100dvh] w-full max-w-lg flex-col gap-4 overflow-y-auto overscroll-contain bg-background p-4 shadow-lg duration-200 max-sm:!max-h-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 motion-reduce:animate-none sm:inset-auto sm:left-[50%] sm:top-[50%] sm:grid sm:h-auto sm:max-h-[92dvh] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
         className
       )}
       {...props}>
@@ -50,7 +50,7 @@ const DialogHeader = ({
   ...props
 }) => (
   <div
-    className={cn("sticky top-0 z-10 -mx-4 -mt-4 flex flex-col space-y-1.5 bg-background px-4 pb-2 pr-14 pt-4 text-left sm:static sm:m-0 sm:p-0 sm:pr-8", className)}
+    className={cn("sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col space-y-1.5 bg-background px-4 pb-2 pr-14 pt-4 text-left sm:static sm:m-0 sm:p-0 sm:pr-8", className)}
     {...props} />
 )
 DialogHeader.displayName = "DialogHeader"
@@ -60,7 +60,7 @@ const DialogFooter = ({
   ...props
 }) => (
   <div
-    className={cn("sticky bottom-0 z-10 -mx-4 -mb-4 mt-auto flex flex-col-reverse gap-2 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>*]:min-h-11 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 sm:px-6 sm:py-4 sm:[&>*]:min-h-0", className)}
+    className={cn("sticky -bottom-4 z-10 -mx-4 -mb-4 mt-auto flex flex-col-reverse gap-2 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>*]:min-h-11 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 sm:px-6 sm:py-4 sm:[&>*]:min-h-0", className)}
     {...props} />
 )
 DialogFooter.displayName = "DialogFooter"

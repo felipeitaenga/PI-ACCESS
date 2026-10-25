@@ -110,7 +110,8 @@ export default function SelfStatus() {
         <p className="text-slate-300">{s.name}, visita a <b>{s.host_name}</b></p>
         {s.status === "aprovado" && <p className="rounded-xl bg-slate-950 p-3 text-sm text-slate-300" data-testid="selfreg-status-time"><Clock className="mr-1 inline h-4 w-4 text-sky-400" />{fmtDT(s.start_at)} até {fmtDT(s.end_at)}</p>}
         {s.status === "aprovado" && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-left"><ScanFace className="h-10 w-10 shrink-0 text-emerald-300" /><p className="font-semibold text-emerald-100">Na chegada, olhe para o leitor facial.</p></div>}
-        <p className="text-sm leading-relaxed text-slate-400">{v.text}</p>
+        {s.status === "recusado" && s.reason && <p className="rounded-xl bg-slate-950 p-3 text-sm text-slate-200" data-testid="selfreg-status-reason">Motivo: {s.reason}</p>}
+        <p className="text-sm leading-relaxed text-slate-400">{s.status === "aprovado" ? "Se não liberar, procure a recepção." : v.text}</p>
       </Box>
     </PublicShell>
   );

@@ -52,7 +52,9 @@ export default function HostDecision() {
   return (
     <PublicShell title={r.company} subtitle="Aprovação de visita" bar={bar}>
       <Box className="space-y-4">
-        {r.photo ? <img src={r.photo} alt={`Foto de ${r.name}`} className="mx-auto aspect-[3/4] w-full max-w-[260px] rounded-2xl object-cover" data-testid="host-decision-photo" /> : null}
+        {r.blacklist && <Alert tone="warn" data-testid="host-decision-blacklist"><AlertTriangle className="mr-1 inline h-4 w-4" />Esta solicitação precisa ser analisada pela portaria.</Alert>}
+        {r.identity_check && <Alert tone="warn" data-testid="host-decision-identity"><AlertTriangle className="mr-1 inline h-4 w-4" />Este CPF já tinha cadastro. Confira se a foto é mesmo da pessoa que você espera antes de aprovar.</Alert>}
+        {r.photo ? <img src={r.photo} alt={`Foto de ${r.name}`} className="mx-auto aspect-[3/4] w-full max-w-[220px] rounded-2xl object-cover" data-testid="host-decision-photo" /> : null}
         <div className="text-center">
           <p className="text-2xl font-bold leading-tight text-white" data-testid="host-decision-name">{r.name}</p>
           {r.visitor_company && <p className="text-slate-300">{r.visitor_company}</p>}
@@ -63,8 +65,6 @@ export default function HostDecision() {
           <p>Visita a <b>{r.host_name}</b> · {r.visit_type}</p>
           <p className="text-sm text-slate-400"><Clock className="mr-1 inline h-4 w-4 text-sky-400" />{fmtDT(r.start_at)} até {fmtDT(r.end_at)}</p>
         </div>
-        {r.identity_check && <Alert tone="warn" data-testid="host-decision-identity"><AlertTriangle className="mr-1 inline h-4 w-4" />Este CPF já tinha cadastro. Confira se a foto é mesmo da pessoa que você espera antes de aprovar.</Alert>}
-        {r.blacklist && <Alert tone="warn" data-testid="host-decision-blacklist"><AlertTriangle className="mr-1 inline h-4 w-4" />Esta solicitação precisa ser analisada pela portaria.</Alert>}
         {err && <Alert>{err}</Alert>}
         {rejecting && (
           <PField label="Motivo da recusa (opcional, será enviado ao visitante)" htmlFor="hd-reason">

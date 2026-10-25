@@ -110,7 +110,7 @@ export function InviteWizard({ open, companies, onClose, onSaved }) {
     } catch (e) {
       const fe = e.response?.data?.detail?.fields || {};
       setErrors(fe);
-      const first = Object.keys(fe).map((k) => FIELD_STEP[k]).filter((s) => s !== undefined).sort()[0];
+  const first = Object.keys(fe).map((k) => FIELD_STEP[k]).filter((s) => s !== undefined).sort((a, b) => a - b)[0];
       if (first !== undefined) setStep(first);
       toast.error(formatApiErrorDetail(e.response?.data?.detail));
     } finally { setBusy(false); }

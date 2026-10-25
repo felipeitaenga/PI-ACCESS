@@ -101,3 +101,8 @@ def test_known_cpf_flags_identity_check_and_keeps_reason(ctx):
     assert reg["doc_known"] is True and reg["owner_verified"] is False
     det = s.get(f"{API}/selfreg/requests/{reg['id']}").json()
     assert det["existing_name"] == f"{TAG} Mariana Souza" and "existing_photo" in det
+    token = r.json()["status_token"]
+    assert "reason" not in requests.get(f"{API}/public/selfreg/status/{token}", timeout=10).json()
+    assert s.post(f"{API}/selfreg/requests/{reg['id']}/reject", json={"reason": "Agenda cheia"}).status_code == 200
+    st = requests.get(f"{API}/public/selfreg/status/{token}", timeout=10).json()
+    assert st["status"] == "recusado" and st["reason"] == "Agenda cheia"

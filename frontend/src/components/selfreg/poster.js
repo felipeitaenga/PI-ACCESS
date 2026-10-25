@@ -5,9 +5,12 @@ const loadLogo = () => new Promise((resolve) => {
   const img = new Image();
   img.onload = () => {
     const c = document.createElement("canvas");
-    c.width = img.naturalWidth; c.height = img.naturalHeight;
-    c.getContext("2d").drawImage(img, 0, 0);
-    resolve({ data: c.toDataURL("image/png"), w: img.naturalWidth, h: img.naturalHeight });
+    const scale = Math.min(1, 600 / img.naturalWidth);
+    c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    resolve({ data: c.toDataURL("image/jpeg", 0.85), w: img.naturalWidth, h: img.naturalHeight });
   };
   img.onerror = () => resolve(null);
   img.src = "/brand/pilares-logo.webp";
@@ -21,7 +24,7 @@ export async function downloadPoster(name, link, qr) {
   const W = 210;
   doc.setFillColor(239, 125, 37); doc.rect(0, 0, W, 8, "F");
   const logo = await loadLogo();
-  if (logo) { const h = 22, w = (logo.w / logo.h) * h; doc.addImage(logo.data, "PNG", (W - w) / 2, 16, w, h); }
+  if (logo) { const h = 22, w = (logo.w / logo.h) * h; doc.addImage(logo.data, "JPEG", (W - w) / 2, 16, w, h); }
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold"); doc.setFontSize(30);
   doc.text("Visitante? Faça seu cadastro", W / 2, 56, { align: "center" });
   if (name) { doc.setFontSize(20); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 65, 85); doc.text(name, W / 2, 67, { align: "center", maxWidth: 180 }); }
@@ -34,7 +37,8 @@ export async function downloadPoster(name, link, qr) {
     doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "normal"); doc.text(s, 42, y);
   });
   doc.setFontSize(9); doc.setTextColor(100, 116, 139); doc.text(link, W / 2, 282, { align: "center", maxWidth: 190 });
-  doc.save(`cartaz-autocadastro${name ? `-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : ""}.pdf`);
+  const slug = (name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  doc.save(`cartaz-autocadastro${slug ? `-${slug}` : ""}.pdf`);
 }
 
 export async function shareLink(name, link) {

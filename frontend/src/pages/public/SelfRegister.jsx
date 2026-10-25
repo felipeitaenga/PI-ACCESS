@@ -48,7 +48,11 @@ export default function SelfRegister({ mode }) {
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e?.target ? (e.target.type === "checkbox" ? e.target.checked : e.target.value) : e }));
+  const set = (k) => (e) => {
+    setErrors((x) => (x[k] ? { ...x, [k]: "" } : x));
+    setF((s) => ({ ...s, [k]: e?.target ? (e.target.type === "checkbox" ? e.target.checked : e.target.value) : e }));
+  };
+  const pickHost = (h) => { setErrors((x) => ({ ...x, host_person_id: "" })); setHost(h); };
 
   useEffect(() => {
     pub.get("/info", { params: ctxKey }).then(({ data }) => {
@@ -65,7 +69,7 @@ export default function SelfRegister({ mode }) {
     try { await fn(); } catch (e) {
       const fe = errFields(e);
       setErrors(fe); setMsg(Object.keys(fe).length ? "" : errMsg(e));
-      const first = Object.keys(fe).map((k) => FIELD_STEP[k]).filter((s) => s !== undefined).sort()[0];
+      const first = Object.keys(fe).map((k) => FIELD_STEP[k]).filter((s) => s !== undefined).sort((a, b) => a - b)[0];
       if (phase === "steps" && first !== undefined) setStep(first);
       scrollToError();
     } finally { setBusy(false); }
@@ -150,8 +154,8 @@ export default function SelfRegister({ mode }) {
       <Box key={step} className="space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-200" data-testid={`selfreg-step-${step}`}>
         {step === 0 && <>
           <h1 className="text-lg font-bold">Sobre a visita</h1>
-          {isSite && <CompanyPicker companies={info.companies} value={company} onPick={(c) => { setCompany(c); setHost(null); }} error={errors.company_id} />}
-          {!isInvite && (!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={{ ...ctxKey, company_id: company?.id || "" }} value={host} onPick={setHost} error={errors.host_person_id} />}
+          {isSite && <CompanyPicker companies={info.companies} value={company} onPick={(c) => { setErrors((x) => ({ ...x, company_id: "" })); setCompany(c); setHost(null); }} error={errors.company_id} />}
+          {!isInvite && (!isSite || company) && <HostSearch key={company?.id || "-"} ctxKey={{ ...ctxKey, company_id: company?.id || "" }} value={host} onPick={pickHost} error={errors.host_person_id} />}
           <PField label="Motivo da visita" hint="Opcional" htmlFor="sr-reason">
             <input id="sr-reason" className={inputCls} maxLength={200} value={f.visit_reason} onChange={set("visit_reason")} placeholder="Ex.: reunião, entrega, manutenção" data-testid="selfreg-reason-input" />
           </PField>
@@ -189,7 +193,7 @@ export default function SelfRegister({ mode }) {
           )}
         </>}
 
-        {step === 2 && <SelfieStep photo={photo} setPhoto={setPhoto} error={errors.photo} />}
+        {step === 2 && <SelfieStep photo={photo} setPhoto={(p) => { setErrors((x) => ({ ...x, photo: "" })); setPhoto(p); }} error={errors.photo} />}
 
         {step === 3 && <>
           <h1 className="text-lg font-bold">Confira antes de enviar</h1>

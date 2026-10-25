@@ -86,7 +86,7 @@ function RequestDialog({ id, mode, onClose, onDone }) {
   const pending = r?.status === "pendente";
   return (
     <Dialog open={!!id} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto" data-testid="selfreg-request-dialog">
+      <DialogContent className="max-w-lg" data-testid="selfreg-request-dialog">
         <DialogHeader><DialogTitle>Solicitação de visita</DialogTitle></DialogHeader>
         {!r ? <p className="text-sm text-muted-foreground">Carregando…</p> : (
           <div className="space-y-3 text-sm">
@@ -166,7 +166,7 @@ function RequestCard({ r, busy, onApprove, onOpen }) {
       <button type="button" onClick={() => onOpen({ id: r.id, mode: "view" })} className="flex w-full gap-3 text-left" data-testid={`selfreg-open-${r.id}`}>
         <Thumb r={r} cls="h-20 w-16 shrink-0" />
         <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="font-semibold leading-tight">{r.name}<BL r={r} /></p>
+          <p className="truncate font-semibold leading-tight">{r.name}<BL r={r} /></p>
           <p className="truncate text-sm text-muted-foreground">{r.host_name} · {r.host_company_name}</p>
           <p className="text-xs text-muted-foreground">{fmtDateTime(r.start_at)} até {fmtDateTime(r.end_at)}</p>
           {r.visit_reason && <p className="truncate text-xs">Motivo: {r.visit_reason}</p>}
@@ -202,10 +202,11 @@ function Requests() {
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(null);
   const [busyId, setBusyId] = useState("");
-  const load = useCallback(() => api.get(`/selfreg/requests?status=${status}`).then(({ data }) => setItems(data)).catch(() => setItems((s) => s || [])), [status]);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => api.get(`/selfreg/requests?status=${status}`).then(({ data }) => { setItems(data); setFailed(false); }).catch(() => { setFailed(true); setItems((s) => s || []); }), [status]);
   useEffect(() => { setItems(null); load(); const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
   const quickApprove = async (r) => {
-    if (r.blacklist) { setOpen({ id: r.id, mode: "view" }); return; }
+    if (r.blacklist || (r.doc_known && !r.owner_verified)) { setOpen({ id: r.id, mode: "view" }); return; }
     setBusyId(r.id);
     try {
       const { data } = await api.post(`/selfreg/requests/${r.id}/approve`, {});
@@ -224,7 +225,8 @@ function Requests() {
         <Button size="sm" variant="ghost" className="h-10 w-10 sm:h-8 sm:w-8" onClick={load} aria-label="Atualizar"><RefreshCw className="h-4 w-4" /></Button>
       </div>
       {items === null && <div className="space-y-2" data-testid="selfreg-loading">{[0, 1, 2].map((i) => <div key={i} className="h-20 rounded-xl bg-secondary/60 motion-safe:animate-pulse" />)}</div>}
-      {items?.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground" data-testid="selfreg-empty">Nenhuma solicitação {status === "pendente" ? "aguardando liberação" : "nesta lista"}.</p>}
+      {failed && <p className="mb-2 flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-300" data-testid="selfreg-load-error"><AlertTriangle className="h-4 w-4" />Não foi possível carregar as solicitações.<Button size="sm" variant="outline" className="ml-auto h-9" onClick={load}>Tentar de novo</Button></p>}
+      {items?.length === 0 && !failed && <p className="py-10 text-center text-sm text-muted-foreground" data-testid="selfreg-empty">Nenhuma solicitação {status === "pendente" ? "aguardando liberação" : "nesta lista"}.</p>}
       {!!items?.length && <>
         <div className="space-y-2 sm:hidden">{items.map((r) => <RequestCard key={r.id} r={r} busy={busyId === r.id} onApprove={quickApprove} onOpen={setOpen} />)}</div>
         <RequestTable items={items} busyId={busyId} onApprove={quickApprove} onOpen={setOpen} />
@@ -269,7 +271,7 @@ function Invites({ tick, onNew }) {
 // ---------------- Links públicos ----------------
 function LinkActions({ name, link, qr, onRegen, regenMsg }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+    <div className="grid grid-cols-2 gap-2 pb-16 sm:flex sm:flex-wrap sm:pb-0">
       <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => copy(link)} data-testid="link-copy"><Link2 className="mr-1 h-4 w-4" />Copiar link</Button>
       <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => shareLink(name, link)} data-testid="link-share"><Share2 className="mr-1 h-4 w-4" />Compartilhar</Button>
       <Button size="sm" variant="outline" className="h-11 sm:h-8" disabled={!qr} onClick={() => downloadPoster(name, link, qr).catch(() => toast.error("Não foi possível gerar o cartaz"))} data-testid="link-poster"><FileDown className="mr-1 h-4 w-4" />Baixar cartaz</Button>

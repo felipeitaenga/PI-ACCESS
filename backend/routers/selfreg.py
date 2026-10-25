@@ -370,8 +370,11 @@ async def status(token: str, request: Request):
     first = r["name"].split(" ")[0]
     if r.get("name_from_record"):
         first = f"{first[:3]}{'*' * max(len(first) - 3, 2)}"
-    return {"status": "pendente" if r["status"] == "processando" else r["status"], "name": first,
-            "company": r["host_company_name"], "host_name": r["host_name"], "start_at": r["start_at"], "end_at": r["end_at"]}
+    out = {"status": "pendente" if r["status"] == "processando" else r["status"], "name": first,
+           "company": r["host_company_name"], "host_name": r["host_name"], "start_at": r["start_at"], "end_at": r["end_at"]}
+    if r["status"] == "recusado" and r.get("reason"):
+        out["reason"] = r["reason"]
+    return out
 
 
 @public.get("/push-key")

@@ -51,7 +51,7 @@ export function TypeSelector({ value, onChange, disabled, allowed }) {
   );
 }
 
-export function CategoryMulti({ categories, value, onChange, error }) {
+export function CategoryMulti({ categories, value, onChange, error, placeholder = "Buscar e selecionar categorias…" }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -70,7 +70,7 @@ export function CategoryMulti({ categories, value, onChange, error }) {
           </span>
         ))}
         <input id={error ? "f-category_ids" : undefined} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          onKeyDown={(e) => e.key === "Escape" && setOpen(false)} placeholder={picked.length ? "Adicionar…" : "Buscar e selecionar categorias…"}
+          onKeyDown={(e) => e.key === "Escape" && setOpen(false)} placeholder={picked.length ? "Adicionar…" : placeholder}
           className="min-w-28 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground" data-testid="category-search-input" />
       </div>
       {open && (

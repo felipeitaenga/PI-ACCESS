@@ -22,7 +22,7 @@ export function CompanyAccess({ form, setForm }) {
       <div><p className="mb-1 text-xs font-semibold">Categorias que a empresa pode usar</p>
         <CategoryMulti categories={cats} value={form.allowed_category_ids || []} onChange={set("allowed_category_ids")} /></div>
       <div data-testid="company-allowed-visit-types"><p className="mb-1 text-xs font-semibold">Tipos de visita que a empresa pode usar</p>
-        <CategoryMulti categories={types} value={form.allowed_visit_type_ids || []} onChange={set("allowed_visit_type_ids")} /></div>
+        <CategoryMulti categories={types} value={form.allowed_visit_type_ids || []} onChange={set("allowed_visit_type_ids")} placeholder="Buscar e selecionar tipos de visita…" /></div>
       <div><p className="mb-1 text-xs font-semibold">Limite de pessoas ativas (vazio = sem limite)</p>
         <Input type="number" min="0" className="w-40" value={form.max_active_people ?? ""} onChange={(e) => set("max_active_people")(e.target.value ? +e.target.value : null)} data-testid="company-max-active" /></div>
       <div data-testid="company-managers-list"><p className="mb-1 text-xs font-semibold">Gestores vinculados</p>
