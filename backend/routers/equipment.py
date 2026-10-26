@@ -131,6 +131,25 @@ async def test_controller(cid: str, user: dict = Depends(get_current_user)):
     return {"ok": ok, "status": status, "info": info, "clock": clock}
 
 
+async def _remove_stale(driver, keep_ids, job):
+    """Tira do facial quem não deveria estar lá: fixos excluídos/inativos e visitantes sem visita ativa.
+    (Até a 1.6.4 a exclusão no facial não funcionava, então podem ter sobrado cadastros antigos.)"""
+    from visits_core import ACTIVE
+    active_vis = await db.visits.distinct("visitor_id", {"deleted": {"$ne": True}, "status": {"$in": list(ACTIVE)}})
+    stale = [p["id"] async for p in db.people.find({"$or": [{"deleted": True}, {"status": {"$ne": "ativo"}}]}, {"_id": 0, "id": 1})]
+    stale += [v["id"] async for v in db.visitors.find({"id": {"$nin": active_vis}}, {"_id": 0, "id": 1})]
+    stale = [i for i in dict.fromkeys(stale) if i and i not in keep_ids]
+    for i in range(0, len(stale), 100):
+        try:
+            r = await asyncio.wait_for(driver.delete_person(stale[i:i + 100]), 30)
+        except Exception as e:  # noqa: BLE001
+            r = {"ok": False, "detail": str(e)[:120] or "timeout"}
+        if not r.get("ok") and not r.get("queued") and not r.get("info"):  # só sem resposta; "não encontrado" é normal
+            job["errors"].append({"person_id": None, "name": "Limpeza de cadastros antigos",
+                                  "error": str(r.get("detail") or r.get("error") or "falha")[:200]})
+    return len(stale)
+
+
 @router.post("/controllers/{cid}/sync")
 async def sync_controller(cid: str, request: Request, user: dict = Depends(require_role("admin", "operator"))):
     ctrl = await db.controllers.find_one({"id": cid}, {"_id": 0})
@@ -157,6 +176,8 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
         if vis:
             subjects.append(visit_subject(vis, v))
     job["total"] = job["totals"]["people"] = len(subjects)
+    if str(ctrl.get("brand", "")).startswith("beward"):
+        job["removed"] = await _remove_stale(driver, {p["id"] for p in subjects}, job)
     for p in subjects:
         try:
             r = await asyncio.wait_for(driver.sync_person(p), 45)
@@ -178,7 +199,8 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
     await db.sync_jobs.insert_one(dict(job))
     job.pop("_id", None)
     await log_audit(user, "sincronizar", "controllers", cid,
-                    f"TZ:{len(trs)} Áreas:{len(areas)} Pontos:{len(aps)} Regras:{len(cats)} Pessoas:{job['success']}/{job['total']}",
+                    f"TZ:{len(trs)} Áreas:{len(areas)} Pontos:{len(aps)} Regras:{len(cats)} Pessoas:{job['success']}/{job['total']}"
+                    + (f" Removidos:{job['removed']}" if job.get("removed") else ""),
                     client_ip(request))
     return job
 
