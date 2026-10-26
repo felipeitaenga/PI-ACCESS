@@ -109,7 +109,9 @@ def visit_subject(visitor, visit):
          "category_ids": visit.get("category_ids") or [],
          "valid_from": visit.get("start_at"), "valid_until": visit.get("end_at"),
          "temp_valid": True, "card_valid_begin": device_dt(visit["start_at"]),
-         "card_valid_end": device_dt(visit["end_at"])}
+         "card_valid_end": device_dt(visit["end_at"]),
+         # área atual fica na visita: o motor precisa dela para anti-dupla entrada / origem
+         "visit_id": visit.get("id"), "current_area_id": visit.get("current_area_id")}
     if ident.get("type") == "cartao" and ident.get("value"):
         s["card_number"] = ident["value"]
     return s
