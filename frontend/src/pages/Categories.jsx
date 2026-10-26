@@ -52,6 +52,9 @@ export default function Categories() {
   const loadPeople = async (id) => { const { data } = await api.get(`/access/categories/${id}/people`); setPeople(data); };
 
   const save = async () => {
+    // sem faixa horária o motor nunca libera a área ("Fora da faixa horária")
+    const bad = (editing.access_areas || []).findIndex((a) => !a.area_id || !a.time_range_id);
+    if (bad >= 0) { toast.error(`Área liberada ${bad + 1}: escolha a área e a faixa horária`); return; }
     try {
       if (editing.id) await api.put(`/access/categories/${editing.id}`, editing);
       else await api.post("/access/categories", editing);
@@ -59,7 +62,7 @@ export default function Categories() {
     } catch (err) { toast.error(formatApiErrorDetail(err.response?.data?.detail)); }
   };
 
-  const addArea = () => setEditing({ ...editing, access_areas: [...(editing.access_areas || []), { area_id: "", time_range_id: "", require_escort: false }] });
+  const addArea = () => setEditing({ ...editing, access_areas: [...(editing.access_areas || []), { area_id: "", time_range_id: (trs.find((t) => /24|integral|livre|sempre/i.test(t.description || "")) || trs[0] || {}).id || "", require_escort: false }] });
   const setArea = (i, k, v) => { const n = [...editing.access_areas]; n[i] = { ...n[i], [k]: v }; setEditing({ ...editing, access_areas: n }); };
   const delArea = (i) => setEditing({ ...editing, access_areas: editing.access_areas.filter((_, x) => x !== i) });
 
