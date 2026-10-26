@@ -80,7 +80,16 @@ function GeneralTab({ form, setForm, sites, editId, hours, setHours, pointDirect
         <>
           <FormRow label="Protocolo (exclusivo)">{sel(form.transport || "http", set("transport"), [["mqtt", "MQTT (broker)"], ["http", "HTTP local (via agente)"]], "Protocolo", "controller-transport")}</FormRow>
           <FormRow label="ID Equipamento (DeviceID)"><Input value={form.beward_device_id || ""} onChange={(e) => set("beward_device_id")(e.target.value)} data-testid="controller-beward-id" /></FormRow>
-          <FormRow label="Modo de decisão" className="col-span-2">{sel(form.decision_mode || "servidor", set("decision_mode"), [["servidor", "Decisão no servidor (OpendoorWay=3)"], ["local", "Decisão local (0)"], ["local_remoto", "Local + remoto (2)"]], "Modo", "controller-decision-mode")}</FormRow>
+          <FormRow label="Quem decide o acesso" className="col-span-2">
+            {sel(form.decision_mode || "servidor", set("decision_mode"), [
+              ["servidor", "Servidor decide — facial em “Verificação local Aberta à distância”"],
+              ["local", "Facial decide — modo “Face”"],
+              ["local_remoto", "Facial ou servidor — “Face e/ou Remota”"]], "Modo", "controller-decision-mode")}
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="controller-decision-hint">
+              Deve ser igual ao “Modo de Liberação” configurado no painel do facial.
+              {(form.decision_mode || "servidor") !== "servidor" && " Neste modo anti-dupla entrada, controle de origem e reentrada temporizada não funcionam."}
+            </p>
+          </FormRow>
           <NoEventAlertFields form={form} setForm={setForm} hours={hours} setHours={setHours} />
           <BewardSetupPanel form={{ ...form, point_direction: pointDirection }} />
           {form.transport !== "mqtt" && <AgentTokenPanel siteId={form.site_id} />}

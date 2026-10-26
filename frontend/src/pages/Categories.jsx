@@ -30,6 +30,7 @@ export default function Categories() {
   const [list, setList] = useState([]);
   const [areas, setAreas] = useState([]);
   const [trs, setTrs] = useState([]);
+  const [localFaces, setLocalFaces] = useState([]); // faciais que decidem sozinhos (regras do servidor não valem)
   const [editing, setEditing] = useState(null); // category being edited (full page)
   const [people, setPeople] = useState([]);
   const [assocOpen, setAssocOpen] = useState(false);
@@ -41,6 +42,8 @@ export default function Categories() {
       api.get("/access/categories?limit=200"), api.get("/access/areas/all"), api.get("/access/time-ranges/all"),
     ]);
     setList(c.data.items); setAreas(a.data); setTrs(t.data);
+    api.get("/equipment/controllers?limit=200").then(({ data }) => setLocalFaces((data.items || data || [])
+      .filter((d) => d.model_type === "beward_facial" && (d.decision_mode || "servidor") !== "servidor").map((d) => d.name))).catch(() => {});
   };
   useEffect(() => { load(); }, []);
 
@@ -113,6 +116,13 @@ export default function Categories() {
                     )}
                   </div>
                 ))}
+                {(editing.control_anti_double || editing.control_origin || editing.reentry_timed) && (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300" data-testid="cat-server-rules-warning">
+                    Anti-dupla entrada, controle de origem e reentrada temporizada só funcionam quando o servidor decide o acesso.
+                    Faciais em modo “Face” decidem sozinhos e ignoram essas regras.
+                    {localFaces.length > 0 && <> Neste sistema: <b>{localFaces.join(", ")}</b>.</>}
+                  </p>
+                )}
               </div>
             </Card>
           </TabsContent>
