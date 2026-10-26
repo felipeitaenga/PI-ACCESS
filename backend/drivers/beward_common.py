@@ -7,6 +7,7 @@ import zlib
 DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
 VERIFY_STATUS = {
+    0: ("pending", "Aguardando decisão remota"),  # 1457460 no modo remoto
     1: ("granted", "Acesso liberado"),
     2: ("denied", "Lista negra"),
     3: ("denied", "Não cadastrado"),

@@ -53,6 +53,9 @@ def _age_s(iso):
         return 1e12
 
 
+REMOTE_PENDING = (0, 22)  # VerifyStatus de "aguardando decisão do servidor"
+
+
 async def sync_time(ctrl, force=False):
     """Acerta data/hora do facial (validade de visitantes depende do relógio do equipamento)."""
     if not force and _age_s(ctrl.get("time_sync_tried_at") or ctrl.get("time_synced_at")) < TIME_SYNC_MIN_GAP:
@@ -172,12 +175,14 @@ async def record(ctrl, r, via):
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"last_event_at": now_iso(), "no_event_alerted": False}})
     wants_online = ctrl.get("decision_mode", "servidor") == "servidor" and not m["retroactive"] and person and ap
     if via == "mqtt":
-        wants_online = wants_online and int(r.get("verify_status") or 0) == 22
+        # facial em "Verificação local Aberta à distância" espera a resposta do servidor:
+        # o 1457460 manda VerifyStatus 0 (outros firmwares mandam 22)
+        wants_online = wants_online and int(r.get("verify_status") or 0) in REMOTE_PENDING
     if wants_online:
         res = await evaluate(person, ap, persist=True)
         ev = res["event"]
         extra = {"captured_photo": pic, "controller_id": ctrl["id"], "direction_mismatch": mismatch,
-                 "match_score": r.get("similarity", 0), "via": via}
+                 "match_score": r.get("similarity", 0), "via": via, "credential_type": m["verify_type"]}
         await db.access_events.update_one({"id": ev["id"]}, {"$set": extra})
         ev.update(extra)
         await manager.broadcast({"type": "access_event", "data": ev})

@@ -60,8 +60,8 @@ async def evaluate(person, ap, when=None, persist=True):
             if origin and not origin.get("is_exterior") and person.get("current_area_id") == origin.get("id"):
                 await db.areas.update_one({"id": origin["id"]}, {"$inc": {"current_occupancy": -1}})
             if person.get("person_type") == "visitante":
-                await db.visits.update_many({"visitor_id": person["id"], "status": "presente"},
-                                            {"$set": {"current_area_id": dest.get("id")}})
+                q = {"id": person["visit_id"]} if person.get("visit_id") else {"visitor_id": person["id"], "status": "presente"}
+                await db.visits.update_many(q, {"$set": {"current_area_id": dest.get("id")}})
             else:
                 await db.people.update_one({"id": person["id"]}, {"$set": {"current_area_id": dest.get("id")}})
     return res
