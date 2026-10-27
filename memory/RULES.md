@@ -21,3 +21,4 @@
 - Unlock, SetKeepOpen, RebootDevice, Versions e SetSysTime nunca vão para a fila (NO_REPLAY).
 - CPF e telefone não vão para o facial (idCard/telnum vazios) — LGPD.
 - Categoria: toda área liberada precisa de faixa horária; sem faixa o motor nega ("Fora da faixa horária").
+- Controladoras: fabricante/modelo vêm do catálogo `backend/device_catalog.py` (status homologado / em_teste / em_breve; em_breve não pode ser salvo). Novo modelo de marca com driver existente = uma linha em MODELS. Não voltar para a lista fixa de modelos na tela.
