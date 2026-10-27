@@ -5,6 +5,7 @@ from scope import stamp_event
 from security import get_current_user, require_role, encrypt_secret
 from crud import make_crud
 from drivers.factory import get_driver
+import device_catalog as catalog
 from models import new_id, now_iso
 from realtime import manager
 from util import log_audit, client_ip
@@ -17,6 +18,7 @@ MODEL_TYPES = {
     "beward_facial": {"label": "Facial Beward", "max": 1, "point_type": "facial"},
     "hikvision_facial": {"label": "Facial Hikvision", "max": 1, "point_type": "facial", "brand": "hikvision"},
     "controlid_facial": {"label": "Facial Control iD", "max": 1, "point_type": "facial", "brand": "controlid"},
+    "intelbras_facial": {"label": "Facial Intelbras", "max": 1, "point_type": "facial", "brand": "intelbras"},
     "ct300_2l": {"label": "CT300-2L", "max": 2, "point_type": "catraca", "brand": "ct300"},
 }
 POINT_FIELDS = ["description", "type", "origin_area_id", "dest_area_id", "direction", "relay_time",
@@ -66,12 +68,23 @@ async def _ctrl_enrich(doc):
     if doc.get("site_id"):
         s = await db.sites.find_one({"id": doc["site_id"]}, {"_id": 0})
         doc["site_name"] = s["name"] if s else ""
+    # catálogo fabricante/modelo (cadastros antigos só têm model_type → modelo padrão da família)
+    cm = catalog.BY_ID.get(doc.get("catalog_model") or "")
+    if doc.get("catalog_model") and not cm:
+        raise HTTPException(status_code=422, detail="Modelo de controladora desconhecido")
+    if cm and doc.get("model_type") not in MODEL_TYPES:
+        doc["model_type"] = cm["family"]
     if doc.get("model_type") not in MODEL_TYPES:
         doc["model_type"] = "beward_facial" if str(doc.get("brand", "")).startswith("beward") else "simulado"
+    if not cm or cm["family"] != doc["model_type"]:
+        cm = catalog.resolve({"model_type": doc["model_type"]})
+    if cm["status"] == "em_breve":
+        raise HTTPException(status_code=422, detail=f"{catalog.MANUFACTURER_NAME[cm['manufacturer']]} {cm['name']}: integração ainda não disponível")
+    doc.update({"catalog_model": cm["id"], "manufacturer": cm["manufacturer"], "model_type": cm["family"]})
     mt = MODEL_TYPES[doc["model_type"]]
     doc["brand"] = _brand_for(doc)
-    doc["model"] = mt["label"]
-    doc["num_access_points"] = max(1, min(int(doc.get("num_access_points") or 1), mt["max"]))
+    doc["model"] = f"{catalog.MANUFACTURER_NAME[cm['manufacturer']]} {cm['name']}" if cm["manufacturer"] != "simulado" else cm["name"]
+    doc["num_access_points"] = max(1, min(int(doc.get("num_access_points") or 1), mt["max"], cm["max_points"]))
     for k in ("num_readers", "num_relays"):
         doc.pop(k, None)
     doc.setdefault("online", True)
@@ -107,6 +120,12 @@ make_crud(router, "/access-points", "access_points", search_fields=["description
 @router.get("/model-types")
 async def model_types(user: dict = Depends(get_current_user)):
     return MODEL_TYPES
+
+
+@router.get("/catalog")
+async def device_catalog(user: dict = Depends(get_current_user)):
+    """Fabricantes e modelos suportados, com recursos e status (homologado / em teste / em breve)."""
+    return catalog.catalog()
 
 
 @router.get("/controllers/{cid}/access-points")

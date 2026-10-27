@@ -61,7 +61,7 @@ function ControllerCard({ d, points, canEdit, isAdmin, syncing, onTest, onSync, 
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400"><Cpu className="h-5 w-5" /></div>
-          <div><div className="font-semibold">{d.name}</div><div className="text-xs text-muted-foreground" data-testid={`controller-model-${d.id}`}>{MODELS[d.model_type]?.label || d.model}</div></div>
+          <div><div className="font-semibold">{d.name}</div><div className="text-xs text-muted-foreground" data-testid={`controller-model-${d.id}`}>{d.model || MODELS[d.model_type]?.label}</div></div>
         </div>
         <div className="flex items-center gap-1.5 text-xs"><StatusDot online={d.online} /><span className={cn(d.online ? "text-emerald-400" : "text-slate-500")}>{d.online ? "Online" : "Offline"}</span></div>
       </div>
@@ -98,6 +98,12 @@ export function Controllers() {
   const [jobs, setJobs] = useState([]);
   const [dlg, setDlg] = useState({ open: false, initial: null });
   const [syncing, setSyncing] = useState(null);
+  const [man, setMan] = useState("");
+  const [cat, setCat] = useState({ manufacturers: [], models: [] });
+  useEffect(() => { api.get("/equipment/catalog").then(({ data }) => setCat(data)).catch(() => {}); }, []);
+  const manOf = (d) => d.manufacturer || cat.models.find((m) => m.family === d.model_type)?.manufacturer || "";
+  const mans = cat.manufacturers.filter((m) => items.some((d) => manOf(d) === m.id));
+  const shownItems = man ? items.filter((d) => manOf(d) === man) : items;
 
   const load = async () => {
     const [c, s, j, p] = await Promise.all([api.get("/equipment/controllers?limit=100"), api.get("/structure/sites"), api.get("/equipment/sync-jobs"), api.get("/equipment/access-points/all")]);
@@ -114,8 +120,18 @@ export function Controllers() {
       <PageHeader title="Controladoras" subtitle="Equipamentos e seus pontos de acesso (1 leitora + 1 relé por ponto)">
         {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={() => setDlg({ open: true, initial: null })} data-testid="controller-add"><Plus className="mr-2 h-4 w-4" /> Nova controladora</Button>}
       </PageHeader>
+      {mans.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2" data-testid="controller-manufacturer-filter">
+          {[["", "Todos"], ...mans.map((m) => [m.id, m.name])].map(([id, name]) => (
+            <button key={id || "all"} type="button" onClick={() => setMan(id)}
+              className={cn("rounded-full border px-3 py-1 text-xs", man === id ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:bg-secondary")}>
+              {name} <span className="opacity-60">({id ? items.filter((d) => manOf(d) === id).length : items.length})</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {items.map((d) => (
+        {shownItems.map((d) => (
           <ControllerCard key={d.id} d={d} points={points.filter((p) => p.controller_id === d.id).sort((a, b) => a.reader - b.reader)}
             canEdit={canEdit} isAdmin={hasRole("admin")} syncing={syncing === d.id}
             onTest={() => test(d.id)} onSync={() => sync(d.id)} onEdit={() => setDlg({ open: true, initial: d })} onRemove={() => remove(d.id)} />

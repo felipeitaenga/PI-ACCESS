@@ -11,6 +11,7 @@ _REGISTRY = {
     "beward": BewardHttpDriver,
     "hikvision": PendingDriver,
     "controlid": PendingDriver,
+    "intelbras": PendingDriver,
     "ct300": PendingDriver,
 }
 
