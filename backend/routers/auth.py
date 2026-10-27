@@ -22,7 +22,7 @@ import app_config as cfg
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-EMAIL_FROM_NAME = cfg.CLIENTE_NOME and f"PI-ACCESS · {cfg.CLIENTE_NOME}" or "PI-ACCESS"
+EMAIL_FROM_NAME = cfg.CLIENTE_NOME and f"SCARVEL · {cfg.CLIENTE_NOME}" or "SCARVEL"
 
 MAX_ATTEMPTS = 5
 LOCK_MINUTES = 15

@@ -21,7 +21,7 @@ export function TimeRanges() {
             {DOW.map(([lbl, d]) => (
               <button key={d} type="button" data-testid={`tr-dow-${d}`}
                 onClick={() => setForm({ ...form, weekdays: wd.includes(d) ? wd.filter((x) => x !== d) : [...wd, d] })}
-                className={`rounded-md border px-3 py-1.5 text-sm ${wd.includes(d) ? "bg-sky-500 text-slate-950 border-sky-500" : "border-border text-muted-foreground"}`}>{lbl}</button>
+                className={`rounded-md border px-3 py-1.5 text-sm ${wd.includes(d) ? "bg-sky-500 text-white border-sky-500" : "border-border text-muted-foreground"}`}>{lbl}</button>
             ))}
           </div>
         </FormRow>

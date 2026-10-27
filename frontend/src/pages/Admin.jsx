@@ -86,7 +86,7 @@ export default function Admin() {
           <div className="mb-4 flex justify-end">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" data-testid="admin-add-user-button"><Plus className="mr-2 h-4 w-4" /> Novo usuário</Button>
+                <Button className="bg-sky-500 hover:bg-sky-600 text-white" data-testid="admin-add-user-button"><Plus className="mr-2 h-4 w-4" /> Novo usuário</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
@@ -108,7 +108,7 @@ export default function Admin() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                  <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={createUser} data-testid="user-save-button">Criar</Button>
+                  <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={createUser} data-testid="user-save-button">Criar</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -137,7 +137,7 @@ export default function Admin() {
               <div><Label className="mb-1.5 block text-xs text-muted-foreground">Nova senha (mín. 8 caracteres)</Label><Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} data-testid="reset-password-input" /></div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setPwdUser(null)}>Cancelar</Button>
-                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" disabled={newPwd.length < 8} onClick={resetPassword} data-testid="reset-password-save">Salvar nova senha</Button>
+                <Button className="bg-sky-500 hover:bg-sky-600 text-white" disabled={newPwd.length < 8} onClick={resetPassword} data-testid="reset-password-save">Salvar nova senha</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -171,7 +171,7 @@ export default function Admin() {
                 <div><Label className="mb-1.5 block text-xs text-muted-foreground">Retenção de fotos biométricas (dias)</Label><Input type="number" value={settings.photo_retention_days} onChange={(e) => setSettings({ ...settings, photo_retention_days: +e.target.value })} /></div>
                 <div><Label className="mb-1.5 block text-xs text-muted-foreground">Fuso horário</Label><Input value={settings.timezone} disabled /></div>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!settings.manager_can_create_managers} onChange={(e) => setSettings({ ...settings, manager_can_create_managers: e.target.checked })} data-testid="settings-manager-create" />Gestor de empresa pode criar outros gestores da mesma empresa</label>
-                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={saveSettings} data-testid="settings-save-button">Salvar configurações</Button>
+                <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={saveSettings} data-testid="settings-save-button">Salvar configurações</Button>
               </div>
             </Card>
           )}

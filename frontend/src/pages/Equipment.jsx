@@ -112,7 +112,7 @@ export function Controllers() {
   return (
     <div>
       <PageHeader title="Controladoras" subtitle="Equipamentos e seus pontos de acesso (1 leitora + 1 relé por ponto)">
-        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={() => setDlg({ open: true, initial: null })} data-testid="controller-add"><Plus className="mr-2 h-4 w-4" /> Nova controladora</Button>}
+        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={() => setDlg({ open: true, initial: null })} data-testid="controller-add"><Plus className="mr-2 h-4 w-4" /> Nova controladora</Button>}
       </PageHeader>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((d) => (

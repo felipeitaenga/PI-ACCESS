@@ -45,7 +45,7 @@ export function QuickCompanyDialog({ open, onOpenChange, categories, initialName
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" onClick={save} data-testid="company-save-button">Salvar empresa</Button>
+          <Button className="bg-sky-500 text-white hover:bg-sky-400" onClick={save} data-testid="company-save-button">Salvar empresa</Button>
         </div>
       </DialogContent>
     </Dialog>

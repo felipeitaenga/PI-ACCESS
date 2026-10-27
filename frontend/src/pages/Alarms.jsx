@@ -93,7 +93,7 @@ export default function Alarms() {
           <Textarea placeholder="Comentário do operador (opcional)" value={comment} onChange={(e) => setComment(e.target.value)} data-testid="alarm-ack-comment" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAckTarget(null)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={ack} data-testid="alarm-ack-confirm">Confirmar</Button>
+            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={ack} data-testid="alarm-ack-confirm">Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -31,8 +31,8 @@ def mqtt_env():
     host = os.environ.get("MQTT_HOST")
     if not host:
         return None
-    prefix = (os.environ.get("MQTT_PREFIX") or f"piaccess/{CLIENTE}").strip().strip("/")
+    prefix = (os.environ.get("MQTT_PREFIX") or f"scarvel/{CLIENTE}").strip().strip("/")
     return {"host": host, "port": int(os.environ.get("MQTT_PORT") or 1883),
             "username": os.environ.get("MQTT_USER") or "", "password": os.environ.get("MQTT_PASSWORD") or "",
-            "tls": _bool(os.environ.get("MQTT_TLS")), "client_id": f"piaccess-{CLIENTE}",
+            "tls": _bool(os.environ.get("MQTT_TLS")), "client_id": f"scarvel-{CLIENTE}",
             "topic_base": f"{prefix}/face", "enabled": True}

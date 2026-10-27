@@ -120,7 +120,7 @@ async def captcha_ok(token: str, ip: str) -> bool:
 
 # ---------------- e-mail ----------------
 def brand():
-    return f"PI-ACCESS · {cfg.CLIENTE_NOME}" if cfg.CLIENTE_NOME else "PI-ACCESS"
+    return f"SCARVEL · {cfg.CLIENTE_NOME}" if cfg.CLIENTE_NOME else "SCARVEL"
 
 
 def _html(paragraphs, button=None):

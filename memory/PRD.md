@@ -1,4 +1,6 @@
-# PI-ACCESS (antigo NX-ACCESS) — PRD
+# SCARVEL (antigo PI-ACCESS / NX-ACCESS) — PRD
+
+> v2.0.0: produto renomeado para SCARVEL (ver memory/RULES.md). Referências a PI-ACCESS abaixo são histórico.
 
 ## Problem Statement (original)
 Aplicação web profissional de CONTROLE DE ACESSO "NX-ACCESS", padrão corporativo (comparável a Genetec Synergis / LenelS2 / Control iD iDSecure). Interface pt-BR, tema escuro padrão + claro, layout painel de operação (sidebar + topbar + conteúdo), responsivo. Backend FastAPI + MongoDB + WebSocket; Frontend React + Tailwind + shadcn/ui + Recharts; JWT auth. Camada de drivers (Adapter) para equipamentos (Control iD, Hikvision, Intelbras, ZKTeco, SIMULADO), agente edge, e módulos completos (Dashboard, Monitoramento, Pessoas, Credenciais, Visitantes, Estrutura, Dispositivos, Regras, Emergência, Relatórios, Alarmes, Administração, Integrações). LGPD e segurança.

@@ -48,13 +48,13 @@ import asyncio
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="PI-ACCESS API", version=cfg.APP_VERSION, description="Sistema de Controle de Acesso Corporativo")
+app = FastAPI(title="SCARVEL API", version=cfg.APP_VERSION, description="Sistema de Controle de Acesso Corporativo")
 api_router = APIRouter(prefix="/api")
 
 
 @api_router.get("/")
 async def root():
-    return {"name": "PI-ACCESS", "status": "online", "drivers": available_brands()}
+    return {"name": "SCARVEL", "status": "online", "drivers": available_brands()}
 
 
 @api_router.get("/health")
@@ -231,7 +231,7 @@ async def on_startup():
     asyncio.create_task(retention_loop())
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
-    logger.info(f"PI-ACCESS {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")
+    logger.info(f"SCARVEL {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")
 
 
 @app.on_event("shutdown")

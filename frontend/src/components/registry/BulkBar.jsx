@@ -52,7 +52,7 @@ export function BulkBar({ selected, items, categories, onDone, onClear }) {
             <Select value={cat} onValueChange={setCat}><SelectTrigger data-testid="bulk-category-select"><SelectValue placeholder="Nova categoria" /></SelectTrigger>
               <SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}</SelectContent></Select>
           ) : <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="bulk-renew-date" />}
-          <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={busy || (dlg === "cat" ? !cat : !date)}
+          <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={busy || (dlg === "cat" ? !cat : !date)}
             onClick={() => (dlg === "cat" ? run("set_category", { category_ids: [cat] }) : run("renew", { valid_until: date }))} data-testid="bulk-confirm">Aplicar</Button>
         </DialogContent>
       </Dialog>

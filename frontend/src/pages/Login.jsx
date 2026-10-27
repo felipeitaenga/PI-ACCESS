@@ -49,11 +49,7 @@ export default function Login() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
         <div className="relative flex items-center gap-4">
-          <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-14 w-auto object-contain" data-testid="login-logo" />
-          <div>
-            <div className="font-heading text-xl font-extrabold text-white">PI-ACCESS</div>
-            <div className="text-xs font-mono uppercase tracking-widest text-sky-400">Controle de Acesso</div>
-          </div>
+          <img src="/brand/scarvel-logo-h.png" alt="SCARVEL — Controle de Acesso" className="h-16 w-auto object-contain" data-testid="login-logo" />
         </div>
         <div className="relative max-w-md">
           <h2 className="font-heading text-3xl font-bold text-white leading-tight">
@@ -70,8 +66,7 @@ export default function Login() {
       <div className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 sm:px-16 lg:px-24">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-10 w-auto object-contain" data-testid="login-logo-mobile" />
-            <span className="font-heading text-lg font-extrabold text-white">PI-ACCESS</span>
+            <img src="/brand/scarvel-logo-h.png" alt="SCARVEL — Controle de Acesso" className="h-12 w-auto object-contain" data-testid="login-logo-mobile" />
           </div>
           <h1 className="font-heading text-2xl font-bold text-white">Acessar o painel</h1>
           <p className="mt-1 text-sm text-slate-500">Use suas credenciais corporativas.</p>
@@ -107,7 +102,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            <Button type="submit" disabled={loading} data-testid="login-submit-button" className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-semibold">
+            <Button type="submit" disabled={loading} data-testid="login-submit-button" className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Lock className="mr-2 h-4 w-4" /> Entrar</>}
             </Button>
           </form>

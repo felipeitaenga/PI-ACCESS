@@ -1,6 +1,6 @@
 """Emergência: redefine (ou cria) um administrador.
 
-No container:  docker exec -it piaccess_<cliente> python -m app.reset_admin [email] [nova_senha]
+No container:  docker exec -it scarvel_<cliente> python -m app.reset_admin [email] [nova_senha]
 Sem e-mail usa ADMIN_EMAIL; sem senha gera uma aleatória e mostra na tela.
 """
 import asyncio

@@ -211,14 +211,14 @@ def to_xlsx(kind, rows, subtitle):
     wb = Workbook()
     ws = wb.active
     ws.title = TITLES[kind][:30]
-    ws.append([f"PI-ACCESS · {TITLES[kind]}"])
+    ws.append([f"SCARVEL · {TITLES[kind]}"])
     ws["A1"].font = Font(bold=True, size=13)
     ws.append([subtitle])
     ws.append([])
     ws.append([label for _, label in COLS[kind]])
     for c in ws[4]:
         c.font = Font(bold=True, color="FFFFFF")
-        c.fill = PatternFill("solid", fgColor="E8590C")
+        c.fill = PatternFill("solid", fgColor="1A73FF")
     for r in rows:
         ws.append([r.get(k, "") for k, _ in COLS[kind]])
     for i, (k, label) in enumerate(COLS[kind], start=1):
@@ -246,10 +246,10 @@ def to_pdf(kind, rows, subtitle):
     for r in rows:
         data.append([Paragraph(str(r.get(k, "")).replace("&", "&amp;").replace("<", "&lt;"), cell) for k, _ in COLS[kind]])
     t = Table(data, repeatRows=1, colWidths=[doc.width / len(COLS[kind])] * len(COLS[kind]))
-    t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E8590C")),
+    t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1A73FF")),
                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F4F4F5")]),
                            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#D4D4D8")), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story = [Paragraph(f"PI-ACCESS · {TITLES[kind]}", st["Title"]), Paragraph(subtitle, st["Normal"]), Spacer(1, 4 * mm), t]
+    story = [Paragraph(f"SCARVEL · {TITLES[kind]}", st["Title"]), Paragraph(subtitle, st["Normal"]), Spacer(1, 4 * mm), t]
     if not rows:
         story.append(Paragraph("Nenhum registro encontrado.", st["Normal"]))
     doc.build(story)

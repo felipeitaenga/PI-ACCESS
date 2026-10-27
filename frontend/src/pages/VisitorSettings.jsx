@@ -40,7 +40,7 @@ function TypeDialog({ item, categories, onClose, onSaved }) {
             <Toggle label="Ativo" checked={f.active} onChange={set("active")} testid="visit-type-active" />
           </div>
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" onClick={save} data-testid="visit-type-save">Salvar</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button className="bg-sky-500 text-white hover:bg-sky-400" onClick={save} data-testid="visit-type-save">Salvar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -59,7 +59,7 @@ function VisitTypes({ categories }) {
   return (
     <Card className="border-border bg-card p-4" data-testid="visit-types-card">
       <div className="mb-3 flex items-center"><h2 className="flex-1 font-heading text-sm font-bold uppercase tracking-widest">Tipos de visita</h2>
-        <Button size="sm" className="bg-sky-500 text-slate-950 hover:bg-sky-400" onClick={() => setEdit({ ...EMPTY })} data-testid="visit-type-new"><Plus className="mr-1 h-4 w-4" />Novo tipo</Button></div>
+        <Button size="sm" className="bg-sky-500 text-white hover:bg-sky-400" onClick={() => setEdit({ ...EMPTY })} data-testid="visit-type-new"><Plus className="mr-1 h-4 w-4" />Novo tipo</Button></div>
       <div className="space-y-1.5">
         {items.map((t) => (
           <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2" data-testid={`visit-type-row-${t.id}`}>
@@ -97,7 +97,7 @@ function DocSettings() {
         <Toggle label="Validar RG (somente números/X, 5 a 14 caracteres)" checked={s.validate_rg} onChange={set("validate_rg")} testid="setting-validate-rg" />
         <p className="text-xs text-muted-foreground">Passaporte e Outro: texto livre (passaporte em maiúsculas).</p>
         <Field label="Duração padrão geral da visita (horas)" hint="Usada quando o tipo não definir"><Input value={s.default_hours} onChange={(e) => set("default_hours")(e.target.value.replace(/[^0-9.,]/g, ""))} className="w-32 font-mono" data-testid="setting-default-hours" /></Field>
-        <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" onClick={save} data-testid="visitor-settings-save"><Save className="mr-2 h-4 w-4" />Salvar</Button>
+        <Button className="bg-sky-500 text-white hover:bg-sky-400" onClick={save} data-testid="visitor-settings-save"><Save className="mr-2 h-4 w-4" />Salvar</Button>
       </div>
     </Card>
   );

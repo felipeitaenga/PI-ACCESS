@@ -1,11 +1,11 @@
-# PI-ACCESS — UM cliente por pasta (ex.: /opt/piaccess/clientes/pilares)
+# SCARVEL — UM cliente por pasta (ex.: /opt/scarvel/clientes/<cliente>)
 # Uso: cp .env.example .env && editar && docker compose up -d
-name: piaccess_${CLIENTE}
+name: scarvel_${CLIENTE}
 
 services:
   app:
-    image: ghcr.io/felipeitaenga/pi-access:${VERSAO:-latest}
-    container_name: piaccess_${CLIENTE}
+    image: ghcr.io/felipeitaenga/scarvel:${VERSAO:-latest}
+    container_name: scarvel_${CLIENTE}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -23,7 +23,7 @@ services:
 
   mongo:
     image: mongo:7
-    container_name: piaccess_${CLIENTE}_mongo
+    container_name: scarvel_${CLIENTE}_mongo
     restart: unless-stopped
     command: ["--wiredTigerCacheSizeGB", "0.25"]
     environment:
@@ -44,7 +44,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
-# Nenhuma porta publicada no host: o Caddy (rede "proxy") acessa piaccess_<cliente>:8000
+# Nenhuma porta publicada no host: o Caddy (rede "proxy") acessa scarvel_<cliente>:8000
 networks:
   interna: {}
   proxy:

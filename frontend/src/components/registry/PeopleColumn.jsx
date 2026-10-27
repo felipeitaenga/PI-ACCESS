@@ -82,7 +82,7 @@ export function PeopleColumn({ selection, activeId, categories, refreshKey, onOp
             {s ? <p className="font-mono text-[11px] text-muted-foreground" data-testid="people-column-stats"><span className="text-emerald-400">{s.active} ativos</span> · <span className="text-red-400">{s.blocked} bloq.</span> · <span className="text-sky-300">{s.present} presentes</span></p>
               : <p className="font-mono text-[11px] text-muted-foreground">{data.total} visitante(s)</p>}
           </div>
-          <Button size="sm" className="h-7 bg-sky-500 px-2 text-xs text-slate-950 hover:bg-sky-400" onClick={() => onNew(selection)} data-testid="people-add-in-company"><Plus className="mr-1 h-3.5 w-3.5" />{isCompany ? "Pessoa nesta empresa" : "Visitante"}</Button>
+          <Button size="sm" className="h-7 bg-sky-500 px-2 text-xs text-white hover:bg-sky-400" onClick={() => onNew(selection)} data-testid="people-add-in-company"><Plus className="mr-1 h-3.5 w-3.5" />{isCompany ? "Pessoa nesta empresa" : "Visitante"}</Button>
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

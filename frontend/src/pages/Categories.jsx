@@ -87,7 +87,7 @@ export default function Categories() {
       <div>
         <PageHeader title={editing.id ? `Categoria: ${editing.code}` : "Nova categoria"} subtitle="Perfil de acesso">
           <Button variant="outline" onClick={() => setEditing(null)} data-testid="cat-back"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
-          <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={save} data-testid="cat-save">Salvar</Button>
+          <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={save} data-testid="cat-save">Salvar</Button>
         </PageHeader>
         <Tabs defaultValue="general">
           <TabsList>
@@ -189,7 +189,7 @@ export default function Categories() {
                 </label>
               ))}
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setAssocOpen(false)}>Cancelar</Button><Button className="bg-sky-500 text-slate-950" onClick={doAssoc}>Associar ({pSel.size})</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setAssocOpen(false)}>Cancelar</Button><Button className="bg-sky-500 text-white" onClick={doAssoc}>Associar ({pSel.size})</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
@@ -199,7 +199,7 @@ export default function Categories() {
   return (
     <div>
       <PageHeader title="Categorias" subtitle="Perfis de acesso (áreas + faixas + regras)">
-        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={startNew} data-testid="cat-new"><Plus className="mr-2 h-4 w-4" /> Nova categoria</Button>}
+        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={startNew} data-testid="cat-new"><Plus className="mr-2 h-4 w-4" /> Nova categoria</Button>}
       </PageHeader>
       <Card className="border-border bg-card">
         <Table>

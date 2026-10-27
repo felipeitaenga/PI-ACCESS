@@ -121,13 +121,9 @@ export function Layout({ children }) {
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex h-16 items-center gap-2 px-4 border-b border-slate-800">
-          <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-9 w-auto shrink-0 object-contain" data-testid="sidebar-logo" />
-          {!collapsed && (
-            <div className="leading-tight">
-              <div className="font-heading font-extrabold text-slate-100 tracking-tight">PI-ACCESS</div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Controle de Acesso</div>
-            </div>
-          )}
+          {collapsed
+            ? <img src="/brand/scarvel-mark.png" alt="SCARVEL" className="h-9 w-auto shrink-0 object-contain" data-testid="sidebar-logo" />
+            : <img src="/brand/scarvel-logo-h.png" alt="SCARVEL — Controle de Acesso" className="h-9 w-auto max-w-[190px] shrink-0 object-contain" data-testid="sidebar-logo" />}
           <button className="ml-auto lg:hidden text-slate-400" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
         </div>
 
@@ -188,7 +184,7 @@ export function Layout({ children }) {
             </Button>
           </div>
           {!collapsed && info && (
-            <p className="px-3 pt-1 font-mono text-[10px] text-slate-600" data-testid="app-version">PI-ACCESS v{info.version} · {info.cliente_nome}</p>
+            <p className="px-3 pt-1 font-mono text-[10px] text-slate-600" data-testid="app-version">SCARVEL v{info.version} · {info.cliente_nome}</p>
           )}
         </div>
       </aside>

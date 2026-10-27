@@ -1,4 +1,4 @@
-"""Configuração MQTT, tokens do agente local e API usada pelo pi-access-agent."""
+"""Configuração MQTT, tokens do agente local e API usada pelo scarvel-agent."""
 import asyncio
 import hashlib
 import secrets
@@ -199,4 +199,4 @@ async def run_via_agent(ctrl, operator, info, timeout=15):
             return {"ok": code == 200, "code": code, "detail": (data.get("info") or {}).get("Detail", "") or r.get("error", ""),
                     "info": data.get("info", {})}
     await db.agent_commands.update_one({"id": cmd["id"], "status": "pending"}, {"$set": {"status": "expired"}})
-    return {"ok": False, "code": 0, "detail": "Agente local não respondeu — verifique se o pi-access-agent está rodando", "info": {}}
+    return {"ok": False, "code": 0, "detail": "Agente local não respondeu — verifique se o scarvel-agent está rodando", "info": {}}

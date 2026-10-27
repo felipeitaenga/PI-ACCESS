@@ -16,7 +16,7 @@ from database import db
 
 logger = logging.getLogger("backup")
 BACKUP_DIR = os.path.join(cfg.DATA_DIR, "backups")
-NAME_RE = re.compile(r"^piaccess_[a-z0-9_-]+_\d{8}_\d{6}_[a-z]+\.json\.gz$")
+NAME_RE = re.compile(r"^(scarvel|piaccess)_[a-z0-9_-]+_\d{8}_\d{6}_[a-z]+\.json\.gz$")  # piaccess_ = backups antigos
 DEFAULTS = {"id": "backup", "enabled": True, "time": "03:00", "keep": 7}
 TZ = ZoneInfo(os.environ.get("TZ") or "America/Sao_Paulo")
 lock = asyncio.Lock()
@@ -30,7 +30,7 @@ def path_of(name):
 
 def new_name(origin):
     ts = datetime.now(TZ).strftime("%Y%m%d_%H%M%S")
-    return f"piaccess_{cfg.CLIENTE}_{ts}_{origin}.json.gz"
+    return f"scarvel_{cfg.CLIENTE}_{ts}_{origin}.json.gz"
 
 
 async def get_settings():
@@ -63,7 +63,7 @@ async def create_backup(origin="manual", by="sistema"):
     total, colls = 0, 0
     async with lock:
         with gzip.open(p + ".part", "wt", encoding="utf-8") as f:
-            f.write(json.dumps({"pi_access_backup": 1, "version": cfg.APP_VERSION, "cliente": cfg.CLIENTE,
+            f.write(json.dumps({"scarvel_backup": 1, "version": cfg.APP_VERSION, "cliente": cfg.CLIENTE,
                                 "created_at": datetime.now(timezone.utc).isoformat()}) + "\n")
             for c in sorted(await db.list_collection_names()):
                 if c.startswith("system."):
@@ -97,8 +97,8 @@ async def prune(keep):
 def validate_file(p):
     with gzip.open(p, "rt", encoding="utf-8") as f:
         head = json.loads(f.readline() or "{}")
-    if head.get("pi_access_backup") != 1:
-        raise ValueError("Arquivo não é um backup do PI-ACCESS")
+    if head.get("scarvel_backup") != 1 and head.get("pi_access_backup") != 1:  # aceita backups antigos
+        raise ValueError("Arquivo não é um backup do SCARVEL")
     return head
 
 

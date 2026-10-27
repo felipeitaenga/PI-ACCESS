@@ -107,14 +107,14 @@ export default function Reports() {
       <PageHeader title="Relatórios" subtitle="Filtre, visualize e baixe em PDF ou Excel" />
       <div className="mb-4 flex flex-wrap gap-2" data-testid="report-kinds">
         {KINDS.map(([k, l]) => (
-          <Button key={k} size="sm" variant={kind === k ? "default" : "outline"} className={kind === k ? "bg-sky-500 text-slate-950 hover:bg-sky-400" : ""}
+          <Button key={k} size="sm" variant={kind === k ? "default" : "outline"} className={kind === k ? "bg-sky-500 text-white hover:bg-sky-400" : ""}
             onClick={() => { setKind(k); setData(null); }} data-testid={`report-kind-${k}`}>{l}</Button>
         ))}
       </div>
       <Card className="border-border bg-card p-4">
         <Filters kind={kind} f={f} set={setF} opts={opts} />
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button onClick={run} disabled={!!busy} className="bg-sky-500 text-slate-950 hover:bg-sky-400" data-testid="report-run">{busy === "json" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Gerar</Button>
+          <Button onClick={run} disabled={!!busy} className="bg-sky-500 text-white hover:bg-sky-400" data-testid="report-run">{busy === "json" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Gerar</Button>
           <Button variant="outline" onClick={() => download("pdf")} disabled={!!busy} data-testid="report-pdf">{busy === "pdf" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}PDF</Button>
           <Button variant="outline" onClick={() => download("xlsx")} disabled={!!busy} data-testid="report-xlsx">{busy === "xlsx" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}Excel</Button>
           <Button variant="ghost" onClick={() => setF(EMPTY)} data-testid="report-clear">Limpar filtros</Button>

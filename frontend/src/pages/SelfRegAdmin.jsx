@@ -17,7 +17,7 @@ import { AlertTriangle, Check, FileDown, Link2, Pencil, Plus, QrCode, RefreshCw,
 import { toast } from "sonner";
 
 const sel = "h-9 w-full rounded-md border border-input bg-field px-3 text-sm focus:border-sky-500 focus:outline-none";
-const primary = "bg-sky-500 text-slate-950 hover:bg-sky-400";
+const primary = "bg-sky-500 text-white hover:bg-sky-400";
 const err = (e) => toast.error(formatApiErrorDetail(e.response?.data?.detail));
 const copy = (t, ok = "Link copiado") => navigator.clipboard?.writeText(t).then(() => toast.success(ok), () => toast.error("Não foi possível copiar"));
 const STATUS = {

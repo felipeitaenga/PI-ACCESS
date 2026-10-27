@@ -84,7 +84,7 @@ export default function Devices() {
         {canEdit && (
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setForm(EMPTY); setEditId(null); } }}>
             <DialogTrigger asChild>
-              <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" data-testid="device-add-button">
+              <Button className="bg-sky-500 hover:bg-sky-600 text-white" data-testid="device-add-button">
                 <Plus className="mr-2 h-4 w-4" /> Novo dispositivo
               </Button>
             </DialogTrigger>
@@ -130,7 +130,7 @@ export default function Devices() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={save} data-testid="device-save-button">Salvar</Button>
+                <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={save} data-testid="device-save-button">Salvar</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

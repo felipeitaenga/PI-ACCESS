@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/felipeitaenga/pi-access
+  IMAGE: ghcr.io/felipeitaenga/scarvel
 
 jobs:
   build:
