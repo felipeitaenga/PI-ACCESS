@@ -85,7 +85,7 @@ export function VisitForm({ companies, categories, onSaved }) {
           {isAdmin && visitorParam && v.f.name && <LgpdEraseButton kind="visitor" id={visitorParam} name={v.f.name} onDone={() => { v.clear(); nav("/cadastro/visitantes"); onSaved?.(); }} />}
           <div className="flex-1" />
           <Button variant="outline" disabled={v.busy || blocked} onClick={() => v.save(true)} data-testid="visit-save-new-button"><SaveAll className="mr-2 h-4 w-4" />Salvar e novo</Button>
-          <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={v.busy || blocked} onClick={() => v.save(false)} data-testid="visit-save-button"><Save className="mr-2 h-4 w-4" />Salvar</Button>
+          <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={v.busy || blocked} onClick={() => v.save(false)} data-testid="visit-save-button"><Save className="mr-2 h-4 w-4" />Salvar</Button>
         </div>
       </div>
     </div>

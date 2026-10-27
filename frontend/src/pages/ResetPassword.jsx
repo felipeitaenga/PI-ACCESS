@@ -43,7 +43,7 @@ export default function ResetPassword() {
               className="bg-slate-900 border-slate-700 text-slate-100" />
           </div>
           {error && <div className="text-sm text-red-400">{error}</div>}
-          <Button type="submit" disabled={loading || !token} data-testid="reset-submit-button" className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950 font-semibold">
+          <Button type="submit" disabled={loading || !token} data-testid="reset-submit-button" className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Redefinir senha"}
           </Button>
         </form>

@@ -75,7 +75,7 @@ class TestCreateDownloadDelete:
         r = admin.post(f"{API}/backups", timeout=180)
         assert r.status_code == 200, r.text
         j = r.json()
-        assert j["name"].startswith("piaccess_") and j["name"].endswith("_manual.json.gz")
+        assert j["name"].startswith("scarvel_") and j["name"].endswith("_manual.json.gz")
         assert j["documents"] > 0
         assert j["size"] > 0
         created_names.append(j["name"])
@@ -88,7 +88,7 @@ class TestCreateDownloadDelete:
         buf = io.BytesIO(r.content)
         with gzip.open(buf, "rt", encoding="utf-8") as f:
             head = json.loads(f.readline())
-        assert head.get("pi_access_backup") == 1
+        assert head.get("scarvel_backup") == 1
 
     def test_invalid_name_simple(self, admin):
         r = admin.get(f"{API}/backups/foo.gz/download")
@@ -125,11 +125,11 @@ class TestOperatorForbidden:
 
     def test_oper_download(self, oper):
         # pick any name shape
-        n = created_names[0] if created_names else "piaccess_demo_20250101_000000_manual.json.gz"
+        n = created_names[0] if created_names else "scarvel_demo_20250101_000000_manual.json.gz"
         assert oper.get(f"{API}/backups/{n}/download").status_code == 403
 
     def test_oper_delete(self, oper):
-        n = created_names[0] if created_names else "piaccess_demo_20250101_000000_manual.json.gz"
+        n = created_names[0] if created_names else "scarvel_demo_20250101_000000_manual.json.gz"
         assert oper.delete(f"{API}/backups/{n}").status_code == 403
 
     def test_oper_upload(self, oper):

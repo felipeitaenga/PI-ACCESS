@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 export const API = `${BACKEND_URL}/api`;
 
-const ACCESS_KEY = "pi_access_token";
+const ACCESS_KEY = "scarvel_token";
 const REFRESH_KEY = "nx_refresh_token";
 
 export const tokenStore = {

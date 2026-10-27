@@ -149,7 +149,7 @@ export function ControllerDialog({ open, onOpenChange, initial, sites, onSaved }
             {shown.map((p, i) => <PointCard key={p.id || i} p={p} i={i} areas={areas} onChange={(np) => setPoints(() => { const c = [...shown]; c[i] = np; return c; })} />)}
           </TabsContent>
         </Tabs>
-        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Voltar</Button><Button className="bg-sky-500 text-slate-950" onClick={save} data-testid="controller-save">Salvar</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Voltar</Button><Button className="bg-sky-500 text-white" onClick={save} data-testid="controller-save">Salvar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

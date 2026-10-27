@@ -13,7 +13,7 @@ const loadLogo = () => new Promise((resolve) => {
     resolve({ data: c.toDataURL("image/jpeg", 0.85), w: img.naturalWidth, h: img.naturalHeight });
   };
   img.onerror = () => resolve(null);
-  img.src = "/brand/pilares-logo.webp";
+  img.src = "/brand/scarvel-logo-light.png";
 });
 
 const STEPS = ["Aponte a câmera do celular para o QR Code", "Preencha seus dados e tire uma selfie", "Aguarde a aprovação e entre pelo leitor facial"];
@@ -22,9 +22,9 @@ const STEPS = ["Aponte a câmera do celular para o QR Code", "Preencha seus dado
 export async function downloadPoster(name, link, qr) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210;
-  doc.setFillColor(239, 125, 37); doc.rect(0, 0, W, 8, "F");
+  doc.setFillColor(26, 115, 255); doc.rect(0, 0, W, 8, "F");
   const logo = await loadLogo();
-  if (logo) { const h = 22, w = (logo.w / logo.h) * h; doc.addImage(logo.data, "JPEG", (W - w) / 2, 16, w, h); }
+  if (logo) { const h = 30, w = (logo.w / logo.h) * h; doc.addImage(logo.data, "JPEG", (W - w) / 2, 16, w, h); }
   doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold"); doc.setFontSize(30);
   doc.text("Visitante? Faça seu cadastro", W / 2, 56, { align: "center" });
   if (name) { doc.setFontSize(20); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 65, 85); doc.text(name, W / 2, 67, { align: "center", maxWidth: 180 }); }
@@ -32,7 +32,7 @@ export async function downloadPoster(name, link, qr) {
   doc.setFontSize(16); doc.setTextColor(15, 23, 42);
   STEPS.forEach((s, i) => {
     const y = 204 + i * 16;
-    doc.setFillColor(239, 125, 37); doc.circle(32, y - 2, 5, "F");
+    doc.setFillColor(26, 115, 255); doc.circle(32, y - 2, 5, "F");
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.text(String(i + 1), 32, y, { align: "center" });
     doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "normal"); doc.text(s, 42, y);
   });

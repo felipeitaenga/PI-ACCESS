@@ -1,5 +1,5 @@
 {
-  "project_name": "PI-ACCESS",
+  "project_name": "SCARVEL",
   "archetype": "THE PERFORMANCE PRO / SECURITY OPERATIONS CENTER (SOC)",
   "language": "pt-BR",
   "theme": {
@@ -12,8 +12,8 @@
       "surface_card_hover": "#334155",
       "border": "#1E293B",
       "border_highlight": "#334155",
-      "primary_accent": "#0EA5E9",
-      "primary_accent_hover": "#0284C7",
+      "primary_accent": "#1A73FF",
+      "primary_accent_hover": "#0B5FE0",
       "status_granted": "#10B981",
       "status_denied": "#EF4444",
       "status_warning": "#F59E0B",

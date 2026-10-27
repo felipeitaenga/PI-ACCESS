@@ -115,7 +115,7 @@ export default function People() {
             </Button>
             <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setForm(EMPTY); setEditId(null); } }}>
               <DialogTrigger asChild>
-                <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" data-testid="person-add-button">
+                <Button className="bg-sky-500 hover:bg-sky-600 text-white" data-testid="person-add-button">
                   <Plus className="mr-2 h-4 w-4" /> Nova pessoa
                 </Button>
               </DialogTrigger>
@@ -171,7 +171,7 @@ export default function People() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                  <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={save} data-testid="person-save-button">Salvar</Button>
+                  <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={save} data-testid="person-save-button">Salvar</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

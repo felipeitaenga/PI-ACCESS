@@ -129,10 +129,10 @@ export function CameraCapture({ open, onClose, onCapture }) {
           {status === "captured" ? (
             <>
               <Button variant="outline" onClick={() => start(deviceId)} data-testid="camera-retake-button"><RotateCcw className="mr-2 h-4 w-4" />Tirar outra</Button>
-              <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" onClick={() => { onCapture(shot); close(); }} data-testid="camera-use-button"><Check className="mr-2 h-4 w-4" />Usar esta foto</Button>
+              <Button className="bg-sky-500 text-white hover:bg-sky-400" onClick={() => { onCapture(shot); close(); }} data-testid="camera-use-button"><Check className="mr-2 h-4 w-4" />Usar esta foto</Button>
             </>
           ) : (
-            <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={status !== "live"} onClick={capture} data-testid="camera-capture-button"><Camera className="mr-2 h-4 w-4" />Capturar</Button>
+            <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={status !== "live"} onClick={capture} data-testid="camera-capture-button"><Camera className="mr-2 h-4 w-4" />Capturar</Button>
           )}
         </DialogFooter>
       </DialogContent>

@@ -80,7 +80,7 @@ export function CategoryMulti({ categories, value, onChange, error, placeholder 
             const on = value.includes(c.id);
             return (
               <button key={c.id} type="button" onClick={() => toggle(c.id)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-secondary" data-testid={`category-chip-${c.code}`}>
-                <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border", on ? "border-sky-500 bg-sky-500 text-slate-950" : "border-border")}>{on && <Check className="h-3 w-3" />}</span>
+                <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border", on ? "border-sky-500 bg-sky-500 text-white" : "border-border")}>{on && <Check className="h-3 w-3" />}</span>
                 <span className="font-mono text-xs">{c.code}</span>
                 <span className="truncate text-xs text-muted-foreground">{c.description}</span>
               </button>

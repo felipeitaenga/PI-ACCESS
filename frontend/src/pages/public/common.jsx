@@ -23,9 +23,9 @@ export function PublicShell({ title, subtitle, children, bar }) {
     <div className="min-h-[100dvh] bg-slate-950 text-base text-slate-100">
       <div className={cn("mx-auto w-full max-w-md px-4 pt-5", bar ? "pb-36" : "pb-12")}>
         <div className="mb-5 flex items-center gap-3">
-          <img src="/brand/pilares-logo.webp" alt="Pilares" className="h-10 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          <img src="/brand/scarvel-mark.png" alt="SCARVEL" className="h-10 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
           <div className="min-w-0">
-            <div className="truncate font-heading text-lg font-extrabold leading-tight" data-testid="public-title">{title || "PI-ACCESS"}</div>
+            <div className="truncate font-heading text-lg font-extrabold leading-tight" data-testid="public-title">{title || "SCARVEL"}</div>
             {subtitle && <div className="truncate text-xs uppercase tracking-widest text-sky-400">{subtitle}</div>}
           </div>
         </div>
@@ -81,7 +81,7 @@ export const inputCls = "h-12 w-full rounded-xl border border-slate-700 bg-slate
 export const PButton = ({ className, variant = "primary", ...p }) => (
   <button type="button" {...p}
     className={cn("inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold transition-[background-color,transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 motion-reduce:transition-none",
-      variant === "primary" ? "bg-sky-500 text-slate-950 hover:bg-sky-400" : variant === "danger" ? "bg-red-500/90 text-white hover:bg-red-500" : variant === "success" ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400" : "border border-slate-700 text-slate-200 hover:bg-slate-800",
+      variant === "primary" ? "bg-sky-500 text-white hover:bg-sky-400" : variant === "danger" ? "bg-red-500/90 text-white hover:bg-red-500" : variant === "success" ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400" : "border border-slate-700 text-slate-200 hover:bg-slate-800",
       className)} />
 );
 

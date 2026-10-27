@@ -202,7 +202,7 @@ export function PersonForm({ request, companies, categories, departments, onSave
           <Button variant="outline" size="sm" onClick={clear} data-testid="form-clear-button"><Eraser className="mr-1.5 h-4 w-4" />Limpar/Novo</Button>
           <Button variant="outline" size="sm" disabled={saving || !canEdit || form.blacklist} onClick={() => save("new")} data-testid="form-save-new-button"><SaveAll className="mr-1.5 h-4 w-4" />Salvar e novo</Button>
           {visitor && <Button variant="outline" size="sm" disabled={saving || !canEdit || form.blacklist || form.visit_status === "presente"} onClick={() => save("checkin")} className="border-emerald-500/40 text-emerald-300" data-testid="form-save-checkin-button"><LogIn className="mr-1.5 h-4 w-4" />Salvar e fazer check-in</Button>}
-          <Button size="sm" disabled={saving || !canEdit || form.blacklist} onClick={() => save("save")} className="bg-sky-500 text-slate-950 hover:bg-sky-400" data-testid="form-save-button"><Save className="mr-1.5 h-4 w-4" />{saving ? "Salvando…" : "Salvar"}</Button>
+          <Button size="sm" disabled={saving || !canEdit || form.blacklist} onClick={() => save("save")} className="bg-sky-500 text-white hover:bg-sky-400" data-testid="form-save-button"><Save className="mr-1.5 h-4 w-4" />{saving ? "Salvando…" : "Salvar"}</Button>
         </div>
       </div>
       <QuickCompanyDialog open={companyDlg.open} initialName={companyDlg.name} categories={categories}

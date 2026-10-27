@@ -1,6 +1,6 @@
 """Cria a estrutura padrão de controle de acesso (idempotente).
 
-No container:  docker exec -it piaccess_<cliente> python -m app.bootstrap ["Nome do local"]
+No container:  docker exec -it scarvel_<cliente> python -m app.bootstrap ["Nome do local"]
 
 Cria somente o que ainda não existe (compara por nome/código/data):
   - Local (site) .......... usa o nome informado ou CLIENTE_NOME

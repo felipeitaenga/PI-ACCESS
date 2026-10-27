@@ -67,7 +67,7 @@ export default function Structure() {
   return (
     <div>
       <PageHeader title="Estrutura" subtitle="Sites › Áreas › Portas › Dispositivos">
-        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={() => openDialog("site")} data-testid="add-site-button"><Plus className="mr-2 h-4 w-4" /> Novo site</Button>}
+        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={() => openDialog("site")} data-testid="add-site-button"><Plus className="mr-2 h-4 w-4" /> Novo site</Button>}
       </PageHeader>
 
       <div className="space-y-4">
@@ -150,7 +150,7 @@ export default function Structure() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={save} data-testid="structure-save-button">Salvar</Button>
+            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={save} data-testid="structure-save-button">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

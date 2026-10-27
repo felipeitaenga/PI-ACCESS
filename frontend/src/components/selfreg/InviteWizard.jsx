@@ -12,7 +12,7 @@ import { SearchSelect } from "./SearchSelect";
 import { toast } from "sonner";
 
 const sel = "h-11 w-full rounded-md border border-input bg-field px-3 text-base sm:h-9 sm:text-sm focus:border-sky-500 focus:outline-none";
-const primary = "bg-sky-500 text-slate-950 hover:bg-sky-400";
+const primary = "bg-sky-500 text-white hover:bg-sky-400";
 const big = "h-12 w-full justify-center text-base";
 const copy = (t, ok) => navigator.clipboard?.writeText(t).then(() => toast.success(ok), () => toast.error("Não foi possível copiar"));
 const STEPS = ["Quem convida", "Quando", "Visitante"];

@@ -110,7 +110,7 @@ export default function Backup() {
     <div className="space-y-4" data-testid="page-backup">
       <PageHeader title="Backup" subtitle="Cópias do banco de dados do cliente (inclui fotos), agendamento e restauração" />
       <div className="flex flex-wrap gap-2">
-        <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={!!busy} onClick={create} data-testid="backup-create-button">
+        <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={!!busy} onClick={create} data-testid="backup-create-button">
           {busy === "create" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DatabaseBackup className="mr-2 h-4 w-4" />}Gerar backup agora
         </Button>
         <Button variant="outline" disabled={!!busy} onClick={() => fileRef.current?.click()} data-testid="backup-upload-button">

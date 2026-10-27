@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# PI-ACCESS — imagem única (frontend React + backend FastAPI) na porta 8000
+# SCARVEL — imagem única (frontend React + backend FastAPI) na porta 8000
 
 # ---------- Estágio 1: build do frontend ----------
 FROM node:20-bookworm-slim AS web
@@ -37,10 +37,10 @@ COPY backend/ /app/app/
 RUN rm -rf /app/app/tests /app/app/.env /app/app/__pycache__ /app/app/*/__pycache__ /app/app/pytest.ini
 COPY --from=web /web/build /app/static
 
-RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin piaccess \
+RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin scarvel \
  && mkdir -p /app/data \
- && chown -R piaccess:piaccess /app/data
-USER piaccess
+ && chown -R scarvel:scarvel /app/data
+USER scarvel
 
 EXPOSE 8000
 VOLUME ["/app/data"]

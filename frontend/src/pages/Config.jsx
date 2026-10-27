@@ -71,7 +71,7 @@ export function Simulator() {
           <div><label className="mb-1.5 block text-xs text-muted-foreground">Data/hora (vazio = agora)</label>
             <Input type="datetime-local" value={dt} onChange={(e) => setDt(e.target.value)} data-testid="sim-datetime" />
           </div>
-          <Button className="w-full bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={run} disabled={!personId || !apId} data-testid="sim-run">
+          <Button className="w-full bg-sky-500 hover:bg-sky-600 text-white" onClick={run} disabled={!personId || !apId} data-testid="sim-run">
             <Play className="mr-2 h-4 w-4" /> Simular acesso
           </Button>
         </Card>

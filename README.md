@@ -1,4 +1,4 @@
-# PI-ACCESS
+# SCARVEL
 
 Sistema profissional de **Controle de Acesso** corporativo (pt-BR) — padrão de mercado comparável a Genetec Synergis / LenelS2 / Control iD iDSecure.
 
@@ -40,12 +40,12 @@ Nunca comite credenciais; use sempre `.env`.
 
 ## Deploy em produção (Docker, um container + um MongoDB por cliente)
 
-Veja **[deploy/README.md](deploy/README.md)**: imagem única `ghcr.io/felipeitaenga/pi-access` (Dockerfile multi-stage na raiz),
+Veja **[deploy/README.md](deploy/README.md)**: imagem única `ghcr.io/felipeitaenga/scarvel` (Dockerfile multi-stage na raiz),
 `deploy/docker-compose.yml`, `deploy/.env.example`, build por tag `vX.Y.Z` no GitHub Actions, operação de clientes, backup e restauração.
 
 ---
 
-## Agente local (EDGE) — `pi-access-agent` (próxima iteração)
+## Agente local (EDGE) — `scarvel-agent` (próxima iteração)
 Serviço Python separado para rodar na rede do cliente (PC/mini-PC/Raspberry):
 - Conversa com os equipamentos na LAN e conecta ao servidor central por **WebSocket/MQTT com TLS** usando um **token de site**.
 - **Fila local SQLite** para guardar eventos quando o servidor estiver offline e reenviar depois.

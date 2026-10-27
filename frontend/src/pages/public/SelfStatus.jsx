@@ -40,7 +40,7 @@ function PushOptIn({ token }) {
       const { data } = await pub.get("/push-key");
       if (!data.enabled) { setState("off"); return; }
       const reg = await navigator.serviceWorker.register("/sw.js");
-      const cache = await caches.open("piaccess-selfreg");
+      const cache = await caches.open("scarvel-selfreg");
       await cache.put("/__last_status", new Response(window.location.href));
       if ((await Notification.requestPermission()) !== "granted") { setState("denied"); return; }
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(data.key) });

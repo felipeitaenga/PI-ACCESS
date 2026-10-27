@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarClock, Mail, Plus, RefreshCw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
-const primary = "bg-sky-500 text-slate-950 hover:bg-sky-400";
+const primary = "bg-sky-500 text-white hover:bg-sky-400";
 const hm = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const dayKey = (iso) => new Date(iso).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
 const short = (iso) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });

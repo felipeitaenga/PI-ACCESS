@@ -1,4 +1,6 @@
-# Regras fixas do cliente (PI-ACCESS)
+# Regras fixas do cliente (SCARVEL — antigo PI-ACCESS)
+
+- Produto renomeado para SCARVEL na v2.0.0: nome, logo (/brand/scarvel-*.png), cor azul (primary 214 100% 55%), imagem ghcr.io/felipeitaenga/scarvel, containers scarvel_<cliente>, pasta /opt/scarvel, comando `scarvel`, banco/usuário scarvel, prefixo MQTT scarvel/<cliente>. NÃO usar "PI-ACCESS", "piaccess" nem marca/logo da Pilares no produto (Pilares é só um cliente).
 
 - Filtro por empresa (company_id, host_company etc.): quando o usuário for gestor de empresa, usar `scope.own_company_or_404(user, company_id)` → 404 se a empresa não for dele. Nunca deixar o filtro sobrescrever o scope_filter (usar `$and`).
 - Nada vai ao facial sem aprovação humana (anfitrião ou portaria). Convite NÃO tem liberação automática (removida a pedido do cliente): toda solicitação vai para aprovação. Lista negra só o Administrador libera, com justificativa.

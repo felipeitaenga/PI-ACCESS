@@ -42,7 +42,7 @@ def _hhmmss(t: str) -> str:
 
 
 def time_range_to_strategy(tr: dict, holidays: list = None) -> dict:
-    """Converte uma Faixa horária do PI-ACCESS em AccessStrategy do facial Beward.
+    """Converte uma Faixa horária do SCARVEL em AccessStrategy do facial Beward.
     - Dia sem acesso: NÃO inclui a chave do dia.
     - Feriados -> holidayInfo (período vazio se a faixa não vale em feriado).
     """

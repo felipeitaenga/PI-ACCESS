@@ -119,7 +119,7 @@ export default function CrudPage({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={openNew} data-testid="crud-add-button"><Plus className="mr-2 h-4 w-4" /> Novo</Button>}
+        {canEdit && <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={openNew} data-testid="crud-add-button"><Plus className="mr-2 h-4 w-4" /> Novo</Button>}
       </PageHeader>
 
       <Card className="border-border bg-card">
@@ -177,7 +177,7 @@ export default function CrudPage({
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} data-testid="crud-cancel-button">Voltar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={save} data-testid="crud-save-button">Salvar</Button>
+            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={save} data-testid="crud-save-button">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-pi-empresas.py — cria empresas e usuários "Gestor de empresa" no PI-ACCESS em lote (via API).
+scarvel-empresas.py — cria empresas e usuários "Gestor de empresa" no SCARVEL em lote (via API).
 
 Uso:
-  python3 pi-empresas.py --url https://pilares.piaccess.pilaresautomacao.com.br \
+  python3 scarvel-empresas.py --url https://cliente.seudominio.com.br \
                          --admin seu@email.com --arquivo empresas.csv
   (a senha do admin é pedida no terminal; ou use a variável PI_ADMIN_PASSWORD)
 
@@ -79,8 +79,8 @@ def nomes(campo):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Cria empresas e gestores no PI-ACCESS")
-    ap.add_argument("--url", required=True, help="ex.: https://pilares.piaccess.pilaresautomacao.com.br")
+    ap = argparse.ArgumentParser(description="Cria empresas e gestores no SCARVEL")
+    ap.add_argument("--url", required=True, help="ex.: https://cliente.seudominio.com.br")
     ap.add_argument("--admin", required=True, help="e-mail do administrador")
     ap.add_argument("--arquivo", required=True, help="CSV com as empresas (ver cabeçalho no topo do script)")
     a = ap.parse_args()

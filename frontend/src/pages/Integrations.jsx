@@ -27,7 +27,7 @@ function MqttStatus({ st }) {
 }
 
 export default function Integrations() {
-  const [cfg, setCfg] = useState({ host: "", port: 1883, username: "", password: "", client_id: "pi-access-server", topic_prefix: "mqtt/face", enabled: true });
+  const [cfg, setCfg] = useState({ host: "", port: 1883, username: "", password: "", client_id: "scarvel-server", topic_prefix: "mqtt/face", enabled: true });
   const [log, setLog] = useState({ status: null, messages: [] });
   const [test, setTest] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -72,7 +72,7 @@ export default function Integrations() {
         <p className="mt-3 text-xs text-muted-foreground">O servidor conecta de saída ao broker (QoS 1, reconexão automática) e assina <span className="font-mono" data-testid="mqtt-topic-preview">{(log.status?.topics || [`${prefix}/#`]).join(", ")}</span>. Comandos vão para <span className="font-mono">{prefix}/&lt;ID do facial&gt;</span>. Nos tópicos fixos mqtt/face/heartbeat e mqtt/face/basic só são processados faciais cadastrados neste cliente.</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={runTest} data-testid="mqtt-test-button"><PlugZap className="mr-2 h-4 w-4" />Testar conexão</Button>
-          {!managed && <Button className="bg-sky-500 text-slate-950 hover:bg-sky-400" disabled={busy} onClick={save} data-testid="mqtt-save-button"><Save className="mr-2 h-4 w-4" />Salvar e reconectar</Button>}
+          {!managed && <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={busy} onClick={save} data-testid="mqtt-save-button"><Save className="mr-2 h-4 w-4" />Salvar e reconectar</Button>}
           {test && <span className={cn("text-sm", test.ok ? "text-emerald-400" : "text-red-400")} data-testid="mqtt-test-result">{test.detail}{test.latency_ms ? ` (${test.latency_ms} ms)` : ""}</span>}
         </div>
       </Card>

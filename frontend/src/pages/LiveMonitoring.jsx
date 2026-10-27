@@ -190,7 +190,7 @@ export default function LiveMonitoring() {
             onChange={(e) => setReason(e.target.value)} data-testid="unlock-reason-input" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setUnlockDoor(null)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-slate-950" onClick={doUnlock} data-testid="confirm-door-unlock-button">
+            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={doUnlock} data-testid="confirm-door-unlock-button">
               Confirmar abertura
             </Button>
           </DialogFooter>

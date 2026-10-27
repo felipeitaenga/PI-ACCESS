@@ -175,7 +175,7 @@ class TestReports:
         wb = load_workbook(io.BytesIO(r.content))
         ws = wb.active
         # Row 1: title; row 4: column headers
-        assert "PI-ACCESS" in str(ws.cell(1, 1).value)
+        assert "SCARVEL" in str(ws.cell(1, 1).value)
         headers = [ws.cell(4, i).value for i in range(1, 9)]
         assert headers[0] == "Nome"
         assert "Tipo" in headers
