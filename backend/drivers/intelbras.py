@@ -86,8 +86,10 @@ class IntelbrasDriver(AccessControlDriver):
     brand = "intelbras"
 
     def _base(self):
+        import vpn
         d = self.device
-        return f"http://{d.get('ip', '')}:{d.get('port') or 80}"
+        ip, port = vpn.device_addr(d.get("ip", ""), d.get("port") or 80)
+        return f"http://{ip}:{port}"
 
     def _auth(self):
         d = self.device

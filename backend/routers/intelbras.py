@@ -50,9 +50,11 @@ async def setup_online_mode(cid: str, body: dict, request: Request, user: dict =
     ctrl = await db.controllers.find_one({"id": cid, "deleted": {"$ne": True}}, {"_id": 0})
     if not ctrl or ctrl.get("brand") != "intelbras":
         raise HTTPException(status_code=404, detail="Facial Intelbras não encontrado")
-    host = str(body.get("host") or "").strip()
+    import vpn
+    auto = vpn.push_target() if not body.get("host") else None
+    host = str(body.get("host") or (auto or {}).get("host") or "").strip()
     try:
-        port = int(body.get("port") or 80)
+        port = int(body.get("port") or (auto or {}).get("port") or 80)
     except (TypeError, ValueError):
         port = 0
     if not host or not 0 < port < 65536:

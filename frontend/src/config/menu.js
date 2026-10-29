@@ -71,6 +71,7 @@ export const MENU = [
       { label: "Visitantes", to: "/configuracoes/visitantes", icon: IdCard, testid: "nav-cfg-visitors" },
       { label: "Atalhos", to: "/configuracoes/atalhos", icon: Keyboard, testid: "nav-cfg-shortcuts" },
       { label: "Simulador", to: "/configuracoes/simulador", icon: FlaskConical, testid: "nav-cfg-simulator" },
+      { label: "Rede / VPN", to: "/configuracoes/vpn", icon: Network, testid: "nav-cfg-vpn" },
       { label: "Backup", to: "/configuracoes/backup", icon: DatabaseBackup, testid: "nav-cfg-backup" },
     ],
   },

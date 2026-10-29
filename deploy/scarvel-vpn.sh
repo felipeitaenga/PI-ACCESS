@@ -11,6 +11,7 @@
 #  3) Liberar o roteador no servidor:  bash scarvel-vpn.sh add <cliente> <N> <chave_publica_mikrotik> <porta_cliente>
 #        ex.: bash scarvel-vpn.sh add pilares 2 AbC...= 8101
 #  Ver status:                         bash scarvel-vpn.sh status
+#  O normal é gerar o MikroTik pelo SCARVEL (Configurações › Rede / VPN); 'init' de novo atualiza o sincronizador.
 #
 #  Caminhos:
 #   servidor → facial : app → 10.66.0.N:80NN (MikroTik repassa para <ip_facial>:80)
@@ -21,6 +22,7 @@ set -euo pipefail
 WG=/etc/wireguard/wg0.conf
 PORT=51820
 SRV_IP=10.66.0.1
+REPO_RAW=https://raw.githubusercontent.com/felipeitaenga/SCARVEL/main
 PUBLIC_IP=${PUBLIC_IP:-$(curl -fs4 https://ifconfig.me || hostname -I | awk '{print $1}')}
 erro(){ echo "ERRO: $*" >&2; exit 1; }
 ok(){ echo "  ✔ $*"; }
@@ -49,6 +51,14 @@ EOF
   systemctl daemon-reload
   ok "Docker inicia depois da VPN"
   if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow $PORT/udp >/dev/null; ok "ufw: $PORT/udp liberada"; fi
+  # sincronizador: o app de cada cliente pede/consulta a VPN pelo SCARVEL (Configurações › Rede / VPN)
+  curl -fsSL "$REPO_RAW/deploy/scarvel-vpn-sync.py" -o /usr/local/lib/scarvel-vpn-sync.py
+  printf '[Unit]\nDescription=SCARVEL - sincroniza VPN dos clientes\nAfter=wg-quick@wg0.service docker.service\n[Service]\nType=oneshot\nExecStart=/usr/bin/python3 /usr/local/lib/scarvel-vpn-sync.py\n' \
+    > /etc/systemd/system/scarvel-vpn-sync.service
+  printf '[Unit]\nDescription=SCARVEL - sincroniza VPN a cada 15 s\n[Timer]\nOnBootSec=30\nOnUnitActiveSec=15\nAccuracySec=1\n[Install]\nWantedBy=timers.target\n' \
+    > /etc/systemd/system/scarvel-vpn-sync.timer
+  systemctl daemon-reload && systemctl enable --now scarvel-vpn-sync.timer >/dev/null 2>&1
+  /usr/bin/python3 /usr/local/lib/scarvel-vpn-sync.py && ok "sincronizador ativo (a cada 15 s)"
   echo; echo "Chave pública do servidor: $(wg show wg0 public-key)"
   ;;
 mikrotik)
@@ -101,6 +111,10 @@ EOF
   ;;
 status)
   wg show wg0
+  echo; for D in /opt/scarvel/clientes/*/; do C=$(basename "$D"); echo "$C: $(python3 /usr/local/lib/scarvel-vpn-sync.py --resumo "$C" 2>/dev/null || echo sem VPN)"; done
+  ;;
+sync)
+  /usr/bin/python3 /usr/local/lib/scarvel-vpn-sync.py && ok "sincronizado"
   ;;
 *) sed -n '2,21p' "$0" ;;
 esac

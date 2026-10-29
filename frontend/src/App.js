@@ -25,6 +25,7 @@ import { Occupancy, LogsAccess, LogsSync } from "@/pages/Misc";
 import { Cameras, Shortcuts } from "@/pages/Placeholders";
 import Schedules from "@/pages/Schedules";
 import Backup from "@/pages/Backup";
+import Vpn from "@/pages/Vpn";
 import Integrations from "@/pages/Integrations";
 import VisitorSettings from "@/pages/VisitorSettings";
 import SelfRegAdmin from "@/pages/SelfRegAdmin";
@@ -99,6 +100,7 @@ function AppRoutes() {
       {R("/configuracoes/atalhos", <Shortcuts />)}
       {R("/configuracoes/simulador", <Simulator />)}
       {R("/configuracoes/backup", <Backup />)}
+      {R("/configuracoes/vpn", <Vpn />)}
     </Routes>
   );
 }

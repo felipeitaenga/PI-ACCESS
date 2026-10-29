@@ -42,6 +42,7 @@ from routers.lgpd import router as lgpd_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
 from routers.intelbras import router as intelbras_router
+from routers.vpn import router as vpn_router
 from mqtt_bus import bus as mqtt_bus
 from beward_ingest import watch_loop as beward_watch_loop
 import asyncio
@@ -105,6 +106,7 @@ api_router.include_router(selfreg_public)
 api_router.include_router(visitors_reg_router)
 api_router.include_router(integrations_router)
 api_router.include_router(intelbras_router)
+api_router.include_router(vpn_router)
 
 app.include_router(api_router)
 
