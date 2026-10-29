@@ -30,3 +30,10 @@
 - Sem keepalive o facial fica Offline e LIBERA TODOS os cadastrados 24h → o SCARVEL gera alarme `facial_offline`. Por isso visitante tem que sair do facial no fim da visita.
 - Eventos guardados no offline chegam depois: registrar como retroativos, sem decidir de novo.
 - Relógio: o SS 3532 MF W volta para 01/01/2000 sem energia → visitante não passa (validade). O SCARVEL acerta a hora ao voltar online, a cada 6 h, no Testar e no Sincronizar.
+
+## Rede / VPN (2.3.0) — um MikroTik por cliente, padrão igual em todo cliente
+- Padrão: MikroTik porta 1 = internet do cliente; portas 2-5 = rede do controle de acesso 192.168.88.0/24 (gateway .1). Faciais com IP fixo 192.168.88.101 a .199.
+- Cada cliente tem um nº N (2..254) na VPN: MikroTik 10.66.0.N; o servidor enxerga os faciais como 10.67.N.x (netmap no MikroTik); o app é publicado só em 10.66.0.1:<porta do cliente>.
+- O app não mexe na VPN do servidor: grava DATA_DIR/vpn/request.json (chave pública do MikroTik) e lê DATA_DIR/vpn/status.json. Quem aplica é o `scarvel-vpn-sync.py` (root, systemd timer 15 s), com registro em /etc/scarvel-vpn/clients.json.
+- Isolamento: o MikroTik N só abre conexão na porta do próprio cliente (chain SCARVEL-VPN em DOCKER-USER).
+- Nome do cliente nunca leva o nº (URL/containers/MQTT). O nº aparece em `scarvel listar`, na tela Rede / VPN e no nome do MikroTik (SCARVEL-<cliente>-<N>).

@@ -147,12 +147,13 @@ EOF
   ;;
 
 listar)
-  printf "%-16s %-12s %-10s %s\n" CLIENTE STATUS VERSAO URL
+  printf "%-16s %-12s %-10s %-18s %s\n" CLIENTE STATUS VERSAO VPN URL
   for D in "$CLIENTES"/*/; do
     [[ -d "$D" ]] || continue
     C=$(basename "$D")
     S=$(docker inspect -f '{{.State.Status}}{{if .State.Health}}/{{.State.Health.Status}}{{end}}' "scarvel_$C" 2>/dev/null || echo "parado")
-    printf "%-16s %-12s %-10s %s\n" "$C" "$S" "$(env_get VERSAO)" "$(env_get PUBLIC_URL)"
+    V=$(python3 /usr/local/lib/scarvel-vpn-sync.py --resumo "$C" 2>/dev/null || echo "-")
+    printf "%-16s %-12s %-10s %-18s %s\n" "$C" "$S" "$(env_get VERSAO)" "${V:--}" "$(env_get PUBLIC_URL)"
   done
   echo; docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" | grep -E "NAME|scarvel_" || true
   ;;

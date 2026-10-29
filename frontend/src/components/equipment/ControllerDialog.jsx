@@ -92,6 +92,12 @@ function IntelbrasOnlinePanel({ form, editId }) {
   const [host, setHost] = useState(form.intelbras_push?.host || "");
   const [port, setPort] = useState(form.intelbras_push?.port || 8080);
   const [busy, setBusy] = useState(false);
+  const std = /^192\.168\.88\.\d+$/.test(form.ip || "");
+  // facial na rede padrão do MikroTik (192.168.88.x): endereço do SCARVEL vem da VPN
+  useEffect(() => {
+    if (!std || form.intelbras_push?.host) return;
+    api.get("/vpn").then(({ data }) => { if (data.push) { setHost(data.push.host); setPort(data.push.port); } }).catch(() => {});
+  }, [std]); // eslint-disable-line react-hooks/exhaustive-deps
   const run = async () => {
     setBusy(true);
     try {
@@ -103,7 +109,9 @@ function IntelbrasOnlinePanel({ form, editId }) {
   return (
     <div className="col-span-2 space-y-2 rounded-md border border-sky-500/30 bg-sky-500/5 p-3 text-sm" data-testid="intelbras-online-panel">
       <p className="font-medium">Modo Online (o SCARVEL decide e mostra a mensagem na tela)</p>
-      <p className="text-xs text-muted-foreground">IP/Porta acima: como o SCARVEL chega ao facial (pela VPN). Abaixo: como o facial chega ao SCARVEL (normalmente o IP do roteador da VPN no local).</p>
+      <p className="text-xs text-muted-foreground">{std
+        ? "Facial na rede padrão do MikroTik (192.168.88.x, porta 80): o endereço abaixo já vem preenchido pela VPN (Configurações › Rede / VPN)."
+        : "IP/Porta acima: como o SCARVEL chega ao facial. Abaixo: como o facial chega ao SCARVEL. Padrão recomendado: facial em 192.168.88.101+ no MikroTik."}</p>
       {!editId ? <p className="text-xs text-amber-300">Salve a controladora primeiro.</p> : (
         <div className="flex flex-wrap items-end gap-2">
           <FormRow label="Endereço do SCARVEL para o facial"><Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.0.2" data-testid="intelbras-push-host" /></FormRow>
