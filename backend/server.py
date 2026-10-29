@@ -41,6 +41,7 @@ from routers.reports import router as reports_v2_router
 from routers.lgpd import router as lgpd_router
 from registry_common import refresh_expired
 from routers.integrations import router as integrations_router
+from routers.intelbras import router as intelbras_router
 from mqtt_bus import bus as mqtt_bus
 from beward_ingest import watch_loop as beward_watch_loop
 import asyncio
@@ -103,6 +104,7 @@ api_router.include_router(selfreg_router)
 api_router.include_router(selfreg_public)
 api_router.include_router(visitors_reg_router)
 api_router.include_router(integrations_router)
+api_router.include_router(intelbras_router)
 
 app.include_router(api_router)
 
@@ -231,6 +233,8 @@ async def on_startup():
     asyncio.create_task(retention_loop())
     await mqtt_bus.start()
     asyncio.create_task(beward_watch_loop())
+    from intelbras_ingest import watch_loop as intelbras_watch_loop
+    asyncio.create_task(intelbras_watch_loop())
     logger.info(f"SCARVEL {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")
 
 

@@ -28,6 +28,7 @@ def _m(id, manufacturer, name, family, status, *, protocol, features=None, onlin
 
 
 _INTEL = "HTTP (CGI) · Digest"
+_INTEL_TESTING = {"ss3532mfw"}  # driver em validação no aparelho real (firmware 20250403)
 _INTEL_NOTE = "Modo Online: o servidor decide e mostra mensagem na tela. Sem resposta do servidor o facial libera todos os cadastrados."
 
 MODELS = [
@@ -37,7 +38,8 @@ MODELS = [
        online=True, features={"card": True},
        notes="Servidor decide com o facial em “Verificação local Aberta à distância” (sem mensagem na tela; só áudio)."),
     # Intelbras — linha Bio-T (mesma API CGI; firmware mínimo do Modo Online conforme documentação Intelbras)
-    *[_m(f"intelbras_{k}", "intelbras", n, "intelbras_facial", "em_breve", protocol=_INTEL, online=bool(fw),
+    *[_m(f"intelbras_{k}", "intelbras", n, "intelbras_facial", "em_teste" if k in _INTEL_TESTING else "em_breve",
+         protocol=_INTEL, online=bool(fw),
          screen_msg=bool(fw), min_fw=fw, features=f, notes=_INTEL_NOTE if fw else "Sem Modo Online: o facial decide sozinho.")
       for k, n, fw, f in [
           ("ss3530mf", "SS 3530 MF FACE", "20240601", {"card": True}),

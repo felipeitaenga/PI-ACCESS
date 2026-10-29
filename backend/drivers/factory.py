@@ -1,6 +1,7 @@
 from .simulated import SimulatedDriver
 from .beward import BewardHttpDriver, BewardMqttDriver
 from .pending import PendingDriver
+from .intelbras import IntelbrasDriver
 
 # Registro de drivers. Para adicionar uma nova marca, importe a classe e registre
 # aqui — nenhuma alteração no núcleo é necessária.
@@ -11,7 +12,7 @@ _REGISTRY = {
     "beward": BewardHttpDriver,
     "hikvision": PendingDriver,
     "controlid": PendingDriver,
-    "intelbras": PendingDriver,
+    "intelbras": IntelbrasDriver,
     "ct300": PendingDriver,
 }
 
