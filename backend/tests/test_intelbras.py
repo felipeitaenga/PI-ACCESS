@@ -35,7 +35,8 @@ def env(monkeypatch):
     monkeypatch.setattr(beward_ingest.manager, "broadcast", _noop)
     now = datetime.now(timezone.utc)
     ctrl = {"id": "c1", "name": "Facial Intelbras", "brand": "intelbras", "ip": "10.66.1.2", "port": 8013,
-            "username": "admin", "password": "x", "intelbras_token": "t" * 32, "online_mode": True, "deleted": False}
+            "username": "admin", "password": "x", "intelbras_token": "t" * 32, "online_mode": True, "deleted": False,
+            "online": True, "time_synced_at": now.isoformat(), "time_sync_tried_at": now.isoformat()}
     run(db.controllers.insert_one(dict(ctrl)))
     run(db.access_points.insert_one({"id": "ap1", "controller_id": "c1", "reader": 1, "site_id": "s1", "direction": "entrada",
                                      "origin_area_id": "ext", "dest_area_id": "int", "deleted": False, "description": "Porta"}))
@@ -218,3 +219,19 @@ def test_routes_called_by_the_device(env, monkeypatch):
     r = c.post(f"/api/intelbras/{ctrl['intelbras_token']}/notification", content=_multipart(_access(uid)),
                headers={"Content-Type": "multipart/x-mixed-replace; boundary=myboundary"})
     assert r.status_code == 200 and r.json()["auth"] == "true"
+
+
+def test_clock_is_set_when_device_comes_back_and_on_test(env, monkeypatch):
+    db, ctrl, now = env
+    fr = FakeReq(monkeypatch)
+    run(db.controllers.update_one({"id": "c1"}, {"$set": {"online": False, "time_sync_tried_at": None}}))
+    c = run(db.controllers.find_one({"id": "c1"}, {"_id": 0}))
+    run(intelbras_ingest.heartbeat(c))
+    run(asyncio.sleep(0.05))
+    assert any(call[1] == "global.cgi" and "setCurrentTime" in call[2] for call in fr.calls)
+    c = run(db.controllers.find_one({"id": "c1"}, {"_id": 0}))
+    assert c["time_sync_ok"] is True and c["online"] is True
+    fr.calls.clear()
+    run(intelbras_ingest.heartbeat(c))  # já acertado há pouco: não repete
+    run(asyncio.sleep(0.05))
+    assert fr.calls == []

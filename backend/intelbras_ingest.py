@@ -24,6 +24,7 @@ from drivers.intelbras import subject_for_uid
 logger = logging.getLogger("intelbras_ingest")
 OFFLINE_AFTER = 45     # s sem keepalive => offline (keepalive configurado em 10 s)
 RETRO_AFTER = 90       # evento com UTC mais antigo que isso = guardado no offline
+TIME_SYNC_EVERY = 6 * 3600  # acerta o relógio do facial a cada 6 h (sem bateria ele volta para 01/01/2000)
 MSG_MAX = 48
 OFFLINE_MSG = ("Facial Intelbras sem comunicação com o SCARVEL. No Modo Online, sem servidor o facial "
                "libera TODOS os cadastrados — verifique a rede/VPN.")
@@ -98,10 +99,34 @@ async def _person(subject_id):
     return await visitor_person(subject_id)
 
 
+async def sync_time(ctrl):
+    """Acerta data/hora do facial (a validade dos visitantes é conferida pelo relógio dele)."""
+    from drivers.factory import get_driver
+    try:
+        r = await asyncio.wait_for(get_driver(ctrl).set_datetime(), 15)
+    except Exception as e:  # noqa: BLE001
+        r = {"ok": False, "detail": str(e)[:120] or "timeout"}
+    upd = {"time_sync_tried_at": now_iso(), "time_sync_ok": bool(r.get("ok")), "time_sync_detail": r.get("detail", "")}
+    if r.get("ok"):
+        upd["time_synced_at"] = now_iso()
+    await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})
+    return {"ok": bool(r.get("ok")), "detail": r.get("detail", "")}
+
+
+def _age(iso):
+    try:
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(iso)).total_seconds()
+    except (TypeError, ValueError):
+        return 1e12
+
+
 async def heartbeat(ctrl, ip=None):
     upd = {"online": True, "last_heartbeat": now_iso(), "online_mode": True}
     if not ctrl.get("online"):
         upd["online_since"] = now_iso()
+    if not ctrl.get("online") or _age(ctrl.get("time_synced_at")) > TIME_SYNC_EVERY:
+        if _age(ctrl.get("time_sync_tried_at")) > 300:  # não insiste mais que a cada 5 min
+            asyncio.create_task(sync_time({**ctrl, **upd}))
     if ip:
         upd["device_ip"] = ip
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": upd})

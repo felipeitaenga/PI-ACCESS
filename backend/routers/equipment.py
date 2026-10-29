@@ -147,6 +147,9 @@ async def test_controller(cid: str, user: dict = Depends(get_current_user)):
     if ok and ctrl.get("model_type") == "beward_facial":
         from beward_ingest import sync_time
         clock = await sync_time(ctrl, force=True)
+    if ok and ctrl.get("brand") == "intelbras":
+        from intelbras_ingest import sync_time as ib_sync_time
+        clock = await ib_sync_time(ctrl)
     return {"ok": ok, "status": status, "info": info, "clock": clock}
 
 
@@ -187,6 +190,9 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
                       "access_rules": len(cats), "people": len(people)},
            "total": len(people), "success": 0, "errors": []}
     await driver.sync_access_rules()
+    if ctrl.get("brand") == "intelbras":  # validade de visitantes depende do relógio do facial
+        from intelbras_ingest import sync_time as ib_sync_time
+        await ib_sync_time(ctrl)
     # visitantes com visita ativa também vão para o facial (com a validade da visita)
     from visits_core import visit_subject, ACTIVE
     subjects = list(people)

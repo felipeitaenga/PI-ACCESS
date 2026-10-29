@@ -29,3 +29,4 @@
 - Modo Online: o facial faz POST `/api/intelbras/<token>/notification` (multipart: JSON `Events[]` + JPEG) e GET `/api/intelbras/<token>/keepalive`. Resposta: `{"message","code":"200","auth":"true|false"}` (`intelbras_ingest.py`). O token é secreto (campo `intelbras_token`, nunca sai na API).
 - Sem keepalive o facial fica Offline e LIBERA TODOS os cadastrados 24h → o SCARVEL gera alarme `facial_offline`. Por isso visitante tem que sair do facial no fim da visita.
 - Eventos guardados no offline chegam depois: registrar como retroativos, sem decidir de novo.
+- Relógio: o SS 3532 MF W volta para 01/01/2000 sem energia → visitante não passa (validade). O SCARVEL acerta a hora ao voltar online, a cada 6 h, no Testar e no Sincronizar.
