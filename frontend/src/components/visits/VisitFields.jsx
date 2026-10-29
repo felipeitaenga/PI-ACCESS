@@ -24,15 +24,19 @@ export function WhenFields({ v }) {
       <Field label="Início" error={errors.start_at}>
         <Input type="datetime-local" value={f.start_at} onChange={(e) => set("start_at", e.target.value)} data-testid="visit-start-input" />
       </Field>
-      <Field label="Fim da visita" required error={errors.end_at} hint={f.end_at_manual ? "Alterado manualmente" : "Calculado pela duração do tipo"}>
-        <Input type="datetime-local" value={f.end_at} onChange={(e) => manualEnd(e.target.value)} data-testid="visit-end-input" />
-        <div className="mt-1 flex gap-1">
-          {[["+1h", 1], ["+4h", 4]].map(([l, h]) => (
-            <Button key={l} type="button" size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => manualEnd(addHours(f.end_at || f.start_at, h))} data-testid={`visit-end-plus-${h}`}>{l}</Button>
-          ))}
-          <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => manualEnd(endOfDay(f.start_at))} data-testid="visit-end-eod">Fim do dia</Button>
+      <div>
+        <div className="mb-1.5 flex items-center justify-between gap-1">
+          <span className="text-xs font-semibold text-foreground/85">Fim<span className="ml-0.5 text-sky-400">*</span></span>
+          <div className="flex gap-1" title={f.end_at_manual ? "Alterado manualmente" : "Calculado pela duração do tipo"}>
+            {[["+1h", 1], ["+4h", 4]].map(([l, h]) => (
+              <Button key={l} type="button" size="sm" variant="outline" className="h-5 px-1.5 text-[10px]" onClick={() => manualEnd(addHours(f.end_at || f.start_at, h))} data-testid={`visit-end-plus-${h}`}>{l}</Button>
+            ))}
+            <Button type="button" size="sm" variant="outline" className="h-5 px-1.5 text-[10px]" onClick={() => manualEnd(endOfDay(f.start_at))} data-testid="visit-end-eod">Fim do dia</Button>
+          </div>
         </div>
-      </Field>
+        <Input type="datetime-local" value={f.end_at} onChange={(e) => manualEnd(e.target.value)} data-testid="visit-end-input" />
+        {errors.end_at && <p className="mt-1 text-xs text-red-400" data-testid="field-error">{errors.end_at}</p>}
+      </div>
     </div>
   );
 }
@@ -95,20 +99,20 @@ export function VisitorFields({ v }) {
     return () => clearTimeout(t);
   }, [f.visitor_company]);
   return (
-    <div className="grid gap-3 sm:grid-cols-6">
-      <Field className="sm:col-span-6" label="CPF do visitante" required error={errors.doc_number || (onlyDigits(f.doc_number).length === 11 && !validCpf(f.doc_number) ? "CPF inválido" : "")}
-        hint="Digite o CPF: se o visitante já tiver cadastro, os dados são preenchidos automaticamente">
-        <VisitorSuggest value={f.doc_number} onChange={(x) => set("doc_number", maskCpf(x))} onPick={prefill} className="font-mono" testid="visit-doc-number-input" field="doc" inputMode="numeric" />
+    <div className="grid gap-3 sm:grid-cols-6 lg:grid-cols-12">
+      <Field className="sm:col-span-6 lg:col-span-5" label="CPF do visitante" required error={errors.doc_number || (onlyDigits(f.doc_number).length === 11 && !validCpf(f.doc_number) ? "CPF inválido" : "")}
+        >
+        <VisitorSuggest value={f.doc_number} onChange={(x) => set("doc_number", maskCpf(x))} onPick={prefill} className="font-mono" testid="visit-doc-number-input" field="doc" inputMode="numeric" placeholder="Digite o CPF (preenche se já cadastrado)" />
       </Field>
-      <Field className="sm:col-span-6" label="Nome completo do visitante" required error={errors.name}>
+      <Field className="sm:col-span-6 lg:col-span-7" label="Nome completo do visitante" required error={errors.name}>
         <VisitorSuggest value={f.name} onChange={(x) => set("name", x)} onPick={prefill} testid="visit-name-input" field="name" />
       </Field>
-      <Field className="sm:col-span-3" label="Empresa do visitante">
+      <Field className="sm:col-span-3 lg:col-span-6" label="Empresa do visitante">
         <Input list="visitor-company-suggestions" value={f.visitor_company} onChange={(e) => set("visitor_company", e.target.value)} data-testid="visit-visitor-company-input" />
         <datalist id="visitor-company-suggestions">{sug.map((s) => <option key={s} value={s} />)}</datalist>
       </Field>
-      <Field className="sm:col-span-3" label="Motivo da visita" hint="Opcional">
-        <Input value={f.visit_reason} maxLength={200} onChange={(e) => set("visit_reason", e.target.value)} placeholder="Ex.: reunião, entrega, manutenção" data-testid="visit-reason-input" />
+      <Field className="sm:col-span-3 lg:col-span-6" label="Motivo da visita">
+        <Input value={f.visit_reason} maxLength={200} onChange={(e) => set("visit_reason", e.target.value)} placeholder="Opcional: reunião, entrega…" data-testid="visit-reason-input" />
       </Field>
     </div>
   );
@@ -118,23 +122,23 @@ export function IdentifierFields({ v }) {
   const { f, set, errors, last } = v;
   const qr = last?.identifier?.type === "qrcode" ? last.identifier.value : "";
   return (
-    <div className="grid gap-3 sm:grid-cols-6">
-      <Field className="sm:col-span-3" label="Identificador do visitante" error={errors.identifier}>
+    <div className="grid gap-3 sm:grid-cols-6 lg:grid-cols-12">
+      <Field className="sm:col-span-3 lg:col-span-4" label="Identificador" error={errors.identifier}>
         <div className="grid grid-cols-3 gap-1" data-testid="visit-identifier-type">
           {ID_TYPES.map(([k, l]) => (
             <button key={k} type="button" onClick={() => { set("id_type", k); set("id_value", ""); }} data-testid={`visit-id-type-${k}`}
-              className={cn("rounded-md border px-2 py-2 text-xs font-medium transition-colors", f.id_type === k ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:text-foreground")}>{l}</button>
+              className={cn("h-9 truncate rounded-md border px-1 text-xs font-medium transition-colors", f.id_type === k ? "border-sky-500 bg-sky-500/15 text-sky-300" : "border-border text-muted-foreground hover:text-foreground")}>{l}</button>
           ))}
         </div>
       </Field>
-      <Field className="sm:col-span-3" label="Valor" hint={f.id_type === "cartao" ? "Decimal ou hexadecimal (ex.: 0x1A2B)" : f.id_type === "qrcode" ? "Gerado automaticamente ao salvar" : "Usa a foto do visitante"}>
-        {f.id_type === "cartao" ? <Input value={f.id_value} onChange={(e) => set("id_value", e.target.value)} className="font-mono" data-testid="visit-card-input" />
+      <Field className="sm:col-span-3 lg:col-span-3" label="Valor">
+        {f.id_type === "cartao" ? <Input value={f.id_value} onChange={(e) => set("id_value", e.target.value)} placeholder="Decimal ou 0x1A2B" className="font-mono" data-testid="visit-card-input" />
           : <Input disabled value={f.id_type === "qrcode" ? qr || "(automático)" : "Foto"} className="font-mono" data-testid="visit-id-value" />}
       </Field>
-      <Field className="sm:col-span-2" label="Placa do veículo" error={errors.plate}>
+      <Field className="sm:col-span-2 lg:col-span-2" label="Placa" error={errors.plate}>
         <Input value={f.plate} onChange={(e) => set("plate", maskPlate(e.target.value))} placeholder="AAA0A00" className="font-mono uppercase" data-testid="visit-plate-input" />
       </Field>
-      <Field className="sm:col-span-4" label="Observações">
+      <Field className="sm:col-span-4 lg:col-span-3" label="Observações">
         <Input value={f.notes} onChange={(e) => set("notes", e.target.value)} data-testid="visit-notes-input" />
       </Field>
     </div>

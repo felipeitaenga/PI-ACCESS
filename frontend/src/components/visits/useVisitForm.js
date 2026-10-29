@@ -84,7 +84,7 @@ export function useVisitForm(onSaved) {
       setSync({ status: "done", devices: data.sync });
       setLast(data.visit);
       toast.success(`Visita salva (${data.visit.status})`);
-      if (andNew) setF(blank({ visit_type_id: f.visit_type_id, host_company_id: f.host_company_id }));
+      if (andNew) { picked.current = ""; setErrors({}); setF(blank({ visit_type_id: f.visit_type_id })); }
       onSaved?.();
     } catch (err) {
       setSync(null);

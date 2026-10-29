@@ -6,7 +6,7 @@ import { cropTo34Jpeg, fileToImage } from "@/lib/image";
 import { Camera, CheckCircle2, Loader2, Trash2, Upload, UserRound, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export function PhotoBlock({ photo, onChange }) {
+export function PhotoBlock({ photo, onChange, compact = false }) {
   const [cam, setCam] = useState(false);
   const [quality, setQuality] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -50,9 +50,17 @@ export function PhotoBlock({ photo, onChange }) {
         )}
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={onFile} data-testid="photo-file-input" />
-      <Button type="button" size="sm" variant="outline" onClick={openCam} data-testid="photo-webcam-button"><Camera className="mr-2 h-4 w-4" />Capturar webcam</Button>
-      <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()} data-testid="photo-upload-button"><Upload className="mr-2 h-4 w-4" />Enviar arquivo</Button>
-      <Button type="button" size="sm" variant="ghost" disabled={!photo} onClick={() => onChange("")} className="text-red-400" data-testid="photo-remove-button"><Trash2 className="mr-2 h-4 w-4" />Remover</Button>
+      {compact ? (
+        <div className="grid grid-cols-3 gap-1">
+          <Button type="button" size="sm" variant="outline" className="px-0" onClick={openCam} title="Capturar webcam" data-testid="photo-webcam-button"><Camera className="h-4 w-4" /></Button>
+          <Button type="button" size="sm" variant="outline" className="px-0" onClick={() => fileRef.current?.click()} title="Enviar arquivo" data-testid="photo-upload-button"><Upload className="h-4 w-4" /></Button>
+          <Button type="button" size="sm" variant="ghost" className="px-0 text-red-400" disabled={!photo} onClick={() => onChange("")} title="Remover foto" data-testid="photo-remove-button"><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ) : (<>
+        <Button type="button" size="sm" variant="outline" onClick={openCam} data-testid="photo-webcam-button"><Camera className="mr-2 h-4 w-4" />Capturar webcam</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()} data-testid="photo-upload-button"><Upload className="mr-2 h-4 w-4" />Enviar arquivo</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={!photo} onClick={() => onChange("")} className="text-red-400" data-testid="photo-remove-button"><Trash2 className="mr-2 h-4 w-4" />Remover</Button>
+      </>)}
       <QualityNote checking={checking} quality={quality} />
       <CameraCapture open={cam} onClose={() => setCam(false)} onCapture={onChange} />
     </div>
