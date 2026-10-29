@@ -22,3 +22,10 @@
 - CPF e telefone não vão para o facial (idCard/telnum vazios) — LGPD.
 - Categoria: toda área liberada precisa de faixa horária; sem faixa o motor nega ("Fora da faixa horária").
 - Controladoras: fabricante/modelo vêm do catálogo `backend/device_catalog.py` (status homologado / em_teste / em_breve; em_breve não pode ser salvo). Novo modelo de marca com driver existente = uma linha em MODELS. Não voltar para a lista fixa de modelos na tela.
+
+## Facial Intelbras Bio-T (SS 3532 MF W, firmware 20250403) — driver em teste (2.2.0)
+- API CGI HTTP com Digest (`backend/drivers/intelbras.py`). UserID no facial = número curto do mapa `device_uids` (uuid ↔ número). Não mandar o uuid como UserID.
+- LGPD: não enviar CitizenIDNo (CPF) nem telefone ao facial.
+- Modo Online: o facial faz POST `/api/intelbras/<token>/notification` (multipart: JSON `Events[]` + JPEG) e GET `/api/intelbras/<token>/keepalive`. Resposta: `{"message","code":"200","auth":"true|false"}` (`intelbras_ingest.py`). O token é secreto (campo `intelbras_token`, nunca sai na API).
+- Sem keepalive o facial fica Offline e LIBERA TODOS os cadastrados 24h → o SCARVEL gera alarme `facial_offline`. Por isso visitante tem que sair do facial no fim da visita.
+- Eventos guardados no offline chegam depois: registrar como retroativos, sem decidir de novo.

@@ -112,7 +112,7 @@ async def _ctrl_deleted(ids):
     await db.access_points.update_many({"controller_id": {"$in": ids}}, {"$set": {"deleted": True, "enabled": False}})
 
 
-make_crud(router, "/controllers", "controllers", search_fields=["name", "ip", "model"], sort="name", enrich=_ctrl_enrich,
+make_crud(router, "/controllers", "controllers", search_fields=["name", "ip", "model"], sort="name", enrich=_ctrl_enrich, hidden=("intelbras_token",),
           on_delete=_ctrl_deleted)
 make_crud(router, "/access-points", "access_points", search_fields=["description"], sort="description", enrich=_ap_enrich)
 
@@ -195,7 +195,7 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
         if vis:
             subjects.append(visit_subject(vis, v))
     job["total"] = job["totals"]["people"] = len(subjects)
-    if str(ctrl.get("brand", "")).startswith("beward"):
+    if str(ctrl.get("brand", "")).startswith("beward") or ctrl.get("brand") == "intelbras":
         job["removed"] = await _remove_stale(driver, {p["id"] for p in subjects}, job)
     for p in subjects:
         try:

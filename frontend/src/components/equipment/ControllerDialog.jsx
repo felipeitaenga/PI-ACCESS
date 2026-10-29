@@ -16,7 +16,7 @@ export const MODELS = {
   beward_facial: { label: "Facial Beward", max: 1, point_type: "facial" },
   hikvision_facial: { label: "Facial Hikvision", max: 1, point_type: "facial", pending: true },
   controlid_facial: { label: "Facial Control iD", max: 1, point_type: "facial", pending: true },
-  intelbras_facial: { label: "Facial Intelbras", max: 1, point_type: "facial", pending: true },
+  intelbras_facial: { label: "Facial Intelbras", max: 1, point_type: "facial" },
   ct300_2l: { label: "CT300-2L", max: 2, point_type: "catraca", pending: true },
 };
 const POINT_TYPES = [["porta", "Porta"], ["catraca", "Catraca"], ["cancela", "Cancela"], ["torniquete", "Torniquete"], ["facial", "Facial"]];
@@ -88,6 +88,34 @@ export function ModelCard({ cm, manName }) {
   );
 }
 
+function IntelbrasOnlinePanel({ form, editId }) {
+  const [host, setHost] = useState(form.intelbras_push?.host || "");
+  const [port, setPort] = useState(form.intelbras_push?.port || 8080);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      await api.post(`/equipment/controllers/${editId}/intelbras/online-mode`, { host, port });
+      toast.success("Modo Online configurado no facial");
+    } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
+    setBusy(false);
+  };
+  return (
+    <div className="col-span-2 space-y-2 rounded-md border border-sky-500/30 bg-sky-500/5 p-3 text-sm" data-testid="intelbras-online-panel">
+      <p className="font-medium">Modo Online (o SCARVEL decide e mostra a mensagem na tela)</p>
+      <p className="text-xs text-muted-foreground">IP/Porta acima: como o SCARVEL chega ao facial (pela VPN). Abaixo: como o facial chega ao SCARVEL (normalmente o IP do roteador da VPN no local).</p>
+      {!editId ? <p className="text-xs text-amber-300">Salve a controladora primeiro.</p> : (
+        <div className="flex flex-wrap items-end gap-2">
+          <FormRow label="Endereço do SCARVEL para o facial"><Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.0.2" data-testid="intelbras-push-host" /></FormRow>
+          <FormRow label="Porta"><Input type="number" className="w-24" value={port} onChange={(e) => setPort(+e.target.value)} data-testid="intelbras-push-port" /></FormRow>
+          <Button className="bg-sky-500 text-white" onClick={run} disabled={busy || !host} data-testid="intelbras-online-setup">{busy ? "Configurando…" : "Configurar no facial"}</Button>
+        </div>
+      )}
+      <p className="text-xs text-amber-300">Atenção: sem comunicação com o servidor, o facial libera todos os cadastrados. O SCARVEL gera alarme quando isso acontece.</p>
+    </div>
+  );
+}
+
 function GeneralTab({ form, setForm, sites, editId, hours, setHours, pointDirection, cat }) {
   const m = MODELS[form.model_type] || MODELS.simulado;
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
@@ -120,6 +148,7 @@ function GeneralTab({ form, setForm, sites, editId, hours, setHours, pointDirect
       <FormRow label="Usuário"><Input value={form.username} onChange={(e) => set("username")(e.target.value)} /></FormRow>
       <FormRow label="Senha"><Input type="password" placeholder={editId ? "(inalterada)" : ""} value={form.password} onChange={(e) => set("password")(e.target.value)} /></FormRow>
       <FormRow label="Site" className="col-span-2">{sel(form.site_id, set("site_id"), sites.map((s) => [s.id, s.name]), "Selecione", "controller-site")}</FormRow>
+      {form.model_type === "intelbras_facial" && <IntelbrasOnlinePanel form={form} editId={editId} />}
       {form.model_type === "beward_facial" && (
         <>
           <FormRow label="Protocolo (exclusivo)">{sel(form.transport || "http", set("transport"), [["mqtt", "MQTT (broker)"], ["http", "HTTP local (via agente)"]], "Protocolo", "controller-transport")}</FormRow>

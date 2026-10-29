@@ -7,8 +7,15 @@ from util import log_audit, client_ip
 
 
 def make_crud(router, path, coll, search_fields=None, sort="created_at",
-              write_roles=("admin", "operator"), enrich=None, default_doc=None, on_delete=None):
+              write_roles=("admin", "operator"), enrich=None, default_doc=None, on_delete=None, hidden=()):
+    """hidden: campos internos (ex.: tokens) que nunca saem na API nem são aceitos no corpo."""
     search_fields = search_fields or []
+    proj = {"_id": 0, **{h: 0 for h in hidden}}
+
+    def _clean(d):
+        for h in hidden:
+            d.pop(h, None)
+        return d
     label = coll
 
     async def _list(q: str = "", enabled: str = "", page: int = 1, limit: int = 20,
@@ -19,21 +26,21 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
         if enabled in ("true", "false"):
             query["enabled"] = (enabled == "true")
         total = await db[coll].count_documents(query)
-        items = await db[coll].find(query, {"_id": 0}).sort(sort, 1).skip((page - 1) * limit).limit(limit).to_list(limit)
+        items = await db[coll].find(query, proj).sort(sort, 1).skip((page - 1) * limit).limit(limit).to_list(limit)
         return {"items": items, "total": total, "page": page, "limit": limit}
 
     async def _all(user: dict = Depends(get_current_user)):
         from scope import scope_filter
-        return await db[coll].find({"deleted": {"$ne": True}, **(await scope_filter(user, coll))}, {"_id": 0}).sort(sort, 1).to_list(2000)
+        return await db[coll].find({"deleted": {"$ne": True}, **(await scope_filter(user, coll))}, proj).sort(sort, 1).to_list(2000)
 
     async def _get(item_id: str, user: dict = Depends(get_current_user)):
-        doc = await db[coll].find_one({"id": item_id}, {"_id": 0})
+        doc = await db[coll].find_one({"id": item_id}, proj)
         if not doc:
             raise HTTPException(status_code=404, detail="Não encontrado")
         return doc
 
     async def _create(body: dict, request: Request, user: dict = Depends(require_role(*write_roles))):
-        doc = {**(default_doc or {}), **body}
+        doc = {**(default_doc or {}), **_clean(body)}
         doc["id"] = new_id()
         doc["enabled"] = doc.get("enabled", True)
         doc["deleted"] = False
@@ -42,6 +49,7 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
             doc = await enrich(doc)
         await db[coll].insert_one(dict(doc))
         doc.pop("_id", None)
+        _clean(doc)
         await log_audit(user, "criar", label, doc["id"],
                         str(body.get("description") or body.get("name") or body.get("code") or ""),
                         client_ip(request))
@@ -53,12 +61,13 @@ def make_crud(router, path, coll, search_fields=None, sort="created_at",
             raise HTTPException(status_code=404, detail="Não encontrado")
         body.pop("id", None)
         body.pop("_id", None)
+        _clean(body)
         upd = {**before, **body}
         if enrich:
             upd = await enrich(upd)
         upd.pop("_id", None)
         await db[coll].update_one({"id": item_id}, {"$set": upd})
-        after = await db[coll].find_one({"id": item_id}, {"_id": 0})
+        after = await db[coll].find_one({"id": item_id}, proj)
         await log_audit(user, "editar", label, item_id,
                         f"alterou {list(body.keys())}", client_ip(request))
         return after

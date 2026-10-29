@@ -45,8 +45,8 @@ def test_old_record_without_catalog_gets_default():
 
 def test_em_breve_cannot_be_saved():
     with pytest.raises(HTTPException) as e:
-        run(equipment._ctrl_enrich({"id": "c3", "name": "X", "catalog_model": "intelbras_ss3532mfw"}))
-    assert e.value.status_code == 422 and "Intelbras SS 3532 MF W" in e.value.detail
+        run(equipment._ctrl_enrich({"id": "c3", "name": "X", "catalog_model": "intelbras_ss3530mf"}))
+    assert e.value.status_code == 422 and "Intelbras SS 3530 MF FACE" in e.value.detail
 
 
 def test_unknown_model_rejected():
