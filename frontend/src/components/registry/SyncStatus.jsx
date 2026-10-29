@@ -3,7 +3,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 export function SyncStatus({ sync }) {
   if (!sync) return null;
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]" data-testid="sync-status">
+    <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px]" data-testid="sync-status">
       <span className="text-muted-foreground">Equipamentos:</span>
       {sync.status === "sending" && <span className="flex items-center gap-1 text-sky-300" data-testid="sync-sending"><Loader2 className="h-3 w-3 animate-spin" />enviando…</span>}
       {sync.status === "done" && sync.devices.length === 0 && <span className="text-muted-foreground">nenhuma controladora ativa</span>}

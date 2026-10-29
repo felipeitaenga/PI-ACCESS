@@ -11,9 +11,9 @@ import { useVisitForm } from "@/components/visits/useVisitForm";
 import { readCapture } from "@/components/registry/useRegistryData";
 import { toast } from "sonner";
 import { HostFields, IdentifierFields, VisitorFields, WhenFields } from "@/components/visits/VisitFields";
-import { AlertOctagon, Eraser, LogOut, Save, SaveAll } from "lucide-react";
+import { AlertOctagon, Eraser, LogOut, ShieldCheck } from "lucide-react";
 
-const H = ({ children }) => <h3 className="mb-2 font-heading text-xs font-bold uppercase tracking-widest text-sky-400">{children}</h3>;
+const H = ({ children }) => <h3 className="mb-1.5 font-heading text-xs font-bold uppercase tracking-widest text-sky-400">{children}</h3>;
 
 function CategoryTags({ vtype, categories }) {
   const codes = (vtype?.category_ids || []).map((id) => categories.find((c) => c.id === id)?.code || "?");
@@ -62,30 +62,31 @@ export function VisitForm({ companies, categories, onSaved }) {
   const active = v.last && ["agendado", "presente"].includes(v.last.status);
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="visit-form">
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-        <section><H>Visita</H><WhenFields v={v} /><div className="mt-2"><CategoryTags vtype={v.vtype} categories={categories} /></div></section>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 lg:space-y-3 lg:p-3">
+        <section>
+          <div className="flex flex-wrap items-center justify-between gap-2"><H>Visita</H><div className="mb-1.5"><CategoryTags vtype={v.vtype} categories={categories} /></div></div>
+          <WhenFields v={v} />
+        </section>
         <section><H>Destino</H><HostFields v={v} companies={companies} /></section>
-        <div className="grid gap-4 lg:grid-cols-[1fr_180px]">
-          <div className="space-y-5">
-            <section><H>Visitante</H><VisitorFields v={v} /></section>
-            <Blacklist v={v} isAdmin={isAdmin} />
-            <section><H>Identificação e veículo</H><IdentifierFields v={v} /></section>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-[1fr_120px] lg:gap-3">
+          <section className="space-y-3"><H>Visitante e identificação</H><VisitorFields v={v} /><IdentifierFields v={v} /></section>
           <Field label={`Foto${v.f.id_type === "facial" || v.vtype?.require_photo ? " *" : ""}`} error={v.errors.photo}>
-            <PhotoBlock photo={v.f.photo} onChange={(p) => v.set("photo", p)} />
+            <PhotoBlock compact photo={v.f.photo} onChange={(p) => v.set("photo", p)} />
           </Field>
         </div>
+        <Blacklist v={v} isAdmin={isAdmin} />
       </div>
       <div className="border-t border-border p-3">
-        <SyncStatus sync={v.sync} />
-        {v.last && <p className="mb-2 text-[11px] text-muted-foreground" data-testid="visit-last-status">Última visita: {v.last.visitor_name} · <b>{v.last.status}</b>{v.last.identifier?.type === "qrcode" && ` · QR ${v.last.identifier.value}`}</p>}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* salva, envia ao facial e já deixa o formulário pronto para o próximo visitante */}
+          <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={v.busy || blocked} onClick={() => v.save(true)} data-testid="visit-save-button"><ShieldCheck className="mr-2 h-4 w-4" />Salvar e liberar</Button>
+          <div className="min-w-0 flex-1 px-1">
+            <SyncStatus sync={v.sync} />
+            {v.last && <p className="truncate text-[11px] text-muted-foreground" data-testid="visit-last-status">Última: {v.last.visitor_name} · <b>{v.last.status}</b>{v.last.identifier?.type === "qrcode" && ` · QR ${v.last.identifier.value}`}</p>}
+          </div>
+          {isAdmin && visitorParam && v.f.name && <LgpdEraseButton kind="visitor" id={visitorParam} name={v.f.name} onDone={() => { v.clear(); nav("/cadastro/visitantes"); onSaved?.(); }} />}
           <Button variant="outline" onClick={v.clear} data-testid="visit-clear-button"><Eraser className="mr-2 h-4 w-4" />Limpar</Button>
           <Button variant="outline" disabled={!active} onClick={v.endVisit} className="text-amber-300" data-testid="visit-end-button"><LogOut className="mr-2 h-4 w-4" />Encerrar visita</Button>
-          {isAdmin && visitorParam && v.f.name && <LgpdEraseButton kind="visitor" id={visitorParam} name={v.f.name} onDone={() => { v.clear(); nav("/cadastro/visitantes"); onSaved?.(); }} />}
-          <div className="flex-1" />
-          <Button variant="outline" disabled={v.busy || blocked} onClick={() => v.save(true)} data-testid="visit-save-new-button"><SaveAll className="mr-2 h-4 w-4" />Salvar e novo</Button>
-          <Button className="bg-sky-500 text-white hover:bg-sky-400" disabled={v.busy || blocked} onClick={() => v.save(false)} data-testid="visit-save-button"><Save className="mr-2 h-4 w-4" />Salvar</Button>
         </div>
       </div>
     </div>
