@@ -133,7 +133,7 @@ export function VisitorRegister() {
       <PageTop title="Cadastro de visitante" subtitle="Portaria · visita com validade, envio ao facial e acessos em tempo real" onSearch={openSearch} />
       <MobileTabs tabs={[["form", "Cadastro"], ["monitor", "Presentes"]]} tab={tab} setTab={setTab} />
       <div className="grid gap-3 lg:h-[calc(100vh-12rem)] lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_400px]">
-        <section className={panel(tab, "form", "h-[85vh] lg:h-auto")}>
+        <section className={panel(tab, "form", "h-[85vh] lg:h-auto lg:max-h-full lg:self-start")}>
           <VisitForm companies={d.companies} categories={d.categories} onSaved={saved} />
         </section>
         <section className={cn("min-h-0 gap-3 lg:flex lg:flex-col", tab === "monitor" ? "flex flex-col" : "hidden")} data-testid="visitor-register-monitor">

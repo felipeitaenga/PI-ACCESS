@@ -68,7 +68,7 @@ export function VisitForm({ companies, categories, onSaved }) {
           <WhenFields v={v} />
         </section>
         <section><H>Destino</H><HostFields v={v} companies={companies} /></section>
-        <div className="grid gap-4 sm:grid-cols-[1fr_120px] lg:gap-3">
+        <div className="grid gap-4 sm:grid-cols-[1fr_120px] lg:grid-cols-[1fr_clamp(120px,calc(100vh-620px),220px)] lg:gap-3">
           <section className="space-y-3"><H>Visitante e identificação</H><VisitorFields v={v} /><IdentifierFields v={v} /></section>
           <Field label={`Foto${v.f.id_type === "facial" || v.vtype?.require_photo ? " *" : ""}`} error={v.errors.photo}>
             <PhotoBlock compact photo={v.f.photo} onChange={(p) => v.set("photo", p)} />
