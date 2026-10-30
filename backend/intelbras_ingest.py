@@ -75,11 +75,25 @@ def parse_notification(body: bytes, content_type: str = ""):
     return data, jpeg
 
 
-SENSOR_METHODS = {"5"}  # testado no aparelho: sensor (SEN+GND) → Method 5, Status 1, sem UserID
+BUTTON_METHOD = "5"  # testado no aparelho: botão de saída (BOT+GND) → Method 5, Status 1, sem UserID
+FACE_METHOD = "15"
 
 
-def is_sensor_signal(d: dict):
-    return not d.get("UserID") and not d.get("CardNo") and str(d.get("Method", "")) in SENSOR_METHODS
+def is_exit_button(d: dict):
+    return not d.get("UserID") and not d.get("CardNo") and str(d.get("Method", "")) == BUTTON_METHOD
+
+
+async def _exit_button(ctrl, d, pic):
+    """Abertura pelo botão de saída: registra (sem pessoa) e libera o próximo giro sem alarme."""
+    ap = await access_point_of(ctrl)
+    if ap:
+        await db.access_points.update_one({"id": ap["id"]}, {"$set": {"last_remote_open": now_iso()}})
+    ev = await _base_event(ctrl, ap, d, None, pic, True, "Abertura pelo botão de saída", False)
+    ev.update({"person_name": "Botão de saída", "credential_type": "botao", "stranger": False})
+    await db.access_events.insert_one(dict(await stamp_event(ev)))
+    ev.pop("_id", None)
+    await manager.broadcast({"type": "access_event", "data": ev})
+    return _reply(False, "")  # o facial já abriu; auth=true acionaria o relé de novo
 
 
 def credential_of(d: dict):
@@ -159,17 +173,17 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
         return _reply(False, "")
     await db.beward_dedup.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"last_event_at": now_iso()}})
-    if is_sensor_signal(d):
-        # SS 3532 MF W (fw 20250403): a entrada SEN chega como AccessControl Method 5, sem pessoa
-        import passage
-        await passage.on_sensor(ctrl)
-        return _reply(False, "")  # nunca devolver auth=true aqui: acionaria o relé de novo
+    if is_exit_button(d):
+        # SS 3532 MF W (fw 20250403, testado): botão de saída (BOT) chega como AccessControl Method 5, sem pessoa
+        return await _exit_button(ctrl, d, pic)
     ap = await access_point_of(ctrl)
     person = await _person(await subject_for_uid(d.get("UserID")))
     retro = _utc_age(d) > RETRO_AFTER
     if retro or not person or not ap:
         if retro:
             granted, reason = str(d.get("Status")) == "1", "Decidido pelo facial (sem servidor)"
+        elif not person and not d.get("UserID") and str(d.get("Method", "")) == FACE_METHOD:
+            granted, reason = False, "Rosto não reconhecido (não cadastrado no facial)"
         elif not person:
             granted, reason = False, "Não cadastrado no SCARVEL"
         else:

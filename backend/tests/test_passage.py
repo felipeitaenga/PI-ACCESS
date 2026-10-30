@@ -127,20 +127,31 @@ def test_configure_door_sends_sensor_settings(env, monkeypatch):
     assert "SensorType=1" in calls[1]
 
 
-def _sensor_body():
+def _button_body():
     return (b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" +
             json.dumps({"Events": [{"Code": "AccessControl", "Data": {"UserID": "", "CardNo": "", "Method": 5, "Status": 1,
                                                                      "ErrorCode": 0, "Type": "Entry", "UTC": 1730000000}}]}).encode()
             + b"\r\n--myboundary--\r\n")
 
 
-def test_ss3532_sensor_comes_as_method5_and_confirms(env):
+def test_exit_button_is_logged_and_next_turn_is_not_unauthorized(env):
     db, ctrl, sent = env
-    res = _access(db)
-    r = run(intelbras_ingest.handle_notification(ctrl, _sensor_body(), ""))
-    assert r["auth"] == "false"  # não aciona o relé de novo
-    assert run(db.access_events.find_one({"id": res["event"]["id"]}))["passage"] == "confirmada"
-    assert run(db.access_events.count_documents({"person_name": "Desconhecido"})) == 0  # não vira "Desconhecido"
+    r = run(intelbras_ingest.handle_notification(ctrl, _button_body(), ""))
+    assert r["auth"] == "false"  # o facial já abriu sozinho
+    ev = run(db.access_events.find_one({}, {"_id": 0}))
+    assert ev["person_name"] == "Botão de saída" and ev["access_result"] == "granted" and ev["credential_type"] == "botao"
+    assert run(passage.on_sensor(ctrl)) == "remoto"  # giro logo após o botão: sem alarme
+    assert run(db.alarms.count_documents({})) == 0
+
+
+def test_unrecognized_face_reason(env):
+    db, ctrl, sent = env
+    body = (b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" +
+            json.dumps({"Events": [{"Code": "AccessControl", "Data": {"UserID": "", "Method": 15, "Status": 0, "ErrorCode": 16,
+                                                                     "UTC": int(datetime.now(timezone.utc).timestamp())}}]}).encode()
+            + b"\r\n--myboundary--\r\n")
+    run(intelbras_ingest.handle_notification(ctrl, body, ""))
+    assert "Rosto não reconhecido" in run(db.access_events.find_one({}, {"_id": 0}))["reason"]
 
 
 def test_remote_open_is_not_unauthorized(env):
