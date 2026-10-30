@@ -248,6 +248,7 @@ async def open_point(apid: str, body: dict, request: Request,
         raise HTTPException(status_code=404, detail="Ponto de acesso não encontrado")
     ctrl = await db.controllers.find_one({"id": ap.get("controller_id")}, {"_id": 0})
     driver = get_driver(ctrl or {"brand": "simulado"})
+    await db.access_points.update_one({"id": apid}, {"$set": {"last_remote_open": now_iso()}})
     await driver.open_door(apid, int(body.get("seconds", 5)))
     dest = await db.areas.find_one({"id": ap.get("dest_area_id")}, {"_id": 0}) or {}
     event = {"id": new_id(), "timestamp": now_iso(), "site_id": ap.get("site_id"), "site_name": ap.get("site_name", ""),

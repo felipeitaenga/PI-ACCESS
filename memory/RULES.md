@@ -41,5 +41,5 @@
 ## Confirmação de passagem (2.4.0)
 - Ponto de acesso com passage_mode="confirmacao": acesso liberado fica PENDENTE (coleção passages) e só conta (área atual, ocupação, anti-dupla) quando o sensor confirmar o giro (`passage.py`).
 - Sem giro em passage_timeout s → evento "nao_passou" (não conta; reentrada temporizada ignora). Giro sem pendente → alarme passagem_nao_autorizada. Debounce 2 s (abre/fecha do mesmo giro).
-- Intelbras: sinal = evento DoorStatus Status=Open no Modo Online. Sincronizar envia relé/porta aberta/sensor ao facial (configure_door). SensorType 0=NA/1=NF ainda NÃO confirmado no aparelho.
+- Intelbras SS 3532 MF W (fw 20250403, TESTADO): a entrada SEN+GND chega como AccessControl Method 5, Status 1, SEM UserID (não vem DoorStatus). Tratar como giro; responder auth=false (true acionaria o relé). Abertura remota pelo SCARVEL é ignorada por 15 s. Sincronizar envia relé/porta aberta/sensor ao facial (configure_door). SensorType 0=NA/1=NF ainda NÃO confirmado no aparelho.
 - Beward: ainda não ligado (alarme code 6 = sensor de porta) — fazer depois do teste.

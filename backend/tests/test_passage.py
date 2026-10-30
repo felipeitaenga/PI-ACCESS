@@ -125,3 +125,26 @@ def test_configure_door_sends_sensor_settings(env, monkeypatch):
     assert run(intelbras.IntelbrasDriver({"ip": "x"}).configure_door(ap))["ok"]
     assert "UnlockHoldInterval=3000" in calls[0] and "CloseTimeout=15" in calls[0] and "SensorEnable=true" in calls[0]
     assert "SensorType=1" in calls[1]
+
+
+def _sensor_body():
+    return (b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" +
+            json.dumps({"Events": [{"Code": "AccessControl", "Data": {"UserID": "", "CardNo": "", "Method": 5, "Status": 1,
+                                                                     "ErrorCode": 0, "Type": "Entry", "UTC": 1730000000}}]}).encode()
+            + b"\r\n--myboundary--\r\n")
+
+
+def test_ss3532_sensor_comes_as_method5_and_confirms(env):
+    db, ctrl, sent = env
+    res = _access(db)
+    r = run(intelbras_ingest.handle_notification(ctrl, _sensor_body(), ""))
+    assert r["auth"] == "false"  # não aciona o relé de novo
+    assert run(db.access_events.find_one({"id": res["event"]["id"]}))["passage"] == "confirmada"
+    assert run(db.access_events.count_documents({"person_name": "Desconhecido"})) == 0  # não vira "Desconhecido"
+
+
+def test_remote_open_is_not_unauthorized(env):
+    db, ctrl, sent = env
+    run(db.access_points.update_one({"id": "ap1"}, {"$set": {"last_remote_open": datetime.now(timezone.utc).isoformat()}}))
+    assert run(passage.on_sensor(ctrl)) == "remoto"
+    assert run(db.alarms.count_documents({})) == 0
