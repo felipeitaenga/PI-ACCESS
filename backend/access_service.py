@@ -52,16 +52,14 @@ async def evaluate(person, ap, when=None, persist=True):
     event = _event(person, ap, dest, origin, res, when)
     res["event"] = event
     if persist:
+        import passage
+        pending = res["granted"] and passage.is_confirm(ap)
+        if pending:
+            event["passage"] = "pendente"  # só conta quando o sensor confirmar o giro
         await db.access_events.insert_one(dict(await stamp_event(event)))
         event.pop("_id", None)
-        if res["granted"]:
-            if dest and not dest.get("is_exterior"):
-                await db.areas.update_one({"id": dest["id"]}, {"$inc": {"current_occupancy": 1}})
-            if origin and not origin.get("is_exterior") and person.get("current_area_id") == origin.get("id"):
-                await db.areas.update_one({"id": origin["id"]}, {"$inc": {"current_occupancy": -1}})
-            if person.get("person_type") == "visitante":
-                q = {"id": person["visit_id"]} if person.get("visit_id") else {"visitor_id": person["id"], "status": "presente"}
-                await db.visits.update_many(q, {"$set": {"current_area_id": dest.get("id")}})
-            else:
-                await db.people.update_one({"id": person["id"]}, {"$set": {"current_area_id": dest.get("id")}})
+        if pending:
+            await passage.create_pending(event, person, ap, dest, origin)
+        elif res["granted"]:
+            await passage.apply_entry(person, dest, origin)
     return res

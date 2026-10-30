@@ -21,7 +21,8 @@ MODEL_TYPES = {
     "intelbras_facial": {"label": "Facial Intelbras", "max": 1, "point_type": "facial", "brand": "intelbras"},
     "ct300_2l": {"label": "CT300-2L", "max": 2, "point_type": "catraca", "brand": "ct300"},
 }
-POINT_FIELDS = ["description", "type", "origin_area_id", "dest_area_id", "direction", "relay_time",
+POINT_FIELDS = ["passage_mode", "passage_timeout", "notify_not_passed", "unauthorized_alarm", "unauthorized_priority", "sensor_type",
+                "description", "type", "origin_area_id", "dest_area_id", "direction", "relay_time",
                 "door_open_time", "door_sensor", "button", "camera_id"]
 
 
@@ -193,6 +194,10 @@ async def sync_controller(cid: str, request: Request, user: dict = Depends(requi
     if ctrl.get("brand") == "intelbras":  # validade de visitantes depende do relógio do facial
         from intelbras_ingest import sync_time as ib_sync_time
         await ib_sync_time(ctrl)
+        if aps:  # relé, porta aberta, porta forçada e sensor (confirmação de passagem)
+            d = await driver.configure_door(aps[0])
+            if not d.get("ok"):
+                job["errors"].append({"person_id": None, "name": "Configuração da porta no facial", "error": str(d.get("detail"))[:200]})
     # visitantes com visita ativa também vão para o facial (com a validade da visita)
     from visits_core import visit_subject, ACTIVE
     subjects = list(people)

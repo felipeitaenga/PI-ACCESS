@@ -26,7 +26,8 @@ def run(c):
 @pytest.fixture()
 def env(monkeypatch):
     db = mongomock_motor.AsyncMongoMockClient()["t_intelbras"]
-    for m in (access_service, beward_ingest, intelbras_ingest, scope, visits_core, intelbras):
+    import passage
+    for m in (access_service, beward_ingest, intelbras_ingest, scope, visits_core, intelbras, passage):
         monkeypatch.setattr(m, "db", db)
 
     async def _noop(*a, **k):

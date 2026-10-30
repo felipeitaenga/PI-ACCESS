@@ -192,6 +192,20 @@ class IntelbrasDriver(AccessControlDriver):
         r = await self._get("recordFinder.cgi", "action=getQuerySize&name=AccessUserInfo")
         return {**r, "count": parse_kv(r["text"]).get("count")}
 
+    async def configure_door(self, ap: dict):
+        """Relé, tempo de porta aberta, alarmes e sensor (giro) conforme o ponto de acesso do SCARVEL."""
+        sensor = ap.get("passage_mode") == "confirmacao"
+        q = ("action=setConfig"
+             f"&AccessControl[0].UnlockHoldInterval={int(ap.get('relay_time') or 5) * 1000}"
+             f"&AccessControl[0].CloseTimeout={int(ap.get('door_open_time') or 20)}"
+             f"&AccessControl[0].SensorEnable={'true' if sensor else 'false'}"
+             "&AccessControl[0].BreakInAlarmEnable=true&AccessControl[0].DoorNotClosedAlarmEnable=true")
+        r = await self._get("configManager.cgi", q)
+        if r["ok"] and sensor:
+            # SensorType: 0 = NA (normalmente aberto), 1 = NF — confirmar no teste com a catraca
+            r = await self._get("configManager.cgi", f"action=setConfig&AccessControlGeneral.SensorType={1 if ap.get('sensor_type') == 'NF' else 0}")
+        return r
+
     # --- Modo Online ---
     async def configure_online(self, host: str, port: int, token: str, keepalive_s: int = 10, timeout_ms: int = 2000):
         """Liga o envio de eventos ao SCARVEL e o Modo Online (servidor decide e mostra a mensagem)."""

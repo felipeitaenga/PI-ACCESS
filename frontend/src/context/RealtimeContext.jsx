@@ -9,6 +9,7 @@ export function RealtimeProvider({ children }) {
   const [events, setEvents] = useState([]);
   const [alarms, setAlarms] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [patches, setPatches] = useState({}); // atualizações de eventos já exibidos (ex.: passagem confirmada)
   const listeners = useRef(new Set());
   const wsRef = useRef(null);
 
@@ -38,6 +39,9 @@ export function RealtimeProvider({ children }) {
           listeners.current.forEach((fn) => fn(payload));
           if (payload.type === "access_event") {
             setEvents((prev) => [payload.data, ...prev].slice(0, 100));
+          } else if (payload.type === "access_event_update") {
+            const { id, ...upd } = payload.data;
+            setPatches((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), ...upd } }));
           } else if (payload.type === "alarm") {
             setAlarms((prev) => [payload.data, ...prev].slice(0, 50));
           }
@@ -53,7 +57,7 @@ export function RealtimeProvider({ children }) {
   }, [user]);
 
   return (
-    <RealtimeContext.Provider value={{ events, alarms, connected, subscribe }}>
+    <RealtimeContext.Provider value={{ events, alarms, connected, subscribe, patch: (e) => (patches[e.id] ? { ...e, ...patches[e.id] } : e) }}>
       {children}
     </RealtimeContext.Provider>
   );

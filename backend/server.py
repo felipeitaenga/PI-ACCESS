@@ -237,6 +237,8 @@ async def on_startup():
     asyncio.create_task(beward_watch_loop())
     from intelbras_ingest import watch_loop as intelbras_watch_loop
     asyncio.create_task(intelbras_watch_loop())
+    import passage
+    asyncio.create_task(passage.loop())
     logger.info(f"SCARVEL {cfg.APP_VERSION} iniciado — cliente {cfg.CLIENTE}")
 
 

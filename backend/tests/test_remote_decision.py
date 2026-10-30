@@ -21,7 +21,8 @@ def run(c):
 @pytest.fixture()
 def env(monkeypatch):
     db = mongomock_motor.AsyncMongoMockClient()["t_remote"]
-    for m in (access_service, beward_ingest, scope, visits_core):
+    import passage
+    for m in (access_service, beward_ingest, scope, visits_core, passage):
         monkeypatch.setattr(m, "db", db)
     sent = []
     monkeypatch.setattr(beward_ingest.bus, "publish_raw", lambda dev, p: sent.append(p) or True)

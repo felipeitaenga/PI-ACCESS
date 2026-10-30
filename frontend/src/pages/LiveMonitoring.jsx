@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
 import { useAuth } from "@/context/AuthContext";
-import { PageHeader, ResultBadge } from "@/components/common";
+import { PageHeader, ResultBadge, PassageTag } from "@/components/common";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +23,7 @@ function scoreColor(s) {
 }
 
 export default function LiveMonitoring() {
-  const { events: live } = useRealtime();
+  const { events: live, patch } = useRealtime();
   const { hasRole } = useAuth();
   const [seed, setSeed] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -40,6 +40,7 @@ export default function LiveMonitoring() {
 
   const all = [...live, ...seed]
     .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i)
+    .map(patch)
     .filter((e) => filterResult === "all" || e.access_result === filterResult)
     .slice(0, 60);
 
@@ -116,6 +117,7 @@ export default function LiveMonitoring() {
                 </div>
                 <div className="text-right">
                   <ResultBadge result={e.access_result} />
+                  <PassageTag passage={e.passage} />
                   <div className="mt-1 text-[10px] font-mono text-muted-foreground">
                     {new Date(e.timestamp).toLocaleTimeString("pt-BR")}
                   </div>
