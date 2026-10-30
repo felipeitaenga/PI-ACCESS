@@ -75,6 +75,13 @@ def parse_notification(body: bytes, content_type: str = ""):
     return data, jpeg
 
 
+SENSOR_METHODS = {"5"}  # testado no aparelho: sensor (SEN+GND) → Method 5, Status 1, sem UserID
+
+
+def is_sensor_signal(d: dict):
+    return not d.get("UserID") and not d.get("CardNo") and str(d.get("Method", "")) in SENSOR_METHODS
+
+
 def credential_of(d: dict):
     if d.get("CardNo"):
         return "cartao"
@@ -152,6 +159,11 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
         return _reply(False, "")
     await db.beward_dedup.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"last_event_at": now_iso()}})
+    if is_sensor_signal(d):
+        # SS 3532 MF W (fw 20250403): a entrada SEN chega como AccessControl Method 5, sem pessoa
+        import passage
+        await passage.on_sensor(ctrl)
+        return _reply(False, "")  # nunca devolver auth=true aqui: acionaria o relé de novo
     ap = await access_point_of(ctrl)
     person = await _person(await subject_for_uid(d.get("UserID")))
     retro = _utc_age(d) > RETRO_AFTER

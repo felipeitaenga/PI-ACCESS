@@ -68,6 +68,9 @@ async def on_sensor(ctrl, ap=None):
     ap = ap or await access_point_of(ctrl)
     if not ap or not is_confirm(ap):
         return None
+    ro = ap.get("last_remote_open")
+    if ro and (_now() - datetime.fromisoformat(ro)).total_seconds() < 15:
+        return "remoto"  # abertura remota pelo SCARVEL: não é giro sem liberação
     last = ap.get("last_passage_signal")
     if last and (_now() - datetime.fromisoformat(last)).total_seconds() < DEBOUNCE_S:
         return "debounce"
