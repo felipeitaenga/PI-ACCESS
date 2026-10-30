@@ -2,6 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
 import { PassageTag, ResultBadge } from "@/components/common";
+import { ManualReleaseDialog, ManualTag, canReleaseEvent } from "@/components/access/ManualReleaseDialog";
+import { useAuth } from "@/context/AuthContext";
 import { useOpenRecord } from "@/components/registry/useRegistryData";
 import { CaptureActions } from "@/components/registry/CaptureActions";
 import { cn } from "@/lib/utils";
@@ -12,7 +14,7 @@ const typeOf = (e) => (e.person_type === "visitante" ? "visitante" : e.person_id
 const TYPE_CLS = { fixo: "border-sky-500/40 text-sky-300", visitante: "border-amber-500/40 text-amber-300", sistema: "border-slate-500/40 text-slate-400" };
 const time = (iso) => new Date(iso).toLocaleTimeString("pt-BR");
 
-function EventRow({ e, onOpen }) {
+function EventRow({ e, onOpen, onRelease }) {
   const t = typeOf(e);
   const photo = e.captured_photo || e.person_photo;
   const canOpen = t !== "sistema";
@@ -33,6 +35,11 @@ function EventRow({ e, onOpen }) {
       <div className="flex shrink-0 flex-col items-end gap-1">
         <ResultBadge result={e.access_result} />
         <PassageTag passage={e.passage} />
+        <ManualTag e={e} />
+        {onRelease && (
+          <button type="button" onClick={(ev) => { ev.stopPropagation(); onRelease(e); }}
+            className="rounded border border-amber-500/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-500/10" data-testid={`live-event-release-${e.id}`}>Liberar</button>
+        )}
         <span className="font-mono text-[10px] text-muted-foreground">{time(e.timestamp)}</span>
       </div>
     </div>
@@ -41,6 +48,8 @@ function EventRow({ e, onOpen }) {
 
 export function LiveAccessFeed() {
   const { events, connected, patch } = useRealtime();
+  const { hasRole } = useAuth();
+  const [releaseEv, setReleaseEv] = useState(null);
   const [seed, setSeed] = useState([]);
   const [filter, setFilter] = useState("all");
   const openRecord = useOpenRecord();
@@ -49,7 +58,7 @@ export function LiveAccessFeed() {
     const seen = new Set();
     return [...events, ...seed].filter((e) => !seen.has(e.id) && seen.add(e.id)).map(patch)
       .filter((e) => filter === "all" || typeOf(e) === filter).slice(0, 60);
-  }, [events, seed, filter]);
+  }, [events, seed, filter, patch]);
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="live-access-feed">
@@ -68,8 +77,9 @@ export function LiveAccessFeed() {
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3" data-testid="live-feed-list">
         {list.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">Aguardando eventos…</p>}
-        {list.map((e) => <EventRow key={e.id} e={e} onOpen={openRecord} />)}
+        {list.map((e) => <EventRow key={e.id} e={e} onOpen={openRecord} onRelease={canReleaseEvent(e, hasRole) ? setReleaseEv : null} />)}
       </div>
+      <ManualReleaseDialog event={releaseEv} onClose={() => setReleaseEv(null)} />
     </div>
   );
 }

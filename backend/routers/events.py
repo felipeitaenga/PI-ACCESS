@@ -11,9 +11,11 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.get("")
-async def list_events(site_id: str = None, door_id: str = None, result: str = None,
+async def list_events(site_id: str = None, door_id: str = None, result: str = None, manual: bool = False,
                       page: int = 1, limit: int = 30, user: dict = Depends(get_current_user)):
     q = dict(await scope_filter(user, "access_events"))
+    if manual:
+        q["manual"] = True
     if site_id:
         q["site_id"] = site_id
     if door_id:
@@ -24,6 +26,14 @@ async def list_events(site_id: str = None, door_id: str = None, result: str = No
     skip = (page - 1) * limit
     items = await db.access_events.find(q, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
     return {"items": items, "total": total, "page": page, "limit": limit}
+
+
+@router.post("/{event_id}/release")
+async def release_denied(event_id: str, body: dict, request: Request,
+                         user: dict = Depends(require_role("admin", "operator", "reception"))):
+    """Liberação manual de um acesso NEGADO pelo operador (abre o ponto e registra pessoa + operador)."""
+    import manual_release
+    return await manual_release.release(user, None, body.get("reason"), client_ip(request), event_id=event_id)
 
 
 @router.post("/simulate")

@@ -43,3 +43,8 @@
 - Sem giro em passage_timeout s → evento "nao_passou" (não conta; reentrada temporizada ignora). Giro sem pendente → alarme passagem_nao_autorizada. Debounce 2 s (abre/fecha do mesmo giro).
 - Intelbras SS 3532 MF W (fw 20250403, TESTADO no histórico do aparelho): botão de saída (BOT+GND) = AccessControl Method 5, Status 1, sem UserID → registrar 'Botão de saída' e não alarmar o giro seguinte (15 s). Rosto não reconhecido = Method 15, Status 0, ErrorCode 16, sem UserID. Sensor (SEN+GND) NÃO gera registro de acesso; esperado DoorStatus após Sincronizar com sensor ligado (ainda não confirmado). Responder auth=false a eventos sem pessoa. SensorType 0=NA/1=NF não confirmado.
 - Beward: ainda não ligado (alarme code 6 = sensor de porta) — fazer depois do teste.
+
+## Liberação manual (2.5.0)
+- Evento NEGADO → botão Liberar (feed/inspeção) → POST /events/{id}/release: motivo obrigatório, até 10 min, 1 vez só; gera evento 'manual' com pessoa/fotos do original + operador; original recebe released_by_*.
+- Tela Monitoramento › Liberação manual: todos os pontos; POST /equipment/access-points/{id}/open com motivo obrigatório e pessoa opcional.
+- Lista negra / bloqueado / categoria impeditiva: só Administrador libera. Liberação conta a passagem (ou deixa pendente se o ponto confirma giro) e não dispara 'passagem não autorizada'.

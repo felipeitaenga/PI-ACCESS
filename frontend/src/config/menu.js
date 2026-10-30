@@ -14,6 +14,7 @@ export const MENU = [
       { label: "Eventos ao vivo", to: "/monitoramento", icon: Activity, testid: "nav-live" },
       { label: "Ocupação por área", to: "/ocupacao", icon: Boxes, testid: "nav-occupancy" },
       { label: "Alarmes", to: "/alarmes", icon: Bell, badge: "alarms", testid: "nav-alarms" },
+      { label: "Liberação manual", to: "/liberacao-manual", icon: DoorOpen, testid: "nav-manual-release" },
     ],
   },
   {
