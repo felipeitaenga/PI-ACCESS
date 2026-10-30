@@ -192,6 +192,9 @@ async def handle_notification(ctrl, body: bytes, content_type: str):
         code, d = e.get("Code"), e.get("Data") or {}
         if code == "AccessControl":
             reply = await handle_access(ctrl, d, jpeg)
+        elif code == "DoorStatus" and str(d.get("Status", "")).lower() in ("open", "1", "true"):
+            import passage
+            await passage.on_sensor(ctrl)  # giro da catraca / porta aberta
         elif code == "BreakIn":
             ap = await access_point_of(ctrl)
             await raise_alarm(ctrl, "porta_forcada", f"Porta forçada — {ctrl.get('name')}", "alta", ap)

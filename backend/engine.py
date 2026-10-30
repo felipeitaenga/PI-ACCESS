@@ -119,7 +119,7 @@ def decide(person, ap, dest_area, origin_area, categories, tr_by_id, holidays, n
         mins = matched["reentry_minutes"]
         last_exit = None
         for e in (recent_events or []):
-            if e.get("direction") == "saida" and e.get("access_result") == "granted":
+            if e.get("direction") == "saida" and e.get("access_result") == "granted" and e.get("passage") != "nao_passou":
                 last_exit = _parse(e.get("timestamp"))
                 break
         if last_exit:

@@ -37,3 +37,9 @@
 - O app não mexe na VPN do servidor: grava DATA_DIR/vpn/request.json (chave pública do MikroTik) e lê DATA_DIR/vpn/status.json. Quem aplica é o `scarvel-vpn-sync.py` (root, systemd timer 15 s), com registro em /etc/scarvel-vpn/clients.json.
 - Isolamento: o MikroTik N só abre conexão na porta do próprio cliente (chain SCARVEL-VPN em DOCKER-USER).
 - Nome do cliente nunca leva o nº (URL/containers/MQTT). O nº aparece em `scarvel listar`, na tela Rede / VPN e no nome do MikroTik (SCARVEL-<cliente>-<N>).
+
+## Confirmação de passagem (2.4.0)
+- Ponto de acesso com passage_mode="confirmacao": acesso liberado fica PENDENTE (coleção passages) e só conta (área atual, ocupação, anti-dupla) quando o sensor confirmar o giro (`passage.py`).
+- Sem giro em passage_timeout s → evento "nao_passou" (não conta; reentrada temporizada ignora). Giro sem pendente → alarme passagem_nao_autorizada. Debounce 2 s (abre/fecha do mesmo giro).
+- Intelbras: sinal = evento DoorStatus Status=Open no Modo Online. Sincronizar envia relé/porta aberta/sensor ao facial (configure_door). SensorType 0=NA/1=NF ainda NÃO confirmado no aparelho.
+- Beward: ainda não ligado (alarme code 6 = sensor de porta) — fazer depois do teste.

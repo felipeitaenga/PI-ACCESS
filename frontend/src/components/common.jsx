@@ -12,6 +12,17 @@ export function StatusDot({ online, className }) {
   );
 }
 
+const PASSAGE = {
+  pendente: ["aguardando passagem…", "text-sky-300"],
+  confirmada: ["passou", "text-emerald-400"],
+  nao_passou: ["liberado, não passou", "text-amber-300"],
+};
+export function PassageTag({ passage }) {
+  const p = PASSAGE[passage];
+  if (!p) return null;
+  return <span className={`block text-[10px] font-medium ${p[1]}`} data-testid="passage-tag">● {p[0]}</span>;
+}
+
 export function ResultBadge({ result }) {
   const map = {
     granted: { label: "Liberado", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },

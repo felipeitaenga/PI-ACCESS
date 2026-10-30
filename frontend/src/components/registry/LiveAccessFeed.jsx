@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
-import { ResultBadge } from "@/components/common";
+import { PassageTag, ResultBadge } from "@/components/common";
 import { useOpenRecord } from "@/components/registry/useRegistryData";
 import { CaptureActions } from "@/components/registry/CaptureActions";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ function EventRow({ e, onOpen }) {
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <ResultBadge result={e.access_result} />
+        <PassageTag passage={e.passage} />
         <span className="font-mono text-[10px] text-muted-foreground">{time(e.timestamp)}</span>
       </div>
     </div>
@@ -39,14 +40,14 @@ function EventRow({ e, onOpen }) {
 }
 
 export function LiveAccessFeed() {
-  const { events, connected } = useRealtime();
+  const { events, connected, patch } = useRealtime();
   const [seed, setSeed] = useState([]);
   const [filter, setFilter] = useState("all");
   const openRecord = useOpenRecord();
   useEffect(() => { api.get("/events?limit=30").then(({ data }) => setSeed(data.items || [])).catch(() => {}); }, []);
   const list = useMemo(() => {
     const seen = new Set();
-    return [...events, ...seed].filter((e) => !seen.has(e.id) && seen.add(e.id))
+    return [...events, ...seed].filter((e) => !seen.has(e.id) && seen.add(e.id)).map(patch)
       .filter((e) => filter === "all" || typeOf(e) === filter).slice(0, 60);
   }, [events, seed, filter]);
 

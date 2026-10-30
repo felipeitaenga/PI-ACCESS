@@ -31,6 +31,32 @@ const sel = (value, onChange, options, ph, testid) => (
 
 const newPoint = (form, i) => ({ description: `${form.name || "Controladora"} - Ponto ${i + 1}`, type: (MODELS[form.model_type] || MODELS.simulado).point_type, direction: i % 2 ? "saida" : "entrada", relay_time: 5, door_open_time: 20 });
 
+function PassageFields({ p, set, i }) {
+  const confirm = p.passage_mode === "confirmacao";
+  const chk = (k, def) => (p[k] === undefined ? def : !!p[k]);
+  return (
+    <div className="mt-3 rounded-md border border-border bg-card/40 p-2.5" data-testid={`ap-passage-${i}`}>
+      <FormRow label="Modo de passagem">
+        {sel(p.passage_mode || "simples", set("passage_mode"), [
+          ["simples", "Liberação simples (liberou = entrou)"],
+          ["confirmacao", "Com confirmação de giro (sensor da catraca/porta)"]], "Modo", `ap-passage-mode-${i}`)}
+      </FormRow>
+      {confirm && (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+          <FormRow label="Tempo para passar (s)"><Input type="number" min="3" max="60" value={p.passage_timeout ?? 10} onChange={(e) => set("passage_timeout")(+e.target.value)} data-testid={`ap-passage-timeout-${i}`} /></FormRow>
+          <FormRow label="Sensor no facial">{sel(p.sensor_type || "NA", set("sensor_type"), [["NA", "Normalmente aberto (NA)"], ["NF", "Normalmente fechado (NF)"]], "Sensor", `ap-sensor-type-${i}`)}</FormRow>
+          <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={chk("unauthorized_alarm", true)} onChange={(e) => set("unauthorized_alarm")(e.target.checked)} data-testid={`ap-unauth-alarm-${i}`} />Alarme "Passagem não autorizada" quando girar sem liberação</label>
+          {chk("unauthorized_alarm", true) && (
+            <FormRow label="Prioridade do alarme">{sel(p.unauthorized_priority || "alta", set("unauthorized_priority"), [["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]], "Prioridade", `ap-unauth-priority-${i}`)}</FormRow>
+          )}
+          <label className="col-span-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={chk("notify_not_passed", false)} onChange={(e) => set("notify_not_passed")(e.target.checked)} data-testid={`ap-notify-not-passed-${i}`} />Avisar a portaria quando liberar e a pessoa não passar</label>
+          <p className="col-span-2 text-[11px] text-muted-foreground">Só conta a entrada (área, ocupação, anti-dupla) quando o sensor confirmar o giro. Ao Sincronizar, o SCARVEL liga o sensor e os tempos no facial.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PointCard({ p, i, areas, onChange }) {
   const set = (k) => (v) => onChange({ ...p, [k]: v });
   const areaOpts = areas.map((a) => [a.id, a.description]);
@@ -50,6 +76,7 @@ function PointCard({ p, i, areas, onChange }) {
         <FormRow label="Tempo de relé (s)"><Input type="number" value={p.relay_time ?? 5} onChange={(e) => set("relay_time")(+e.target.value)} data-testid={`ap-relay-time-${i}`} /></FormRow>
         <FormRow label="Tempo porta aberta (s)"><Input type="number" value={p.door_open_time ?? 20} onChange={(e) => set("door_open_time")(+e.target.value)} data-testid={`ap-open-time-${i}`} /></FormRow>
       </div>
+      <PassageFields p={p} set={set} i={i} />
       {p.origin_area_id && p.dest_area_id && (
         <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
           {areas.find((a) => a.id === p.origin_area_id)?.description}<ArrowRight className="h-3 w-3 text-sky-400" />{areas.find((a) => a.id === p.dest_area_id)?.description}
