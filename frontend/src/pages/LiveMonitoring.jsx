@@ -1,19 +1,15 @@
 import { useEffect, useState } from "react";
-import { api, formatApiErrorDetail } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useRealtime } from "@/context/RealtimeContext";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, ResultBadge, PassageTag } from "@/components/common";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { ManualReleaseDialog, ManualTag, canReleaseEvent } from "@/components/access/ManualReleaseDialog";
 import { useOpenRecord } from "@/components/registry/useRegistryData";
 import { CaptureActions } from "@/components/registry/CaptureActions";
 import { DoorOpen, Pencil, Radio } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 function scoreColor(s) {
@@ -29,8 +25,8 @@ export default function LiveMonitoring() {
   const [selected, setSelected] = useState(null);
   const [doors, setDoors] = useState([]);
   const [filterResult, setFilterResult] = useState("all");
-  const [unlockDoor, setUnlockDoor] = useState(null);
-  const [reason, setReason] = useState("");
+  const [releasePoint, setReleasePoint] = useState(null);
+  const [releaseEv, setReleaseEv] = useState(null);
   const openRecord = useOpenRecord();
 
   useEffect(() => {
@@ -46,24 +42,13 @@ export default function LiveMonitoring() {
 
   const canOperate = hasRole("admin", "operator", "reception");
 
-  const doUnlock = async () => {
-    try {
-      await api.post(`/equipment/access-points/${unlockDoor}/open`, { seconds: 5, reason });
-      toast.success("Porta aberta remotamente");
-      setUnlockDoor(null);
-      setReason("");
-    } catch (err) {
-      toast.error(formatApiErrorDetail(err.response?.data?.detail));
-    }
-  };
-
   return (
     <div>
       <PageHeader title="Monitoramento ao vivo" subtitle="Feed de eventos em tempo real via WebSocket">
         {canOperate && (
-          <Select onValueChange={setUnlockDoor}>
+          <Select value="" onValueChange={(id) => setReleasePoint(doors.find((d) => d.id === id))}>
             <SelectTrigger className="w-[220px]" data-testid="remote-door-unlock-button">
-              <DoorOpen className="mr-2 h-4 w-4" /> <SelectValue placeholder="Abrir porta remotamente" />
+              <DoorOpen className="mr-2 h-4 w-4" /> <SelectValue placeholder="Liberação manual" />
             </SelectTrigger>
             <SelectContent>
               {doors.map((d) => (
@@ -118,6 +103,11 @@ export default function LiveMonitoring() {
                 <div className="text-right">
                   <ResultBadge result={e.access_result} />
                   <PassageTag passage={e.passage} />
+                  <ManualTag e={e} />
+                  {canReleaseEvent(e, hasRole) && (
+                    <span role="button" tabIndex={0} onClick={(ev) => { ev.stopPropagation(); setReleaseEv(e); }}
+                      className="mt-1 inline-block rounded border border-amber-500/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-500/10" data-testid={`event-row-release-${idx}`}>Liberar</span>
+                  )}
                   <div className="mt-1 text-[10px] font-mono text-muted-foreground">
                     {new Date(e.timestamp).toLocaleTimeString("pt-BR")}
                   </div>
@@ -164,8 +154,15 @@ export default function LiveMonitoring() {
                 <Row label="Sentido" value={selected.direction} />
                 <Row label="Credencial" value={selected.credential_type} />
                 <Row label="Resultado" value={<ResultBadge result={selected.access_result} />} />
-                {selected.reason && <Row label="Motivo" value={selected.reason} />}
+                {selected.reason && <Row label="Motivo" value={selected.reason} plain />}
+                {selected.manual && <Row label="Liberado por" value={selected.operator_name} />}
+                {selected.released_by_name && <Row label="Liberado manualmente por" value={selected.released_by_name} />}
               </dl>
+              {canReleaseEvent(selected, hasRole) && (
+                <Button className="mt-4 w-full bg-amber-500 text-black hover:bg-amber-400" onClick={() => setReleaseEv(selected)} data-testid="inspector-release">
+                  <DoorOpen className="mr-2 h-4 w-4" />Liberar manualmente
+                </Button>
+              )}
               {selected.person_id && (
                 <Button variant="outline" className="mt-4 w-full" data-testid="inspector-edit-record"
                   onClick={() => openRecord(selected.person_type === "visitante" ? "visitor" : "person", selected.person_id)}>
@@ -180,33 +177,17 @@ export default function LiveMonitoring() {
         </Card>
       </div>
 
-      <Dialog open={!!unlockDoor} onOpenChange={(o) => !o && setUnlockDoor(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmação de abertura remota</DialogTitle>
-            <DialogDescription>
-              Esta ação abrirá a porta fisicamente e será registrada em auditoria.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea placeholder="Motivo da abertura (opcional)" value={reason}
-            onChange={(e) => setReason(e.target.value)} data-testid="unlock-reason-input" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUnlockDoor(null)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={doUnlock} data-testid="confirm-door-unlock-button">
-              Confirmar abertura
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ManualReleaseDialog event={releaseEv} point={releasePoint} onClose={() => { setReleaseEv(null); setReleasePoint(null); }}
+        onDone={(ne) => { setSelected(ne); }} />
     </div>
   );
 }
 
-function Row({ label, value }) {
+function Row({ label, value, plain = false }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium text-right capitalize">{value}</dd>
+      <dd className={cn("font-medium text-right", !plain && "capitalize")}>{value}</dd>
     </div>
   );
 }

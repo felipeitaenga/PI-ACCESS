@@ -26,6 +26,7 @@ import { Cameras, Shortcuts } from "@/pages/Placeholders";
 import Schedules from "@/pages/Schedules";
 import Backup from "@/pages/Backup";
 import Vpn from "@/pages/Vpn";
+import ManualRelease from "@/pages/ManualRelease";
 import Integrations from "@/pages/Integrations";
 import VisitorSettings from "@/pages/VisitorSettings";
 import SelfRegAdmin from "@/pages/SelfRegAdmin";
@@ -68,6 +69,7 @@ function AppRoutes() {
       {R("/monitoramento", <LiveMonitoring />)}
       {R("/ocupacao", <Occupancy />)}
       {R("/alarmes", <Alarms />)}
+      {R("/liberacao-manual", <ManualRelease />)}
       {R("/pessoas", <FixedBrowse />)}
       {R("/visitantes", <VisitorsBrowse />)}
       {R("/cadastro/fixos", <FixedRegister />)}
