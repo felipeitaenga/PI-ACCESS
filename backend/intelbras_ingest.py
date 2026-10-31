@@ -88,11 +88,16 @@ async def _echo(ctrl, d, pic=""):
         return None
     last = await db.intelbras_last.find_one({"_id": f"{ctrl['id']}:{uid}"})
     if last and (datetime.now(timezone.utc) - last["at"].replace(tzinfo=timezone.utc)).total_seconds() < ECHO_S:
-        if pic and last.get("event_id"):  # a foto pode vir só numa das duas notificações
-            r = await db.access_events.update_one({"id": last["event_id"], "captured_photo": {"$in": ["", None]}},
-                                                  {"$set": {"captured_photo": pic}})
-            if r.modified_count:
-                await manager.broadcast({"type": "access_event_update", "data": {"id": last["event_id"], "captured_photo": pic}})
+        if last.get("event_id"):  # foto/similaridade podem vir só numa das duas notificações (vale a 1ª que vier)
+            ev = await db.access_events.find_one({"id": last["event_id"]}, {"_id": 0, "captured_photo": 1, "match_score": 1}) or {}
+            upd = {}
+            if pic and not ev.get("captured_photo"):
+                upd["captured_photo"] = pic
+            if score_of(d) and not ev.get("match_score"):
+                upd["match_score"] = score_of(d)
+            if upd:
+                await db.access_events.update_one({"id": last["event_id"]}, {"$set": upd})
+                await manager.broadcast({"type": "access_event_update", "data": {"id": last["event_id"], **upd}})
         return _reply(last["auth"], last.get("message", ""))
     return None
 
@@ -129,6 +134,19 @@ async def _exit_button(ctrl, d, pic):
     ev.pop("_id", None)
     await manager.broadcast({"type": "access_event", "data": ev})
     return _reply(False, "")  # o facial já abriu; auth=true acionaria o relé de novo
+
+
+def score_of(d: dict):
+    """Similaridade do rosto (%) se o facial mandar (Similarity / FaceSimilarity / ...Score)."""
+    for k, v in (d or {}).items():
+        if "simil" in k.lower() or k.lower().endswith("score"):
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                continue
+            if f > 0:
+                return round(f * 100 if f <= 1 else f, 1)
+    return 0
 
 
 def credential_of(d: dict):
@@ -198,7 +216,7 @@ async def _base_event(ctrl, ap, d, person, pic, granted, reason, retro):
             "person_photo": (person or {}).get("photo_thumb") or (person or {}).get("photo", ""), "captured_photo": pic,
             "credential_type": credential_of(d), "direction": (ap or {}).get("direction", "entrada"),
             "access_result": "granted" if granted else "denied", "reason": reason + (" (retroativo)" if retro else ""),
-            "match_score": 0, "via": "intelbras", "stranger": not person}
+            "match_score": score_of(d), "via": "intelbras", "stranger": not person}
 
 
 async def handle_access(ctrl, d: dict, jpeg: bytes = None):
@@ -239,7 +257,7 @@ async def _decide(ctrl, d, pic):
     res = await evaluate(person, ap, persist=True)
     ev = res["event"]
     extra = {"captured_photo": pic, "controller_id": ctrl["id"], "via": "intelbras",
-             "credential_type": credential_of(d), "match_score": 0}
+             "credential_type": credential_of(d), "match_score": score_of(d)}
     await db.access_events.update_one({"id": ev["id"]}, {"$set": extra})
     ev.update(extra)
     await manager.broadcast({"type": "access_event", "data": ev})
