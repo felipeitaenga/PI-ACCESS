@@ -220,10 +220,24 @@ async def _base_event(ctrl, ap, d, person, pic, granted, reason, retro):
             "match_score": score_of(d), "via": "intelbras", "stranger": not person}
 
 
+def _start_snapshot(ctrl, d, jpeg):
+    """Pede a foto à câmera no instante em que a leitura chega (antes de decidir)."""
+    if jpeg or is_exit_button(d) or _utc_age(d) > RETRO_AFTER or not (d.get("UserID") or str(d.get("Method", "")) == FACE_METHOD):
+        return None
+    from drivers.factory import get_driver
+    t = asyncio.create_task(get_driver(ctrl).snapshot())
+    _BG.add(t)
+    t.add_done_callback(_BG.discard)
+    return t
+
+
 async def handle_access(ctrl, d: dict, jpeg: bytes = None):
+    snap = _start_snapshot(ctrl, d, jpeg)
     pic = f"data:image/jpeg;base64,{base64.b64encode(jpeg).decode()}" if jpeg else ""
     key = f"intelbras:{ctrl['id']}:{d.get('UTC')}:{d.get('UserID')}:{d.get('CardNo')}"
     if await db.beward_dedup.find_one({"_id": key}):
+        if snap:
+            snap.cancel()
         return _reply(False, "")
     await db.beward_dedup.insert_one({"_id": key, "at": datetime.now(timezone.utc)})
     await db.controllers.update_one({"id": ctrl["id"]}, {"$set": {"last_event_at": now_iso()}})
@@ -233,12 +247,14 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
     if _utc_age(d) <= RETRO_AFTER:
         echo = await _echo(ctrl, d, pic)
         if echo:
+            if snap:
+                snap.cancel()
             return echo
     decided = await _decide(ctrl, d, pic)
-    if not pic and decided[1]:
+    if snap and decided[1]:
         # SS 3532 MF W (testado): a 1ª notificação vem sem foto e a da 2ª é tirada depois (pessoa já saiu);
-        # pega a foto da câmera agora, sem atrasar a resposta ao facial
-        t = asyncio.create_task(_snapshot_fill(ctrl, decided[1]))
+        # a foto pedida na chegada da leitura entra no evento assim que chegar
+        t = asyncio.create_task(_snapshot_fill(snap, decided[1]))
         _BG.add(t)
         t.add_done_callback(_BG.discard)
     return await _remember(ctrl, d, decided)
@@ -247,9 +263,11 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
 _BG = set()
 
 
-async def _snapshot_fill(ctrl, event_id):
-    from drivers.factory import get_driver
-    jpeg = await get_driver(ctrl).snapshot()
+async def _snapshot_fill(snap, event_id):
+    try:
+        jpeg = await snap
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        return
     if not jpeg:
         return
     pic = f"data:image/jpeg;base64,{base64.b64encode(jpeg).decode()}"
