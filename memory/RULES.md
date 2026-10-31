@@ -41,7 +41,7 @@
 ## Confirmação de passagem (2.4.0)
 - Ponto de acesso com passage_mode="confirmacao": acesso liberado fica PENDENTE (coleção passages) e só conta (área atual, ocupação, anti-dupla) quando o sensor confirmar o giro (`passage.py`).
 - Sem giro em passage_timeout s → evento "nao_passou" (não conta; reentrada temporizada ignora). Giro sem pendente → alarme passagem_nao_autorizada. Debounce 2 s (abre/fecha do mesmo giro).
-- Intelbras SS 3532 MF W (fw 20250403, TESTADO no histórico do aparelho): botão de saída (BOT+GND) = AccessControl Method 5, Status 1, sem UserID → registrar 'Botão de saída' e não alarmar o giro seguinte (15 s). Rosto não reconhecido = Method 15, Status 0, ErrorCode 16, sem UserID. Sensor (SEN+GND) NÃO gera registro de acesso; esperado DoorStatus após Sincronizar com sensor ligado (ainda não confirmado). Responder auth=false a eventos sem pessoa. SensorType 0=NA/1=NF não confirmado.
+- Intelbras SS 3532 MF W (fw 20250403, TESTADO no histórico do aparelho): botão de saída (BOT+GND) = AccessControl Method 5, Status 1, sem UserID → registrar 'Botão de saída' e não alarmar o giro seguinte (15 s). Rosto não reconhecido = Method 15, Status 0, ErrorCode 16, sem UserID. Sensor (SEN+GND) NÃO gera registro de acesso; com AccessControl[0].SensorEnable=true chega DoorStatus Open/Close (TESTADO). SensorType 0 = NF, 1 = NA (TESTADO: tipo 0 com fio solto = Open). configure_door manda cada setConfig separado e confere com getConfig. Responder auth=false a eventos sem pessoa. Teste manual com curl: usar -g (colchetes na URL).
 - Beward: ainda não ligado (alarme code 6 = sensor de porta) — fazer depois do teste.
 
 ## Liberação manual (2.5.0)

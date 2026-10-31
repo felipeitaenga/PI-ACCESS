@@ -52,6 +52,11 @@ async def subject_for_uid(uid):
 
 
 # ---------- helpers puros ----------
+def sensor_type_code(kind) -> int:
+    """Tipo do contato do sensor no ponto do SCARVEL → valor do facial (SS 3532 MF W: 0 = NF, 1 = NA)."""
+    return 0 if kind == "NF" else 1
+
+
 def parse_kv(text: str) -> dict:
     """Resposta CGI 'chave=valor' por linha → dict."""
     out = {}
@@ -193,18 +198,36 @@ class IntelbrasDriver(AccessControlDriver):
         return {**r, "count": parse_kv(r["text"]).get("count")}
 
     async def configure_door(self, ap: dict):
-        """Relé, tempo de porta aberta, alarmes e sensor (giro) conforme o ponto de acesso do SCARVEL."""
+        """Relé, tempo de porta aberta e sensor (giro) conforme o ponto de acesso do SCARVEL.
+
+        Cada parâmetro vai num setConfig separado (um parâmetro recusado não derruba os outros) e o
+        resultado é conferido com getConfig. Testado no SS 3532 MF W: SensorType 0 = NF, 1 = NA
+        (com 0 e o fio solto o facial mostra a porta "Open")."""
         sensor = ap.get("passage_mode") == "confirmacao"
-        q = ("action=setConfig"
-             f"&AccessControl[0].UnlockHoldInterval={int(ap.get('relay_time') or 5) * 1000}"
-             f"&AccessControl[0].CloseTimeout={int(ap.get('door_open_time') or 20)}"
-             f"&AccessControl[0].SensorEnable={'true' if sensor else 'false'}"
-             "&AccessControl[0].BreakInAlarmEnable=true&AccessControl[0].DoorNotClosedAlarmEnable=true")
-        r = await self._get("configManager.cgi", q)
-        if r["ok"] and sensor:
-            # SensorType: 0 = NA (normalmente aberto), 1 = NF — confirmar no teste com a catraca
-            r = await self._get("configManager.cgi", f"action=setConfig&AccessControlGeneral.SensorType={1 if ap.get('sensor_type') == 'NF' else 0}")
-        return r
+        stype = sensor_type_code(ap.get("sensor_type"))
+        want = {"UnlockHoldInterval": int(ap.get("relay_time") or 5) * 1000,
+                "CloseTimeout": int(ap.get("door_open_time") or 20),
+                "SensorEnable": "true" if sensor else "false"}
+        if sensor:
+            want["SensorType"] = stype
+        failed = []
+        for k, v in want.items():
+            r = await self._get("configManager.cgi", f"action=setConfig&AccessControl[0].{k}={v}")
+            if not r["ok"]:
+                failed.append(f"{k}: {r['detail'] or r['code']}")
+        if sensor:  # alguns firmwares usam o tipo geral; não é obrigatório
+            await self._get("configManager.cgi", f"action=setConfig&AccessControlGeneral.SensorType={stype}")
+        cfg = await self._get("configManager.cgi", "action=getConfig&name=AccessControl")
+        if not cfg["ok"]:
+            return {**cfg, "detail": "não foi possível conferir a configuração da porta: " + (cfg["detail"] or str(cfg["code"]))}
+        got = parse_kv(cfg["text"])
+        wrong = [k for k, v in want.items() if str(got.get(f"table.AccessControl[0].{k}", "")).lower() != str(v).lower()]
+        if wrong:
+            detail = "facial não aceitou: " + ", ".join(f"{k} (está {got.get('table.AccessControl[0].' + k, '?')}, devia ser {want[k]})" for k in wrong)
+            if failed:
+                detail += " · " + "; ".join(failed)
+            return {"ok": False, "code": 200, "text": cfg["text"], "detail": detail}
+        return {"ok": True, "code": 200, "text": "OK", "detail": "sensor ligado" if sensor else "sensor desligado"}
 
     # --- Modo Online ---
     async def configure_online(self, host: str, port: int, token: str, keepalive_s: int = 10, timeout_ms: int = 2000):

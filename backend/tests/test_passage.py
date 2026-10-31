@@ -114,17 +114,39 @@ def test_intelbras_doorstatus_confirms(env):
     assert run(db.access_events.find_one({"id": res["event"]["id"]}))["passage"] == "confirmada"
 
 
-def test_configure_door_sends_sensor_settings(env, monkeypatch):
-    calls = []
+def _fake_device(monkeypatch, accept=True):
+    """Facial falso: guarda o que o setConfig gravou e devolve no getConfig."""
+    calls, cfg = [], {}
 
     async def _req(drv, method, cgi, query="", body=None, timeout=8):
         calls.append(query)
-        return {"ok": True, "code": 200, "text": "OK", "detail": ""}
+        if "setConfig" in query:
+            k, v = query.split("&", 1)[1].split("=", 1)
+            if accept or "SensorEnable" not in k:
+                cfg["table." + k] = v
+            return {"ok": True, "code": 200, "text": "OK", "detail": ""}
+        return {"ok": True, "code": 200, "text": "\n".join(f"{k}={v}" for k, v in cfg.items()), "detail": ""}
     monkeypatch.setattr(intelbras.IntelbrasDriver, "_req", _req)
-    ap = {"passage_mode": "confirmacao", "relay_time": 3, "door_open_time": 15, "sensor_type": "NF"}
-    assert run(intelbras.IntelbrasDriver({"ip": "x"}).configure_door(ap))["ok"]
-    assert "UnlockHoldInterval=3000" in calls[0] and "CloseTimeout=15" in calls[0] and "SensorEnable=true" in calls[0]
-    assert "SensorType=1" in calls[1]
+    return calls, cfg
+
+
+def test_configure_door_sends_each_setting_and_verifies(env, monkeypatch):
+    calls, cfg = _fake_device(monkeypatch)
+    ap = {"passage_mode": "confirmacao", "relay_time": 3, "door_open_time": 15, "sensor_type": "NA"}
+    r = run(intelbras.IntelbrasDriver({"ip": "x"}).configure_door(ap))
+    assert r["ok"], r
+    assert cfg["table.AccessControl[0].SensorEnable"] == "true" and cfg["table.AccessControl[0].UnlockHoldInterval"] == "3000"
+    assert cfg["table.AccessControl[0].SensorType"] == "1"  # NA = 1 no SS 3532 MF W (testado)
+    assert sum("setConfig" in c for c in calls) >= 4 and calls[-1].startswith("action=getConfig")
+
+
+def test_configure_door_nf_and_reports_refused(env, monkeypatch):
+    _, cfg = _fake_device(monkeypatch)
+    run(intelbras.IntelbrasDriver({"ip": "x"}).configure_door({"passage_mode": "confirmacao", "sensor_type": "NF"}))
+    assert cfg["table.AccessControl[0].SensorType"] == "0"
+    _fake_device(monkeypatch, accept=False)
+    r = run(intelbras.IntelbrasDriver({"ip": "x"}).configure_door({"passage_mode": "confirmacao"}))
+    assert not r["ok"] and "SensorEnable" in r["detail"]
 
 
 def _button_body():
