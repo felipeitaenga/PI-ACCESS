@@ -28,6 +28,10 @@ export default function LiveMonitoring() {
   const [releasePoint, setReleasePoint] = useState(null);
   const [releaseEv, setReleaseEv] = useState(null);
   const openRecord = useOpenRecord();
+  // evento novo vai direto para a Inspeção facial
+  const newest = live[0]?.id;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (newest) setSelected(live[0]); }, [newest]);
 
   useEffect(() => {
     api.get("/events?limit=30").then(({ data }) => setSeed(data.items));

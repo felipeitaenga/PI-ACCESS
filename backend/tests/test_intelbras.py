@@ -238,3 +238,9 @@ def test_clock_is_set_when_device_comes_back_and_on_test(env, monkeypatch):
     run(intelbras_ingest.heartbeat(c))  # já acertado há pouco: não repete
     run(asyncio.sleep(0.05))
     assert fr.calls == []
+
+
+def test_score_of_reads_similarity_fields():
+    assert intelbras_ingest.score_of({"Similarity": 87}) == 87
+    assert intelbras_ingest.score_of({"FaceSimilarity": "0.913"}) == 91.3
+    assert intelbras_ingest.score_of({"UserID": "1", "Method": 15}) == 0
