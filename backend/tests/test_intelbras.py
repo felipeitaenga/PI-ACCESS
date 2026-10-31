@@ -144,6 +144,8 @@ def test_online_mode_server_decides_and_applies_anti_double(env):
     db, ctrl, now = env
     uid = run(intelbras.uid_for("p-uuid-1"))
     r1 = run(intelbras_ingest.handle_notification(ctrl, _multipart(_access(uid, int(now.timestamp()))), ""))
+    # nova tentativa (não o eco da mesma leitura): passou do ECHO_S
+    run(db.intelbras_last.update_many({}, {"$set": {"at": now - timedelta(seconds=60)}}))
     r2 = run(intelbras_ingest.handle_notification(ctrl, _multipart(_access(uid, int(now.timestamp()) + 5)), ""))
     assert r1 == {"message": "Bem-vindo(a), Mariana!", "code": "200", "auth": "true"}
     assert r2["auth"] == "false" and r2["message"].startswith("Acesso negado: Anti-dupla")
