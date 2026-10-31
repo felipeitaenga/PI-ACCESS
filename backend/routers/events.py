@@ -54,6 +54,17 @@ async def list_alarms(acknowledged: str = None, user: dict = Depends(get_current
     return await db.alarms.find(q, {"_id": 0}).sort("timestamp", -1).limit(100).to_list(100)
 
 
+@alarms_router.post("/ack-all")
+async def ack_all_alarms(request: Request, body: dict = None,
+                         user: dict = Depends(require_role("admin", "operator"))):
+    """Reconhece de uma vez todos os alarmes abertos."""
+    comment = (body or {}).get("comment", "")
+    r = await db.alarms.update_many({"acknowledged": {"$ne": True}}, {"$set": {
+        "acknowledged": True, "ack_by": user.get("name"), "comment": comment, "ack_at": now_iso()}})
+    await log_audit(user, "reconhecer_todos_alarmes", "alarm", "", f"{r.modified_count} alarmes · {comment}", client_ip(request))
+    return {"ok": True, "count": r.modified_count}
+
+
 @alarms_router.post("/{alarm_id}/ack")
 async def ack_alarm(alarm_id: str, request: Request, body: dict = None,
                     user: dict = Depends(require_role("admin", "operator"))):
