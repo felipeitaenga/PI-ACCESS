@@ -149,6 +149,25 @@ def test_configure_door_nf_and_reports_refused(env, monkeypatch):
     assert not r["ok"] and "SensorEnable" in r["detail"]
 
 
+def _face_body(status, utc):
+    return (b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" +
+            json.dumps({"Events": [{"Code": "AccessControl", "Data": {"UserID": "7", "Method": 15, "Status": status,
+                                                                     "Type": "Entry", "UTC": utc}}]}).encode()
+            + b"\r\n--myboundary--\r\n")
+
+
+def test_double_notification_of_same_read_creates_one_pending(env):
+    db, ctrl, sent = env
+    run(db.device_uids.insert_one({"_id": "p1", "uid": 7}))
+    now = int(datetime.now(timezone.utc).timestamp())
+    r1 = run(intelbras_ingest.handle_notification(ctrl, _face_body(0, now), ""))
+    r2 = run(intelbras_ingest.handle_notification(ctrl, _face_body(1, now + 1), ""))
+    assert r1["auth"] == "true" and r2 == r1
+    assert run(db.access_events.count_documents({"person_id": "p1"})) == 1
+    assert run(db.passages.count_documents({"status": "pendente"})) == 1
+    assert run(passage.on_sensor(ctrl)) == "confirmada"
+
+
 def _button_body():
     return (b"--myboundary\r\nContent-Type: text/plain\r\n\r\n" +
             json.dumps({"Events": [{"Code": "AccessControl", "Data": {"UserID": "", "CardNo": "", "Method": 5, "Status": 1,
