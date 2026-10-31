@@ -5,7 +5,7 @@ export function SyncStatus({ sync }) {
   return (
     <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px]" data-testid="sync-status">
       <span className="text-muted-foreground">Equipamentos:</span>
-      {sync.status === "sending" && <span className="flex items-center gap-1 text-sky-300" data-testid="sync-sending"><Loader2 className="h-3 w-3 animate-spin" />enviando…</span>}
+      {sync.status === "sending" && <span className="flex items-center gap-1 text-sky-300" data-testid="sync-sending"><Loader2 className="h-3 w-3 animate-spin" />enviando{sync.name ? ` ${sync.name.split(" ")[0]}` : ""}…</span>}
       {sync.status === "done" && sync.devices.length === 0 && <span className="text-muted-foreground">nenhuma controladora ativa</span>}
       {sync.devices.map((d) => (
         <span key={d.controller_id} title={d.error || "ok"} data-testid={`sync-device-${d.controller_id}`}

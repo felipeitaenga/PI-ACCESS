@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
+import { useRealtime } from "@/context/RealtimeContext";
 import { fromLocalInput, nowLocal } from "@/lib/br";
 import { addHours, docError, plateError, typeHours } from "@/components/visits/visitUtils";
 import { toast } from "sonner";
@@ -20,6 +21,17 @@ export function useVisitForm(onSaved) {
   const [sync, setSync] = useState(null);
   const [last, setLast] = useState(null);
   const picked = useRef("");
+  const mine = useRef(new Set());
+  const { subscribe } = useRealtime();
+  // envio aos faciais roda em segundo plano: resultado chega pelo tempo real
+  useEffect(() => subscribe((m) => {
+    if (m.type !== "visit_sync" || !mine.current.has(m.data.visit_id)) return;
+    mine.current.delete(m.data.visit_id);
+    const devs = m.data.sync || [];
+    setSync((s) => (s && s.visitId === m.data.visit_id ? { ...s, status: "done", devices: devs } : s));
+    const bad = devs.filter((d) => d.status !== "ok");
+    if (bad.length) toast.error(`${m.data.visitor_name}: falha ao enviar para ${bad.map((d) => d.name).join(", ")}`, { description: bad[0].error, duration: 10000 });
+  }), [subscribe]);
   const set = useCallback((k, v) => setF((s) => ({ ...s, [k]: v })), []);
   const vtype = types.find((t) => t.id === f.visit_type_id);
 
@@ -81,7 +93,8 @@ export function useVisitForm(onSaved) {
         identifier: { type: f.id_type, value: f.id_value }, photo: f.photo?.startsWith("data:") ? f.photo : "",
         plate: f.plate, notes: f.notes, visit_reason: f.visit_reason, blacklist_justification: f.blacklist_justification,
       });
-      setSync({ status: "done", devices: data.sync });
+      if (data.sync) setSync({ status: "done", devices: data.sync });
+      else { mine.current.add(data.visit.id); setSync({ status: "sending", devices: [], visitId: data.visit.id, name: data.visit.visitor_name }); }
       setLast(data.visit);
       toast.success(`Visita salva (${data.visit.status})`);
       if (andNew) { picked.current = ""; setErrors({}); setF(blank({ visit_type_id: f.visit_type_id })); }
