@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtime } from "@/context/RealtimeContext";
@@ -26,7 +26,7 @@ export const MANAGER_PATHS = new Set(["/", "/monitoramento", "/cadastro/visitant
 
 export function Layout({ children }) {
   const { user, logout, hasRole } = useAuth();
-  const { connected, alarms } = useRealtime();
+  const { connected, subscribe } = useRealtime();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => load(LS.collapsed, false));
@@ -41,9 +41,14 @@ export function Layout({ children }) {
   useEffect(() => { save(LS.collapsed, collapsed); }, [collapsed]);
   useEffect(() => { save(LS.groups, groupState); }, [groupState]);
   useEffect(() => { save(LS.favs, favs); }, [favs]);
+  // contador do menu Alarmes: sempre o total de abertos no servidor (sobe com alarme novo, desce ao reconhecer)
+  const loadAlarmCount = useCallback(() => api.get("/alarms/count").then(({ data }) => setAlarmCount(data.open)).catch(() => {}), []);
   useEffect(() => {
-    api.get("/alarms?acknowledged=false").then(({ data }) => setAlarmCount(data.length)).catch(() => {});
-  }, []);
+    loadAlarmCount();
+    const t = setInterval(loadAlarmCount, 60000);
+    const off = subscribe((m) => { if (m.type === "alarm" || m.type === "alarms_changed") loadAlarmCount(); });
+    return () => { clearInterval(t); off(); };
+  }, [loadAlarmCount, subscribe]);
   useEffect(() => {
     if (!["admin", "operator", "reception", "company_manager"].includes(user?.role)) return undefined;
     const f = () => api.get("/selfreg/summary").then(({ data }) => setSelfregCount(data.pending)).catch(() => {});
@@ -51,10 +56,6 @@ export function Layout({ children }) {
     const t = setInterval(f, 60000);
     return () => clearInterval(t);
   }, [user?.role]);
-  useEffect(() => {
-    const pend = alarms.filter((a) => !a.acknowledged).length;
-    if (pend) setAlarmCount((c) => c + pend);
-  }, [alarms.length]); // eslint-disable-line
   useEffect(() => {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmd(true); }
