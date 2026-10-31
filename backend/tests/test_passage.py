@@ -1,4 +1,5 @@
 """Confirmação de passagem: liberado só conta quando o sensor (giro) confirmar."""
+import base64
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
@@ -183,6 +184,23 @@ def test_photo_from_second_notification_fills_event(env):
     ev = run(db.access_events.find_one({"person_id": "p1"}, {"_id": 0}))
     assert ev["captured_photo"].startswith("data:image/jpeg;base64,")
     assert any(m["type"] == "access_event_update" and m["data"].get("captured_photo") for m in sent)
+
+
+def test_first_notification_takes_snapshot_now(env, monkeypatch):
+    db, ctrl, sent = env
+    run(db.device_uids.insert_one({"_id": "p1", "uid": 7}))
+
+    async def _snap(self, timeout=4):
+        return b"\xff\xd8\xffNOW"
+    monkeypatch.setattr(intelbras.IntelbrasDriver, "snapshot", _snap)
+    now = int(datetime.now(timezone.utc).timestamp())
+    run(intelbras_ingest.handle_notification(ctrl, _face_body(0, now), ""))
+    run(asyncio.sleep(0.05))
+    later = b"\r\n--myboundary\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xffLATER\r\n--myboundary--"
+    run(intelbras_ingest.handle_notification(ctrl, _face_body(1, now + 1).replace(b"\r\n--myboundary--", later), ""))
+    ev = run(db.access_events.find_one({"person_id": "p1"}, {"_id": 0}))
+    assert ev["captured_src"] == "snapshot"
+    assert base64.b64decode(ev["captured_photo"].split(",")[1]).endswith(b"NOW")  # não trocou pela foto atrasada
 
 
 def _button_body():

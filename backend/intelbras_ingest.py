@@ -89,10 +89,11 @@ async def _echo(ctrl, d, pic=""):
     last = await db.intelbras_last.find_one({"_id": f"{ctrl['id']}:{uid}"})
     if last and (datetime.now(timezone.utc) - last["at"].replace(tzinfo=timezone.utc)).total_seconds() < ECHO_S:
         if last.get("event_id"):  # foto/similaridade podem vir só numa das duas notificações (vale a 1ª que vier)
-            ev = await db.access_events.find_one({"id": last["event_id"]}, {"_id": 0, "captured_photo": 1, "match_score": 1}) or {}
+            ev = await db.access_events.find_one({"id": last["event_id"]}, {"_id": 0, "captured_photo": 1, "match_score": 1, "captured_src": 1}) or {}
             upd = {}
             if pic and not ev.get("captured_photo"):
-                upd["captured_photo"] = pic
+                upd["captured_photo"] = pic  # reserva: só se a foto do momento (snapshot) não veio
+
             if score_of(d) and not ev.get("match_score"):
                 upd["match_score"] = score_of(d)
             if upd:
@@ -233,7 +234,27 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
         echo = await _echo(ctrl, d, pic)
         if echo:
             return echo
-    return await _remember(ctrl, d, await _decide(ctrl, d, pic))
+    decided = await _decide(ctrl, d, pic)
+    if not pic and decided[1]:
+        # SS 3532 MF W (testado): a 1ª notificação vem sem foto e a da 2ª é tirada depois (pessoa já saiu);
+        # pega a foto da câmera agora, sem atrasar a resposta ao facial
+        t = asyncio.create_task(_snapshot_fill(ctrl, decided[1]))
+        _BG.add(t)
+        t.add_done_callback(_BG.discard)
+    return await _remember(ctrl, d, decided)
+
+
+_BG = set()
+
+
+async def _snapshot_fill(ctrl, event_id):
+    from drivers.factory import get_driver
+    jpeg = await get_driver(ctrl).snapshot()
+    if not jpeg:
+        return
+    pic = f"data:image/jpeg;base64,{base64.b64encode(jpeg).decode()}"
+    await db.access_events.update_one({"id": event_id}, {"$set": {"captured_photo": pic, "captured_src": "snapshot"}})
+    await manager.broadcast({"type": "access_event_update", "data": {"id": event_id, "captured_photo": pic}})
 
 
 async def _decide(ctrl, d, pic):

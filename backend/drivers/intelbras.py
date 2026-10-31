@@ -119,6 +119,15 @@ class IntelbrasDriver(AccessControlDriver):
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "code": 0, "text": "", "detail": f"Sem conexão com {self._base()}: {str(e)[:120]}"}
 
+    async def snapshot(self, timeout=4):
+        """Foto da câmera do facial agora (JPEG) ou None."""
+        try:
+            async with httpx.AsyncClient(timeout=timeout, auth=self._auth()) as c:
+                r = await c.get(f"{self._base()}/cgi-bin/snapshot.cgi?channel=1")
+            return r.content if r.status_code == 200 and r.content[:3] == b"\xff\xd8\xff" else None
+        except Exception:  # noqa: BLE001
+            return None
+
     async def _get(self, cgi, query=""):
         return await self._req("GET", cgi, query)
 

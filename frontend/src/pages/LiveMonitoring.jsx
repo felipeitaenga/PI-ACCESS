@@ -44,7 +44,7 @@ export default function LiveMonitoring() {
     .filter((e) => filterResult === "all" || e.access_result === filterResult)
     .slice(0, 60);
   // inspeção acompanha atualizações em tempo real (ex.: foto capturada que chega depois)
-  const cur = selected ? (all.find((e) => e.id === selected.id) || patch(selected)) : null;
+  const cur = selected ? (all.find((e) => e.id === selected.id) || patch(selected)) : all[0] || null;
 
   const canOperate = hasRole("admin", "operator", "reception");
 
