@@ -62,6 +62,22 @@ async def _update_event(event_id, passage, reason_suffix=""):
     await manager.broadcast({"type": "access_event_update", "data": {"id": event_id, **upd}})
 
 
+async def _unauthorized_event(ctrl, ap):
+    """Registra no Ao vivo / relatórios o giro sem liberação (além do alarme)."""
+    from scope import stamp_event
+    ev = {"id": new_id(), "timestamp": now_iso(), "site_id": ctrl.get("site_id"), "site_name": ctrl.get("site_name", ""),
+          "area_id": ap.get("dest_area_id"), "area_name": ap.get("dest_area_name", ""), "door_id": ap["id"],
+          "door_name": ap.get("description"), "access_point_id": ap["id"], "controller_id": ctrl.get("id"),
+          "device_id": ctrl.get("id"), "person_id": None, "person_name": "Giro sem liberação", "person_type": "",
+          "company_name": "", "person_photo": "", "captured_photo": "", "credential_type": "sensor",
+          "direction": ap.get("direction", "entrada"), "access_result": "denied",
+          "reason": "Passagem não autorizada (carona ou passagem forçada)", "match_score": 0,
+          "passage": "nao_autorizada", "stranger": False}
+    await db.access_events.insert_one(dict(await stamp_event(ev)))
+    ev.pop("_id", None)
+    await manager.broadcast({"type": "access_event", "data": ev})
+
+
 async def on_sensor(ctrl, ap=None):
     """Sinal de giro/porta aberta vindo do facial."""
     from beward_ingest import access_point_of, raise_alarm
@@ -82,6 +98,8 @@ async def on_sensor(ctrl, ap=None):
         await apply_entry(p["person"], p.get("dest") or {}, p.get("origin") or {})
         await _update_event(p["event_id"], "confirmada")
         return "confirmada"
+    await _unauthorized_event(ctrl, ap)
+    logger.info(f"giro sem liberação em {ap.get('description')}")
     if ap.get("unauthorized_alarm", True):
         await raise_alarm(ctrl, "passagem_nao_autorizada",
                           f"Passagem não autorizada em '{ap.get('description')}': giro sem liberação (carona ou passagem forçada)",

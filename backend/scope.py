@@ -120,6 +120,8 @@ def ws_visible(user, message):
     """Filtro do WebSocket: gestor só recebe eventos das suas empresas e nada de alarmes/equipamentos."""
     if not is_manager(user):
         return True
+    if message.get("type") == "visit_sync":  # resultado do envio da visita que o próprio gestor cadastrou
+        return (message.get("data") or {}).get("company_id") in cids(user)
     if message.get("type") != "access_event":
         return message.get("type") in ("connected",)
     return (message.get("data") or {}).get("company_id") in cids(user)

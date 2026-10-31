@@ -1,4 +1,5 @@
 """Cadastro de visita (portaria), tipos de visita e configurações de visitantes."""
+import asyncio
 import re
 import secrets
 from datetime import datetime, timezone, timedelta
@@ -9,6 +10,7 @@ from models import new_id, now_iso
 from photo_quality import make_thumb
 from registry_common import ND, sync_to_devices
 from util import log_audit, client_ip
+from realtime import manager
 from scope import scope_filter, find_scoped, require_company, is_manager, allowed_ids
 from visits_core import (get_settings, validate_doc, doc_key, compute_end, type_hours, parse_dt, card_decimal,
                          norm_plate, visit_subject, end_visit, DOC_TYPES, ID_TYPES, ACTIVE)
@@ -223,10 +225,24 @@ async def _check(body, settings, user):
 
 @router.post("")
 async def create_visit(body: dict, request: Request, user: dict = Depends(require_role(*WRITE))):
-    return await register_visit(body, user, client_ip(request))
+    return await register_visit(body, user, client_ip(request), background=True)
 
 
-async def register_visit(body: dict, user: dict, ip: str = "", origin: str = ""):
+_BG = set()
+
+
+async def _sync_visit_bg(visitor, visit):
+    """Envio aos faciais depois de responder (a portaria já pode fazer o próximo cadastro)."""
+    try:
+        sync = await sync_to_devices(visit_subject(visitor, visit), "Visitante")
+    except Exception as e:  # noqa: BLE001
+        sync = [{"controller_id": "", "name": "Equipamentos", "status": "erro", "error": str(e)[:120]}]
+    await db.visits.update_one({"id": visit["id"]}, {"$set": {"sync": sync}})
+    await manager.broadcast({"type": "visit_sync", "data": {"visit_id": visit["id"], "company_id": visit.get("host_company_id"),
+                                                         "visitor_name": visitor.get("name"), "sync": sync}})
+
+
+async def register_visit(body: dict, user: dict, ip: str = "", origin: str = "", background: bool = False):
     """Cria a visita (portaria ou autocadastro aprovado), grava o visitante e envia ao(s) facial(is)."""
     settings = await get_settings()
     errs, c = await _check(body, settings, user)
@@ -283,8 +299,14 @@ async def register_visit(body: dict, user: dict, ip: str = "", origin: str = "")
     visit.pop("_id", None)
     detail = f"{visitor['name']} → {c['host']['name']} ({status})" + (f" · LIBERADO LISTA NEGRA: {override}" if override else "")
     await log_audit(user, "visita", "visit", visit["id"], detail, ip)
-    sync = await sync_to_devices(visit_subject(visitor, visit), "Visitante")
-    await db.visits.update_one({"id": visit["id"]}, {"$set": {"sync": sync}})
+    if background:
+        t = asyncio.create_task(_sync_visit_bg(dict(visitor), dict(visit)))
+        _BG.add(t)
+        t.add_done_callback(_BG.discard)
+        sync = None
+    else:
+        sync = await sync_to_devices(visit_subject(visitor, visit), "Visitante")
+        await db.visits.update_one({"id": visit["id"]}, {"$set": {"sync": sync}})
     visitor.pop("photo", None)
     return {"visit": visit, "visitor": visitor, "sync": sync}
 

@@ -105,13 +105,20 @@ def is_exit_button(d: dict):
     return not d.get("UserID") and not d.get("CardNo") and str(d.get("Method", "")) == BUTTON_METHOD
 
 
+BUTTON_BADGE = "data:image/svg+xml;base64," + base64.b64encode(
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="90" height="110" viewBox="0 0 90 110">'
+    b'<rect width="90" height="110" rx="8" fill="#334155"/><text x="45" y="68" font-family="Arial,sans-serif" '
+    b'font-size="34" font-weight="700" fill="#e2e8f0" text-anchor="middle">BT</text></svg>').decode()
+
+
 async def _exit_button(ctrl, d, pic):
     """Abertura pelo botão de saída: registra (sem pessoa) e libera o próximo giro sem alarme."""
     ap = await access_point_of(ctrl)
     if ap:
         await db.access_points.update_one({"id": ap["id"]}, {"$set": {"last_remote_open": now_iso()}})
     ev = await _base_event(ctrl, ap, d, None, pic, True, "Abertura pelo botão de saída", False)
-    ev.update({"person_name": "Botão de saída", "credential_type": "botao", "stranger": False})
+    ev.update({"person_name": "Botão de saída", "credential_type": "botao", "stranger": False,
+               "person_photo": BUTTON_BADGE, "captured_photo": ""})
     await db.access_events.insert_one(dict(await stamp_event(ev)))
     ev.pop("_id", None)
     await manager.broadcast({"type": "access_event", "data": ev})

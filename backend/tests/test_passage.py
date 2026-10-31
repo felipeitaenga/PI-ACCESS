@@ -87,6 +87,9 @@ def test_turn_without_release_raises_alarm(env):
     assert run(passage.on_sensor(ctrl)) == "nao_autorizada"
     alarm = run(db.alarms.find_one({}, {"_id": 0}))
     assert alarm["type"] == "passagem_nao_autorizada" and alarm["priority"] == "alta"
+    ev = run(db.access_events.find_one({}, {"_id": 0}))  # também aparece no Ao vivo
+    assert ev["person_name"] == "Giro sem liberação" and ev["access_result"] == "denied" and ev["passage"] == "nao_autorizada"
+    assert any(m["type"] == "access_event" for m in sent)
 
 
 def test_open_close_of_same_turn_counts_once(env):
@@ -181,6 +184,7 @@ def test_exit_button_is_logged_and_next_turn_is_not_unauthorized(env):
     assert r["auth"] == "false"  # o facial já abriu sozinho
     ev = run(db.access_events.find_one({}, {"_id": 0}))
     assert ev["person_name"] == "Botão de saída" and ev["access_result"] == "granted" and ev["credential_type"] == "botao"
+    assert ev["person_photo"].startswith("data:image/svg+xml") and ev["captured_photo"] == ""  # selo BT
     assert run(passage.on_sensor(ctrl)) == "remoto"  # giro logo após o botão: sem alarme
     assert run(db.alarms.count_documents({})) == 0
 
