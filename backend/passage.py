@@ -8,6 +8,7 @@ Ponto de acesso com passage_mode="confirmacao": o acesso liberado fica PENDENTE 
 O sinal do sensor chega do driver (Intelbras: evento DoorStatus Open).
 """
 import asyncio
+import base64
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -62,6 +63,12 @@ async def _update_event(event_id, passage, reason_suffix=""):
     await manager.broadcast({"type": "access_event_update", "data": {"id": event_id, **upd}})
 
 
+ALARM_BADGE = "data:image/svg+xml;base64," + base64.b64encode(
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="90" height="110" viewBox="0 0 90 110">'
+    b'<rect width="90" height="110" rx="8" fill="#7f1d1d"/><text x="45" y="68" font-family="Arial,sans-serif" '
+    b'font-size="34" font-weight="700" fill="#fecaca" text-anchor="middle">AL</text></svg>').decode()
+
+
 async def _unauthorized_event(ctrl, ap):
     """Registra no Ao vivo / relatórios o giro sem liberação (além do alarme)."""
     from scope import stamp_event
@@ -69,7 +76,7 @@ async def _unauthorized_event(ctrl, ap):
           "area_id": ap.get("dest_area_id"), "area_name": ap.get("dest_area_name", ""), "door_id": ap["id"],
           "door_name": ap.get("description"), "access_point_id": ap["id"], "controller_id": ctrl.get("id"),
           "device_id": ctrl.get("id"), "person_id": None, "person_name": "Giro sem liberação", "person_type": "",
-          "company_name": "", "person_photo": "", "captured_photo": "", "credential_type": "sensor",
+          "company_name": "", "person_photo": ALARM_BADGE, "captured_photo": "", "credential_type": "sensor",
           "direction": ap.get("direction", "entrada"), "access_result": "denied",
           "reason": "Passagem não autorizada (carona ou passagem forçada)", "match_score": 0,
           "passage": "nao_autorizada", "stranger": False}

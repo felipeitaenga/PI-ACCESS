@@ -89,6 +89,7 @@ def test_turn_without_release_raises_alarm(env):
     assert alarm["type"] == "passagem_nao_autorizada" and alarm["priority"] == "alta"
     ev = run(db.access_events.find_one({}, {"_id": 0}))  # também aparece no Ao vivo
     assert ev["person_name"] == "Giro sem liberação" and ev["access_result"] == "denied" and ev["passage"] == "nao_autorizada"
+    assert ev["person_photo"].startswith("data:image/svg+xml")  # selo AL
     assert any(m["type"] == "access_event" for m in sent)
 
 
@@ -169,6 +170,19 @@ def test_double_notification_of_same_read_creates_one_pending(env):
     assert run(db.access_events.count_documents({"person_id": "p1"})) == 1
     assert run(db.passages.count_documents({"status": "pendente"})) == 1
     assert run(passage.on_sensor(ctrl)) == "confirmada"
+
+
+def test_photo_from_second_notification_fills_event(env):
+    db, ctrl, sent = env
+    run(db.device_uids.insert_one({"_id": "p1", "uid": 7}))
+    now = int(datetime.now(timezone.utc).timestamp())
+    run(intelbras_ingest.handle_notification(ctrl, _face_body(0, now), ""))  # sem foto
+    jpeg = b"\xff\xd8\xff\xe0FAKE"
+    body2 = _face_body(1, now + 1).replace(b"\r\n--myboundary--", b"\r\n--myboundary\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n--myboundary--")
+    run(intelbras_ingest.handle_notification(ctrl, body2, ""))
+    ev = run(db.access_events.find_one({"person_id": "p1"}, {"_id": 0}))
+    assert ev["captured_photo"].startswith("data:image/jpeg;base64,")
+    assert any(m["type"] == "access_event_update" and m["data"].get("captured_photo") for m in sent)
 
 
 def _button_body():

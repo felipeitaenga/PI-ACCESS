@@ -80,7 +80,7 @@ FACE_METHOD = "15"
 ECHO_S = 6  # SS 3532 MF W (testado): cada leitura chega 2x no Modo Online (Status 0 e depois Status 1)
 
 
-async def _echo(ctrl, d):
+async def _echo(ctrl, d, pic=""):
     """Segunda notificação da mesma leitura (mesmo UserID em poucos segundos): devolve a mesma decisão
     sem criar outro evento/passagem pendente."""
     uid = d.get("UserID") or d.get("CardNo")
@@ -88,16 +88,22 @@ async def _echo(ctrl, d):
         return None
     last = await db.intelbras_last.find_one({"_id": f"{ctrl['id']}:{uid}"})
     if last and (datetime.now(timezone.utc) - last["at"].replace(tzinfo=timezone.utc)).total_seconds() < ECHO_S:
+        if pic and last.get("event_id"):  # a foto pode vir só numa das duas notificações
+            r = await db.access_events.update_one({"id": last["event_id"], "captured_photo": {"$in": ["", None]}},
+                                                  {"$set": {"captured_photo": pic}})
+            if r.modified_count:
+                await manager.broadcast({"type": "access_event_update", "data": {"id": last["event_id"], "captured_photo": pic}})
         return _reply(last["auth"], last.get("message", ""))
     return None
 
 
-async def _remember(ctrl, d, reply):
+async def _remember(ctrl, d, decided):
+    reply, event_id = decided
     uid = d.get("UserID") or d.get("CardNo")
     if uid:
         await db.intelbras_last.update_one({"_id": f"{ctrl['id']}:{uid}"},
                                            {"$set": {"at": datetime.now(timezone.utc), "auth": reply["auth"] == "true",
-                                                     "message": reply["message"]}}, upsert=True)
+                                                     "message": reply["message"], "event_id": event_id}}, upsert=True)
     return reply
 
 
@@ -206,7 +212,7 @@ async def handle_access(ctrl, d: dict, jpeg: bytes = None):
         # SS 3532 MF W (fw 20250403, testado): botão de saída (BOT) chega como AccessControl Method 5, sem pessoa
         return await _exit_button(ctrl, d, pic)
     if _utc_age(d) <= RETRO_AFTER:
-        echo = await _echo(ctrl, d)
+        echo = await _echo(ctrl, d, pic)
         if echo:
             return echo
     return await _remember(ctrl, d, await _decide(ctrl, d, pic))
@@ -229,7 +235,7 @@ async def _decide(ctrl, d, pic):
         await db.access_events.insert_one(dict(await stamp_event(ev)))
         ev.pop("_id", None)
         await manager.broadcast({"type": "access_event", "data": ev})
-        return _reply(False, "Acesso negado: " + reason if not retro else "")
+        return _reply(False, "Acesso negado: " + reason if not retro else ""), ev["id"]
     res = await evaluate(person, ap, persist=True)
     ev = res["event"]
     extra = {"captured_photo": pic, "controller_id": ctrl["id"], "via": "intelbras",
@@ -239,8 +245,8 @@ async def _decide(ctrl, d, pic):
     await manager.broadcast({"type": "access_event", "data": ev})
     first = (person.get("name") or "").split(" ")[0]
     if res["granted"]:
-        return _reply(True, f"Bem-vindo(a), {first}!")
-    return _reply(False, f"Acesso negado: {res.get('reason') or ''}")
+        return _reply(True, f"Bem-vindo(a), {first}!"), ev["id"]
+    return _reply(False, f"Acesso negado: {res.get('reason') or ''}"), ev["id"]
 
 
 async def handle_notification(ctrl, body: bytes, content_type: str):

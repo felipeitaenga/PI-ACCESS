@@ -19,6 +19,9 @@ const TYPE_LABEL = {
   dispositivo_offline: "Dispositivo offline",
   tentativas_negadas: "Tentativas negadas repetidas",
   coacao: "Coação",
+  passagem_nao_autorizada: "Passagem não autorizada",
+  liberado_nao_passou: "Liberado e não passou",
+  facial_offline: "Facial sem comunicação",
 };
 
 export default function Alarms() {
@@ -39,14 +42,22 @@ export default function Alarms() {
   const canAck = hasRole("admin", "operator");
 
   const ack = async () => {
-    await api.post(`/alarms/${ackTarget.id}/ack`, { comment });
-    toast.success("Alarme reconhecido");
+    if (ackTarget === "all") {
+      const { data } = await api.post("/alarms/ack-all", { comment });
+      toast.success(`${data.count} alarme(s) reconhecido(s)`);
+    } else {
+      await api.post(`/alarms/${ackTarget.id}/ack`, { comment });
+      toast.success("Alarme reconhecido");
+    }
     setAckTarget(null); setComment(""); load();
   };
 
   return (
     <div>
       <PageHeader title="Alarmes" subtitle="Eventos críticos com prioridade e reconhecimento">
+        {canAck && tab === "open" && alarms.length > 0 && (
+          <Button variant="outline" onClick={() => setAckTarget("all")} data-testid="alarms-ack-all"><Check className="mr-2 h-4 w-4" />Reconhecer todos ({alarms.length}{alarms.length >= 100 ? "+" : ""})</Button>
+        )}
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="open" data-testid="alarms-tab-open">Abertos</TabsTrigger>
@@ -89,7 +100,7 @@ export default function Alarms() {
 
       <Dialog open={!!ackTarget} onOpenChange={(o) => !o && setAckTarget(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reconhecer alarme</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{ackTarget === "all" ? "Reconhecer todos os alarmes abertos" : "Reconhecer alarme"}</DialogTitle></DialogHeader>
           <Textarea placeholder="Comentário do operador (opcional)" value={comment} onChange={(e) => setComment(e.target.value)} data-testid="alarm-ack-comment" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAckTarget(null)}>Cancelar</Button>

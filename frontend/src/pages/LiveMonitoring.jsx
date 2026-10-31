@@ -39,6 +39,8 @@ export default function LiveMonitoring() {
     .map(patch)
     .filter((e) => filterResult === "all" || e.access_result === filterResult)
     .slice(0, 60);
+  // inspeção acompanha atualizações em tempo real (ex.: foto capturada que chega depois)
+  const cur = selected ? (all.find((e) => e.id === selected.id) || patch(selected)) : null;
 
   const canOperate = hasRole("admin", "operator", "reception");
 
@@ -121,55 +123,55 @@ export default function LiveMonitoring() {
         {/* Inspector */}
         <Card className="border-border bg-card p-5 lg:col-span-4">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Inspeção facial</h2>
-          {selected ? (
+          {cur ? (
             <div data-testid="event-inspector">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Cadastrada</div>
-                  {selected.person_photo ? (
-                    <img src={selected.person_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                  {cur.person_photo ? (
+                    <img src={cur.person_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
                   ) : (
                     <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-secondary p-3 text-center text-xs text-muted-foreground" data-testid="inspector-no-registered">
-                      {selected.person_id ? "Sem foto cadastrada" : "Não identificado pelo facial"}
+                      {cur.person_id ? "Sem foto cadastrada" : "Não identificado pelo facial"}
                     </div>
                   )}
                 </div>
                 <div>
                   <div className="mb-1 text-xs font-mono uppercase text-muted-foreground">Capturada</div>
-                  {selected.captured_photo ? (
-                    <img src={selected.captured_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                  {cur.captured_photo ? (
+                    <img src={cur.captured_photo} alt="" className="aspect-square w-full rounded-lg object-cover" />
                   ) : <div className="aspect-square w-full rounded-lg bg-secondary" />}
                 </div>
               </div>
               <div className="mt-4 rounded-lg border border-border p-3 text-center">
                 <div className="text-xs font-mono uppercase text-muted-foreground">Confiança</div>
-                <div className={cn("text-3xl font-extrabold font-mono", scoreColor(selected.match_score))}>
-                  {selected.match_score != null && Number(selected.match_score) > 0 ? `${Math.round(Number(selected.match_score) * 10) / 10}%` : "—"}
+                <div className={cn("text-3xl font-extrabold font-mono", scoreColor(cur.match_score))}>
+                  {cur.match_score != null && Number(cur.match_score) > 0 ? `${Math.round(Number(cur.match_score) * 10) / 10}%` : "—"}
                 </div>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
-                <Row label="Pessoa" value={selected.person_name} />
-                <Row label="Porta" value={selected.door_name} />
-                <Row label="Área" value={selected.area_name} />
-                <Row label="Sentido" value={selected.direction} />
-                <Row label="Credencial" value={selected.credential_type} />
-                <Row label="Resultado" value={<ResultBadge result={selected.access_result} />} />
-                {selected.reason && <Row label="Motivo" value={selected.reason} plain />}
-                {selected.manual && <Row label="Liberado por" value={selected.operator_name} />}
-                {selected.released_by_name && <Row label="Liberado manualmente por" value={selected.released_by_name} />}
+                <Row label="Pessoa" value={cur.person_name} />
+                <Row label="Porta" value={cur.door_name} />
+                <Row label="Área" value={cur.area_name} />
+                <Row label="Sentido" value={cur.direction} />
+                <Row label="Credencial" value={cur.credential_type} />
+                <Row label="Resultado" value={<ResultBadge result={cur.access_result} />} />
+                {cur.reason && <Row label="Motivo" value={cur.reason} plain />}
+                {cur.manual && <Row label="Liberado por" value={cur.operator_name} />}
+                {cur.released_by_name && <Row label="Liberado manualmente por" value={cur.released_by_name} />}
               </dl>
-              {canReleaseEvent(selected, hasRole) && (
-                <Button className="mt-4 w-full bg-amber-500 text-black hover:bg-amber-400" onClick={() => setReleaseEv(selected)} data-testid="inspector-release">
+              {canReleaseEvent(cur, hasRole) && (
+                <Button className="mt-4 w-full bg-amber-500 text-black hover:bg-amber-400" onClick={() => setReleaseEv(cur)} data-testid="inspector-release">
                   <DoorOpen className="mr-2 h-4 w-4" />Liberar manualmente
                 </Button>
               )}
-              {selected.person_id && (
+              {cur.person_id && (
                 <Button variant="outline" className="mt-4 w-full" data-testid="inspector-edit-record"
-                  onClick={() => openRecord(selected.person_type === "visitante" ? "visitor" : "person", selected.person_id)}>
-                  <Pencil className="mr-2 h-4 w-4" />Editar cadastro {selected.person_type === "visitante" ? "do visitante" : "do fixo"}
+                  onClick={() => openRecord(cur.person_type === "visitante" ? "visitor" : "person", cur.person_id)}>
+                  <Pencil className="mr-2 h-4 w-4" />Editar cadastro {cur.person_type === "visitante" ? "do visitante" : "do fixo"}
                 </Button>
               )}
-              {!selected.person_id && <CaptureActions photo={selected.captured_photo} className="mt-4" testPrefix="inspector-capture" />}
+              {!cur.person_id && <CaptureActions photo={cur.captured_photo} className="mt-4" testPrefix="inspector-capture" />}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Selecione um evento no feed para inspecionar.</div>
