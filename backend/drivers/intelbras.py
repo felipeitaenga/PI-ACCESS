@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 TZ = ZoneInfo("America/Sao_Paulo")
 TIMEOUT = 8
 FOREVER = ("2020-01-01 00:00:00", "2037-12-31 23:59:59")
+_SNAP = {}  # cliente HTTP aberto por facial (snapshot rápido)
 FACE_MAX_BYTES = 200_000  # foto de face: JPEG pequeno (o facial recusa imagens grandes)
 
 
@@ -120,12 +121,19 @@ class IntelbrasDriver(AccessControlDriver):
             return {"ok": False, "code": 0, "text": "", "detail": f"Sem conexão com {self._base()}: {str(e)[:120]}"}
 
     async def snapshot(self, timeout=4):
-        """Foto da câmera do facial agora (JPEG) ou None."""
+        """Foto da câmera do facial agora (JPEG) ou None.
+        Conexão e autenticação Digest ficam abertas por facial: sem isso cada foto custa 2 idas e voltas
+        pela VPN (desafio 401 + pedido) e a pessoa já saiu da frente quando a foto é tirada."""
+        key = (self._base(), self.device.get("username") or "admin", self.device.get("password_enc") or self.device.get("password"))
+        c = _SNAP.get(key)
+        if c is None or c.is_closed:
+            c = _SNAP[key] = httpx.AsyncClient(timeout=timeout, auth=self._auth(),
+                                               limits=httpx.Limits(max_keepalive_connections=2, keepalive_expiry=120))
         try:
-            async with httpx.AsyncClient(timeout=timeout, auth=self._auth()) as c:
-                r = await c.get(f"{self._base()}/cgi-bin/snapshot.cgi?channel=1")
+            r = await c.get(f"{self._base()}/cgi-bin/snapshot.cgi?channel=1")
             return r.content if r.status_code == 200 and r.content[:3] == b"\xff\xd8\xff" else None
         except Exception:  # noqa: BLE001
+            _SNAP.pop(key, None)
             return None
 
     async def _get(self, cgi, query=""):
